@@ -1,0 +1,20 @@
+package com.BusReservation.constants;
+
+public enum Code {
+
+    SUCCESS,
+    NOT_FOUND,
+    VALIDATION_FAILED,
+    DUPLICATE_ENTRY,
+    CREATED,
+    ACCESS_DENIED,
+    UNAUTHORIZED,
+    INSUFFICIENT_SEATS,
+    REQUEST_TIMEOUT,
+    INVALID,
+    INTERNAL_SERVER_ERROR,
+    MODIFIED_BY_OTHER,
+    NO_ERROR,
+    PARTIAL_UPDATE,
+    DELETED
+}
