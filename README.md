@@ -281,7 +281,7 @@ This mechanism guarantees that:
 ### 🔐 3. Change Password (Management User)
 
 <details>
-  <summary>PUT: /management/change-password</summary>
+  <summary>🛠 PATCH: /management/change-password</summary>
 
 #### 📝 Description
  - Allows the logged-in Management user to securely change their password.
@@ -297,6 +297,7 @@ This mechanism guarantees that:
 &nbsp;&nbsp;&nbsp; "newPassword": "Your New Password"  
 }  
 > 💡 Tip: Replace the placeholder values with your own details.
+
 
 #### ⚙️ How the Backend Validates This (Important) 
 **1.** Extracts the **currently authenticated username** using:  
@@ -320,17 +321,34 @@ This ensures:
 ✔ Consistent with enterprise-grade security flows  
 
 #### 📤 Success Response
+<details>
+  <summary>View screenshot</summary>
+    <br>
 ![Management Password Update Success]()
+</details>  
+
 
 #### ❗ Error Responses
 > Wrong old password  
-![Management Profile Update Error]()
+<details>
+  <summary>View screenshot</summary>
+    <br>
+  ![Management Profile Update Error]()
+</details> 
  
-> Empty/invalid new password  
+> Empty/invalid new password
+<details>
+  <summary>View screenshot</summary>
+    <br>
 ![Management Profile Update Error]()
+</details>  
   
 > Unauthorized (if old token invalid due to username update)  
+<details>
+  <summary>View screenshot</summary>
+    <br>
 ![Management Profile Update Error]()
+</details>  
 
 
 #### ⚠️ Critical Notes & Security Flow
@@ -342,3 +360,47 @@ This ensures:
     - No change is possible without verifying the old password
     - Only the true authenticated, verified Admin can modify credentials
 </details>
+
+
+### 🔐 4. Get Management Profile
+
+<details>
+  <summary>🛠 GET: /management/profile </summary>
+
+#### 📝 Description
+- Fetches the **currently authenticated Management/Admin** user's profile information.
+- This endpoint uses Spring Security’s `@AuthenticationPrincipal` to obtain the identity (UserPrincipal) of the logged-in Management user.
+- It ensures that only **valid, authenticated, ADMIN-role** users can view their own profile.
+- The API returns profile details as a **DTO**, hiding sensitive database fields such as password, internal identifiers, and security metadata.
+- This is typically the first action an authenticated admin performs after updating profile or changing password.
+
+#### 🔑 Roles Allowed
+> MANAGEMENT / ADMIN (Authorization is internally assigned — NOT modifiable via profile/update API)
+
+#### ❗ Error Responses
+<details>
+  <summary>View error response screenshot</summary>
+    <br>
+  ![Management Profile view Error]()
+</details>  
+
+#### 📤 Success Response
+<details>
+  <summary>View success response screenshot</summary>
+  <br>
+  ![Management Profile view Error]()
+</details>  
+
+#### 🔐 Security Notes
+- This endpoint uses the same authentication & authorization rules. For detailed security behavior, refer to:  
+🔗 [API #2 – Update Profile](README.md#2-update-management-profile)  
+🔗 [API #3 – Change Password](README.md#3-change-password-management-user)  
+- These include:
+   - JWT validation
+   - UserPrincipal sanity checks
+   - ADMIN role enforcement
+   - Token invalidation after username change 
+</details>  
+
+
+
