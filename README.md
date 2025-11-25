@@ -708,10 +708,10 @@ This endpoint allows management users to view, filter, sort, and paginate locati
 </details>
 
 #### HTTP Status Code Table
-| HTTP Code | Meaning                            | Example                                                                     |
-| --------- | ---------------------------------- | --------------------------------------------------------------------------- |
-| 400       | Bad Request	                       | `"Invalid country/state/city enum or pagination value"`                     |
-| 200       | Success                            | `Data found`                                         |
+| HTTP Code | Status Name       | Meaning               | When It Occurs                                |
+| --------- | ----------------- | --------------------- | --------------------------------------------- |
+| 200       | SUCCESS           | Request succeeded     | Data found and returned successfully          |
+| 400       | VALIDATION_FAILED | Bad Request           | Invalid ID / regex or enum fail               |
 
 
 #### ⚠️ Edge Cases & Developer Notes
@@ -736,16 +736,123 @@ This endpoint allows management users to view, filter, sort, and paginate locati
 **Roles Allowed:** ADMIN  
 
 #### 📝 Description
-This endpoint is used to update a location, where a single logical “Location” consists of:
+This endpoint updates the complete hierarchical Location structure—**City** → **State** → **Country**—using a single validated DTO. The update process is entity-aware and selective, meaning each layer (`CountryEntity`, `StateEntity`, `CityEntity`, and `MasterLocation`) is updated **only when its incoming value differs**, ensuring minimal writes and preserving high data integrity.
+
+It enforces strict cross-entity consistency between the 3-level relational structure and MasterLocation by performing:
+- Performs **strict enum parsing** for both `State` and `Country` with descriptive error feedback.
+- Applies **regex-based string validation** to ensure clean, predictable input values.
+- Prevents duplicates across **two independent systems**:
+    - The main relational location tables
+    - The `MasterLocation` registry
+- Ensures the existence and correctness of the **target MasterLocation record** before updating any entity.
+- Executes **multi-level conditional updates** (Country → State → City) only if the new values differ from stored values.
+- Uses **optimistic locking controls** to detect collisions when multiple authority-level users attempt to edit the same record simultaneously.
+- Executes the entire operation within a **single transactional boundary**, guaranteeing atomic, consistent, and rollback-safe updates.
+
+#### 📥 Request Body
+{  
+&nbsp;&nbsp;&nbsp; "city": "Chennai",  
+&nbsp;&nbsp;&nbsp; "state": "Tamil Nadu",  
+&nbsp;&nbsp;&nbsp; "country": "India"  
+}  
 
 
+#### ⚙️ Backend Processing Workflow (High-Density Version)
+**1. Authorization & User Validation**  
+- Validates JWT, Ensures authenticated user is ADMIN only
+- Fetches management user via `UserPrincipalValidationUtils` for `updatedBy` tracking.  
+
+**2. Preliminary Input Validation**  
+- id must be a positive long.
+- DTO undergoes Spring @Valid rules.
+- Any violation → 400 with standardized ApiResponse.  
+
+**3. Fetch Current Location Set**  
+
+Loads the existing CityEntity (root) → retrieves linked StateEntity & CountryEntity.
+If city not found → 404.  
+
+**4. Enum Parsing & Syntax Validation**  
+- Converts input state/country → Enum via `ParsingEnumUtils`  
+- Validates name formats using strict RegEx.  
+  If invalid → 400.  
+
+**5. Duplicate Combination Check (Two-Level)**  
+
+**Level 1:** Checks if (city, stateEnum, countryEnum) combo already exists in relational tables.    
+**Level 2:** Checks same combo in MasterLocation.  
+If either exists and it’s not the current record → **409 Conflict.**  
 
 
+**6. MasterLocation Consistency Guard**  
+
+Ensures MasterLocation entry for the current (old) city/state/country exists.  
+If missing → marks data inconsistency → **404**.  
+
+**7. Conditional Entity Updates**  
+
+Each entity updates **only if changed**:  
+  - If Country changed → update CountryEntity
+  - If State changed → update StateEntity (linked to updated/new country)
+  - If City changed → update CityEntity (linked to updated/new state)
+Every update applies `updatedAt`, `updatedBy`, version increment.
+
+**8. Secondary Duplicate Check for City Under State**  
+
+When state changes: ensures no other City with same name exists in that state.
+If conflict → **409**.  
+
+**9. MasterLocation Synchronization**  
+
+After updating relational entities:  
+  - Updates MasterLocation with new city/state/country
+  - Updates audit fields
+  - Guarantees the consolidated table is always consistent  
+
+**10. Optimistic Locking Protection**  
+
+If another admin modified the location during update:
+ - JPA throws `ObjectOptimisticLockingFailureException` or OptimisticLockException
+ - Controller returns **409 MODIFIED_BY_OTHER**  
+
+**11. Transaction Completion**  
+
+Entire operation runs inside a single `@Transactional` block:  
+- All changes commit only if every step succeeds
+- Any exception → full rollback
 
 
+#### 📤 Success Response
+<details> 
+  <summary>View screenshot</summary>
+   ![Location Update Success]()
+</details>
+
+#### ❗ Error Response
+<details> 
+  <summary>View screenshot</summary>
+   ![Location Update Success]()
+</details>
+
+#### HTTP Status Code Table
+| HTTP Code | Status Name       | Meaning               | When It Occurs                                |
+| --------- | ----------------- | --------------------- | --------------------------------------------- |
+| 200       | SUCCESS           | Request succeeded     | Data found and returned successfully          |
+| 400       | VALIDATION_FAILED | Bad Request           | Invalid ID / invalid DTO / regex or enum fail |
+| 401       | UNAUTHORIZED      | Authentication Failed | Missing or invalid JWT                        |
+| 404       | NOT_FOUND         | Resource Not Found    | CityEntity / MasterLocation entity missing    |
+| 403       | FORBIDDEN         | Access Denied         | Only Authority users could modify             |
+| 409       | CONFLICT          | Duplicate Entry       | New combination already exists / Optimistic lock conflict |
+| 500       | INTERNAL_SERVER_ERROR | Unexpected Error | Unexpected server-side error              |
 
 
-
+#### 🧪 Edge Case Rules (Refined)
+- Case differences alone (e.g., "chennai" → "Chennai") do not trigger duplicates.
+- State or Country change triggers cascaded re-evaluation of duplicates within new hierarchy.
+- MasterLocation must always exist — no silent auto-create during update.
+- Concurrent updates gracefully fail with explicit conflict messaging.
+- Update operation is designed to be deterministic and free of side effects.
+- Also, I faced more challenges while building this one, Let me describe that in **Challenge section.**
   
 </details>
 
