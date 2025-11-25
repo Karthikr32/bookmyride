@@ -402,5 +402,360 @@ This ensures:
    - Token invalidation after username change 
 </details>  
 
+### 🗺️ 5. Create New Location (City + State + Country Hierarchy)
+<details>
+  <summary>🛠 POST: /bookmyride/management/locations</summary>
+
+#### 📝 Description
+- Allows the authenticated **Management/Admin user** to create a complete Location set:
+     - **city**
+     - **state**
+     - **country**
+- All three values are provided in a **single DTO**, and the backend ensures the correct creation or reuse of **hierarchical entities** using a strict validation + enum-parsing system.
+- Backend validates & parses StateEnum and CountryEnum using your custom `ParsingEnumUtils`.
+- Ensures uniqueness and avoids duplication in:
+    - Main tables (City → State → Country)
+    - **MasterLocation table** (string-based fast lookup)
+- Automatically syncs the **MasterLocation** projection table after successful creation.
+- The operation is fully protected with:
+    - JWT authentication
+    - ADMIN-role enforcement
+    - DTO validation
+    - Optimistic locking
+    - MasterLocation projection sync
+
+#### 🔑 Roles Allowed
+> MANAGEMENT / ADMIN (JWT required — extracted & validated via `@AuthenticationPrincipal`)
+
+
+#### 📥 Request Body (Sample)
+{  
+&nbsp;&nbsp;&nbsp; "city": "Chennai",  
+&nbsp;&nbsp;&nbsp; "state": "Tamil Nadu",  
+&nbsp;&nbsp;&nbsp; "country": "India"  
+}  
+
+#### ⚙️ How the Backend Processes This
+**1. Validates the input DTO**  
+ - Empty/invalid values → return BAD_REQUEST
+ - Parses `state` & `country` via `ParsingEnumUtils`
+ - On failure → clean error response using `ServiceResponse` from service layer
+   
+**2. Performs strict duplication checks**  
+ - Checks if the same (city + state + country) exists in the main tables
+ - Checks the same combination exists in **MasterLocation**
+ - On conflict → return 409 with appropriate message
+  
+**3. Resolves/creates hierarchical entities**  
+ - **Country**
+     - If exists → reuse
+     - Else → create new
+ - **State**
+     - If exists under the chosen country → reuse
+     - Else → create new 
+ - **City**
+     - If exists under the chosen state → return error
+     - Else → create new CityEntity
+      
+**4. Syncs MasterLocation table**  
+ - Adds a new projection entry:  
+    `city (String), state (String), country (String)` 
+ - Used for fast GET queries and user input validation.
+  
+**5. Handles optimistic locking & transactional safety**  
+ - Wrapped inside `@Transactional`
+ - If concurrency conflict occurs
+     - Throws: `ObjectOptimisticLockingFailureException` or `OptimisticLockException`
+     - Controller maps this to **409 Conflict**   
+
+#### 📤 Success Response
+<details> <summary>View screenshot</summary> 
+  <br>
+  ![Location Insertion Success]()
+</details>  
+
+#### ❗ Error Responses
+> Unauthorized (invalid/expired JWT)
+<details> 
+  <summary>View screenshot</summary> <br> 
+  ![Location Insertion Error]()
+</details> 
+
+> Invalid state/country enum
+<details> 
+  <summary>View screenshot</summary> <br> 
+  ![Location Insertion Error]()
+</details>
+
+> Location already exists (main tables or MasterLocation)
+ <details> 
+  <summary>View screenshot</summary> <br> 
+  ![Location Insertion Error]()
+</details>
+
+> Concurrent modification (Optimistic Lock)
+<details> 
+  <summary>View screenshot</summary> <br> 
+  ![Location Insertion Error]()
+</details>
+
+#### ⚠️ Important Notes
+- This API is **strictly protected** under ADMIN role
+- Enum parsing ensures that only valid, controlled master values enter the system
+- **CityEntity ID** returned in response is used for:
+    - Update Location
+    - Delete Location
+ 
+- `MasterLocation` is **not** a CRUD-exposed table — only auto-maintained.
+- Ensures perfect consistency for:
+    - Bus route creation
+    - User bus search validation
+    - Backend indexing & performance  
+</details>  
+
+### 🗺️ 6. Bulk Create Locations (City + State + Country Hierarchy)
+<details>
+  <summary>🛠 POST: /bookmyride/management/locations/list</summary>
+
+#### 📝 Description
+- Allows the authenticated **Management/Admin** user to insert **multiple locations** in a single request.
+- Each item in the list follows the same validation and hierarchical creation logic used in the single-location API (API #5).
+- The backend processes **each entry independently** inside a loop — meaning one invalid location **does not stop** the others from being processed.
+- For every DTO, the service records the outcome using clearly defined prefixes:
+   - SUCCESS: Location inserted successfully
+   - DUPLICATE_ENTRY: Conflict found (main tables or MasterLocation)
+   - ERROR: Unexpected issue or server-side failure 
+- At the end of processing, the backend:
+   - Counts successful inserts
+   - Counts failures
+   - Returns a 201 status with a consolidated summary + full result list
+- This API is especially useful during initial data setup or location migration phases.
+
+#### 🔑 Roles Allowed
+> MANAGEMENT / ADMIN (JWT required — validated via `@AuthenticationPrincipal`)
+
+#### 📥 Request Body
+[  
+&nbsp;{  
+&nbsp;&nbsp;&nbsp;&nbsp; "city": "Chennai",  
+&nbsp;&nbsp;&nbsp;&nbsp; "state": "Tamil Nadu",   
+&nbsp;&nbsp;&nbsp;&nbsp; "country": "India"  
+&nbsp;},  
+&nbsp;{   
+&nbsp;&nbsp;&nbsp;&nbsp; "city": "Coimbatore",  
+&nbsp;&nbsp;&nbsp;&nbsp; "state": "Tamil Nadu",  
+&nbsp;&nbsp;&nbsp;&nbsp; "country": "India"  
+&nbsp;}    
+]  
+> 💡 Each object in the list uses the same DTO rules as the single-location API.
+
+
+#### ⚙️ How the Backend Processes This (Step-by-Step)
+**1. Validates List Input**  
+ - Checks for empty/null list
+ - Each DTO validated individually
+ - Enum parsing for state & country using your ParsingEnumUtils
+ - If parsing fails → prefix result with:
+   **duplicate**: or **error**: (based on reason)  
+
+
+**2. Enhanced For-Loop Processing**  
+- Perform **duplicate checks** (main tables + MasterLocation)
+- Resolve or create:
+   - `CountryEntity`
+   - `StateEntity`
+   - `CityEntity`
+- Sync MasterLocation table at background
+- Wrap each outcome as a string:
+   - `"success: Chennai-Tamil Nadu-India added"`
+   - `"duplicate: Mumbai-Maharashtra-India already exists"`
+   - `"error: Unexpected issue while saving Delhi-Delhi-India"`  
+ 
+**3. No Early Return / No Loop Breaks**  
+- Every input is processed
+- No failures stop the batch
+- Ensures maximum data insertion rate  
+
+**4. Final Aggregation**  
+- After the loop, Make count of all “success:” & others based on prefix that get collected through a list.
+- Build a consolidated ServiceResponse:
+    - If all success → message: “All locations added successfully.”
+    - If mixed → message: “X saved, Y failed.”
+    - Include full result list for clarity  
+
+
+**5. Concurrency + Transaction Handling**  
+Inside each iteration:
+   - Critical DB writes wrapped safely
+   - Optimistic locking exceptions are caught and converted to "error:" messages
+   - Bulk operation does not fail entirely due to one conflict
+
+
+#### 📤 Success Response
+<details> 
+  <summary>View screenshot</summary> <br>
+   ![Location Bulk Insertion Success]()
+</details>
+
+#### 📤 Partial Success Response
+<details> 
+  <summary>View screenshot</summary> <br>
+   ![Location Bulk Insertion Partial Success]()
+</details>
+
+#### ❗ Error Responses
+> Empty list or invalid structure  
+<details> 
+  <summary>View screenshot</summary> <br> 
+   ![Location Bulk Insertion Error]()
+</details>  
+
+> Every element failed (but still 201 with error summary)  
+<details> 
+  <summary>View screenshot</summary> <br> 
+   ![Location Bulk Insertion Error]()
+</details>  
+
+> Unauthorized (invalid/expired JWT)  
+<details> 
+  <summary>View screenshot</summary> <br> 
+   ![Location Bulk Insertion Error]()
+</details>  
+
+
+#### ⚠️ Important Notes
+- This API **never stops midway** — designed for stability during large imports.
+- The same **single-location validation & creation logic** (from the POST /management/locations API) is reused for each DTO, ensuring consistent behavior across all entries.
+- All valid entries are synced into the MasterLocation table, ensuring fast and accurate location lookup during Bus Search and Management operations.
+- **Status Codes**:
+    - **201 (Created)** → When **all locations** are successfully inserted
+    - **206 (Partial Content)** → When at least one location failed (duplicate/error), but others were saved successfully
+</details>  
+
+
+### 📍 7. View Location Records (Filter + Sorting + Pagination)
+<details> 
+  <summary>GET: /bookmyride/management/locations</summary>
+
+#### 🛠 Endpoint Summary
+**Method:** GET  
+**URL:** /bookmyride/management/locations  
+**Authentication:** Required (JWT)  
+**Roles Allowed:** ADMIN  
+
+#### 📝 Description
+This endpoint allows management users to view, filter, sort, and paginate location records (City + State + Country).
+- Supports optional filters: country, state, city, role.
+- Supports pagination: page, size, sortBy, sortDir.
+- Optimized for performance, with backend checks ensuring valid enum values for Country, State, and Role.  
+
+**Edge-case behaviors:**  
+- If an invalid enum value is passed → returns `400 BAD_REQUEST` with details.
+- Pagination starts at `1` from client side; internally adjusted for zero-based indexing.
+- Empty result sets return `404 NOT_FOUND` with proper page info.
+- Role filtering validates against enum values and returns `400` if invalid.  
+
+
+#### 📥 Query Parameters
+| Parameter | Type   | Default | Description                                                                                   | Required |
+| --------- | ------ | ------- | --------------------------------------------------------------------------------------------- | -------- |
+| page      | Integer| 1       | Page number (1-based from client)                                                             | No       |
+| size      | Integer| 10      | Number of items per page                                                                      | No       |
+| sortBy    | String | id      | Field to sort by (`id`, `name`, `state.name`, `state.country.name`, `createdAt`, `updatedAt`) | No       |
+| sortDir   | String | asc     | Sort direction (`asc` or `desc`)                                                              | No       |
+| country   | String | -       | Filter by Country (starts with capital letter & must match with Country regEx pattern)        | No       |
+| state     | String | -       | Filter by State (starts with capital letter & must match with State regEx pattern)            | No       |
+| city      | String | -       | Filter by City (starts with capital letter)                                                   | No       |
+| role      | String | -       | Filter by Creator Role                                                                        | No       |
+
+> Example url to try: `/bookmyride/management/locations?page=2&size=5&country=India&sortBy=city&sortDir=desc`
+
+#### ⚙️ Backend Processing Flow
+**1. Validate Pagination Parameters**
+- Handled by `PaginationRequest.getRequestValidationForPagination()`
+- Validates `page`, `size`, `sortBy`, `sortDir`.
+- Returns 400 if invalid.
+
+**2. Validate Filters**  
+- Country, State, City → regex validation
+- Role → enum validation via `ParsingEnumUtils`  
+  
+**3. Repository Selection Logic**  
+- Depending on which filters are provided, calls the correct JPA repository query (`findByNameAndState_NameAndState_Country_Name`, etc.)
+- Supports partial or full filter combinations.  
+
+**4. Pagination**  
+- Converts validated params into `Pageable`
+- Uses Spring Data JPA `Page<T>` for sorting + paging  
+
+**5. Response Construction**  
+- Maps `CityEntity` → `LocationResponseDto`
+- Wraps results in `ApiPageResponse`
+- Returns structured data with total pages, total elements, current page, size, isFirst, isEmpty  
+
+
+#### 📤 Success Response
+<details> 
+  <summary>View screenshot</summary>
+   ![Location View Success]()
+</details>
+
+
+#### ❗ Error Responses
+<details> 
+  <summary>View screenshot</summary>
+   ![Location View Success]()
+</details>
+
+#### HTTP Status Code Table
+| HTTP Code | Meaning                            | Example                                                                     |
+| --------- | ---------------------------------- | --------------------------------------------------------------------------- |
+| 400       | Bad Request	                       | `"Invalid country/state/city enum or pagination value"`                     |
+| 200       | Success                            | `Data found`                                         |
+
+
+#### ⚠️ Edge Cases & Developer Notes
+- Pagination page numbers are **1-based from client**, internally converted to 0-based.
+- If multiple filters provided, all are validated **before DB query**.
+- Invalid enum strings immediately return `400` (no DB hit).
+- Even with empty results, API returns structured `ApiPageResponse` with empty content (not null).
+- Query performance optimized for large datasets (~10k+ records).
+- Role filter checks exact enum match; incorrect casing → 400.
+   
+</details>
+
+
+### 📝 8. Update Location Records (City + State + Country Hierarchy)
+<details> 
+  <summary>PUT: /bookmyride/management/locations/{id}</summary>
+
+#### 🛠 Endpoint Summary
+**Method:** PUT  
+**URL:** /bookmyride/management/locations/{id}
+**Authentication:** Required (JWT)  
+**Roles Allowed:** ADMIN  
+
+#### 📝 Description
+This endpoint is used to update a location, where a single logical “Location” consists of:
+
+
+
+
+
+
+
+
+
+  
+</details>
+
+
+
+
+
+
+
+
+
 
 
