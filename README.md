@@ -183,6 +183,7 @@ src/
 #### 📝 Description
 This API authenticates the **Management/Admin user** using the system-generated username and password.
 It represents the **entry point** for all management-level administrative operations such as managing locations, buses, bookings, and master data.  
+
 Key behaviors:  
 
 - Uses **Spring Security’s AuthenticationManager** to verify credentials.
@@ -297,23 +298,31 @@ As a result:
 </details>
 
 
-
 ### 🔐 2. Update Management Profile
 
 <details> 
-  <summary><strong>Method: PUT /management/profile</strong></summary>
+  <summary><strong>PUT</strong> <code>/management/profile</code></summary>
 
+#### 🛠 Endpoint Summary  
+**Method:** PUT  
+**URL:** /management/profile  
+**Authentication:** Required (JWT token)  
+**Authorized Roles:** ADMIN  
+  
 #### 📝 Description
-- Allows the logged-in Management/Admin user to update their profile information.
-- Initially, the system contains dummy placeholders for the admin account. This ensures replace those dummy placeholder values with real data.
-- Requires **JWT token** from Management Login.
+Updating personal profile information is a critical aspect of maintaining accurate and secure management data within the system. This endpoint allows `ADMIN`  to modify key details such as full name, email, mobile number, and gender while enforcing strict validation and uniqueness constraints.  
+The API ensures that changes are applied safely and consistently, avoiding conflicts with regular user accounts and supporting seamless auditing.  
+
+Key highlights:  
+
+- Validates the currently authenticated **Management user** using `@AuthenticationPrincipal` through `UserPrincipalValidationUtils.validateUserPrincipal()` utility.
+- Email and mobile numbers are checked against existing user accounts to avoid **duplication**.
+- Initially, the system contains dummy placeholders for the admin account. This ensures replace those dummy placeholders values with real data.
+- Only fields that have changed are modified, and full name changes trigger automatic username updates.
 - **Security Implementation:**
     - Method is protected using @PreAuthorize("hasRole('ADMIN')").
-    - Currently logged-in user details are retrieved via @AuthenticationPrincipal.
+    - Currently logged-in user details are retrieved via `@AuthenticationPrincipal`.
     - This ensures only the authenticated admin can update their own profile.
-
-#### 🔑 Roles Allowed
-> MANAGEMENT / ADMIN (JWT required & Roles are **internally assigned**, Not through login or profile update)
 
 #### 📥 Request Body
 {  
@@ -324,31 +333,108 @@ As a result:
 }  
 > 💡 Tip: Replace the placeholder values with your own details.
 
-#### 📤 Success Response
-![Management Profile Update Success]()  
+
+#### ⚙️ Backend Processing Workflow (Must Read)  
+**1. Validate Authenticated User**  
+- The API retrieves the currently logged-in user from the security context using `@AuthenticationPrincipal`.
+- `UserPrincipalValidationUtils.validateUserPrincipal()` ensures that the token is valid, the account exists in the database, and the user holds the ADMIN role.
+- Any failure triggers an immediate HTTP error (**401**, **403**, or **404**), preventing **unauthorized access**.  
+
+**2. DTO Validation**  
+- Incoming request data is validated using `@Valid` along with `BindingResult`. Missing or invalid fields result in a **400 Bad Request**, with a structured list of validation errors returned to the client.  
+
+**3. Check for Conflicting Credentials**  
+- Before applying updates, the system checks whether the provided email or mobile number is already associated with any non-management user.
+- Conflicting values result in a **403 Forbidden** response, ensuring management credentials remain unique.  
+
+**4. Profile Field Updates**  
+- Each provided field is compared against the existing record. Full name updates generate a new username, gender values are parsed and validated against enums, and email/mobile fields are updated only if changed.
+- If no fields differ from the existing record, the entity remains unchanged.  
+
+**5. Persistence and Response Construction**  
+- Changes are saved to the database, and `profileUpdatedAt` is updated if modifications occurred.
+- The response includes updated profile data and, when applicable, a note about the new username, prompting re-login for security purposes.  
+
+
+
+#### 📤 Success Response  
+<details> 
+  <summary>View screenshot</summary>
+   ![Management Profile Update Success]()
+</details>
+
+
+#### 🗒️ Response Schema
+<details> 
+  <summary>View Response schema</summary>
+</details>
+
 
 #### ❗ Error Responses
-- Invalid token / unauthorized access
-![Management Profile Update Error]()   
+> BAD_REQUEST — DTO Validation Failed  
+ <details> 
+  <summary>View screenshot</summary>
+   ![Management Profile Update Error]()  
+</details>  
 
-- Validation errors (email/mobile)
- ![Management Profile Update Error]()
+> Invalid token / unauthorized access  
+ 
+<details> 
+  <summary>View screenshot</summary>
+   ![Management Profile Update Error]()  
+</details>  
 
-#### ⚠️ Critical Security Behavior (Must Read)
-> This API **does not return a new token**.  
-> But the operation **directly affects the validity of the existing JWT**.
+> FORBIDDEN — Role or Access Denied  
+ 
+<details> 
+  <summary>View screenshot</summary>
+   ![Management Profile Update Error]()  
+</details>  
 
-**What Actually Happens Behind the Scenes**  
-- If `fullName` is updated, the backend regenerates your username automatically.
-- Your current JWT instantly becomes invalid — because the username stored inside the token no longer matches the updated username in DB.
-- As a result:
-     - **All protected APIs (including the next one Change Password API)** start returning Unauthorized.
-     - This is intentional and enforced by:
-         - `@AuthenticationPrincipal` → extracts username from JWT.
-         - `@PreAuthorize` → verifies the identity + role.
-         - JWT filter → checks DB username match for every request.
+> NOT_FOUND — Account Not Found  
+
+<details> 
+  <summary>View screenshot</summary>
+   ![Management Profile Update Error]()  
+</details>  
+
+
+> CONFLICT — Duplicate Email/Mobile
+ 
+<details> 
+  <summary>View screenshot</summary>
+   ![Management Profile Update Error]()  
+</details>  
+
+
+#### HTTP Status Code Table
+| HTTP Code | Status Name           | Meaning               | When It Occurs                                    |
+| --------- | --------------------- | --------------------- | ------------------------------------------------- |
+| 200       | SUCCESS               | Request succeeded     | Profile updated successfully                      |
+| 400       | BAD_REQUEST           | Validation Failed     | Invalid/missing fields in DTO or invalid gender   |
+| 401       | UNAUTHORIZED          | Authentication Failed | Token invalid, expired, or missing                |
+| 403       | FORBIDDEN             | Access Denied         | Role mismatch or email/mobile conflict with users |
+| 404       | NOT_FOUND             | Resource Not Found    | Management account not found                      |
+| 409       | CONFLICT              | Duplicate Entry       | Email/mobile already exists                       |
+| 500       | INTERNAL_SERVER_ERROR | Unexpected Error      | Any unexpected server-side error                  |
+
+
+
+#### ⚠️ Edge Cases & Developer Notes
+**1. Username Auto-Generation on Full Name Change**   
+- When the full name is updated, a new username is automatically generated. The response includes a notification prompting the admin to re-login, ensuring continuous secure access.  
+
+**2. Strict Separation Between Management and Regular Users**  
+- The system enforces strict uniqueness of management credentials, preventing accidental overlaps with regular user accounts. This maintains secure and organized data management across all user types.  
+
+**3. Selective Field Updates and Timestamping**  
+- Only fields that differ from existing values are updated, avoiding unnecessary writes. `profileUpdatedAt` is recorded to support auditing and track profile modifications efficiently.  
+
+**4. Gender & Role Enforcement**  
+- Gender values are restricted to predefined enums such as MALE, FEMALE, and OTHER. Invalid entries result in a 400 Bad Request with a descriptive error message.
+- Only ADMIN users are authorized to update their profile via this endpoint. Non-ADMIN or invalid token attempts are blocked immediately to maintain strict access control.  
           
-**What You Must Do Next**  
+**5. What You Must Do Next**  
 - You must re-login using the new username to obtain a fresh valid JWT.  
 - Only after re-login can you:  
      - Change your password
@@ -356,11 +442,11 @@ As a result:
      - Perform any admin operation
      - Access any protected resource
       
- **Why This Matters**  
-This mechanism guarantees that:  
-    - Token is always tied to the current, correct username.
-    - Admin account cannot be used with outdated JWTs.
-    - System integrity remains strong even after identity updates.
+ **6. Why This Matters**  
+ This mechanism guarantees that:  
+ - Token is always tied to the current, correct username.
+ - Admin account cannot be used with outdated JWTs.
+ - System integrity remains strong even after identity updates.  
 </details>  
 
 
