@@ -171,51 +171,137 @@ src/
 
 ### 🔐 1. Management Login (Admin Login)
 
-<details>
-  <summary>🛠 POST: /auth/bookmyride/management/login </summary>
+<details> 
+  <summary><strong>POST</strong> <code>/auth/bookmyride/management/login</code></summary>
 
-#### 📝 DESCRIPTION
-- Authenticates a Management user using username + password.
-- This returns a JWT token.
-- This token is required for all secure admin operations (Locations, Bus CRUD, Booking insights, etc.).
+#### 🛠 Endpoint Summary  
+**Method:** POST  
+**URL:** /auth/bookmyride/management/login  
+**Authentication:** Not required (First step of admin login)  
+**Authorized Roles:** PUBLIC  
 
-#### 🔑 ROLES ALLOWED
-> PUBLIC (No token required)
+#### 📝 Description
+This API authenticates the **Management/Admin user** using the system-generated username and password.
+It represents the **entry point** for all management-level administrative operations such as managing locations, buses, bookings, and master data.  
+Key behaviors:  
+
+- Uses **Spring Security’s AuthenticationManager** to verify credentials.
+- Supports **username-only login** for management users (regular users log in using mobile number, handled automatically by custom `UserDetailsService`).
+- Returns a **JWT token**, required for all subsequent secure admin operations.
+- Implements strict security: invalid credentials → immediate **401/404** responses.
+- Backed by a **bootstrap mechanism (CommandLineRunner)** that automatically generates the first admin user at application startup.
 
 
-#### 🔐 Dummy Credentials (as configured in application.properties)
-username = adm_bookmyride_1234,  
-password = BookMyRideAdmin@2025 
-
-#### 📥 Request Body
+#### 📤 Request Body
 {  
 &nbsp;&nbsp;&nbsp; "username": "adm_bookmyride_1234",  
 &nbsp;&nbsp;&nbsp; "password": "BookMyRideAdmin@2025"  
-}  
-
-#### 📤 SUCCESS RESPONSE  
-![Management Login Success]()  
-
-#### ❗ ERROR RESPONSES
-![Management Login Error]()
-
-#### 🔐 HOW TO USE THE TOKEN
-- After successful login, take the JWT from the response and include it in all **secure admin requests** using the header:  
-  `Authorization: Bearer <your-token-here>`
+} 
+> 💡 Dummy Credentials (as configured in application.properties)
 
 
-#### 📝 NOTES
-- This is the first API to start the entire Management/Administration flow.
-- **Currently, only a single ADMIN user exists** to control all authority-level operations.
-- Without this token, the admin cannot perform any restricted action.
-- JWT contains username, role, issued time, expiration time.
+
+#### ⚙️ Backend Processing Workflow
+**1. DTO Validation**  
+- The request is first validated using `@Valid` in combination with `BindingResult`.
+- If any field fails validation (e.g., missing username or password), the API immediately returns a **400 Bad Request** containing the list of validation errors. No authentication attempts happen unless the DTO passes validation.
+
+**2. Fetch Management User**   
+- The system performs an initial DB lookup using `managementService.fetchByUsername(...)`.
+- If no management user exists for the provided `username`, the API responds with **401 Unauthorized**, ensuring no clues are leaked about whether the username is incorrect or the password is wrong.
+
+**3. Authentication Pipeline Execution**  
+- A `UsernamePasswordAuthenticationToken` is constructed using credentials from the DTO.
+- This token is passed to `authenticationManager.authenticate()`, which internally:
+   - Verifies the username exists in the system
+   - Checks the password using BCrypt hashing
+   - And validates that the management account is enabled and valid for authentication.  
+
+**4. Error Handling During Authentication**   
+- If credentials do not match, a `BadCredentialsException` triggers a **401 Unauthorized** response.
+- If the username does not exist in the security layer, `UsernameNotFoundException` triggers a **404 Not Found** response.
+- Any unexpected failure within the authentication pipeline results in a **500 Internal Server Error**, ensuring controlled and predictable error exposure.  
+
+**5. Extracting the Authenticated Principal**   
+- Once authentication succeeds, the system retrieves a fully populated `UserPrincipal` object.
+- This principal includes the admin’s full name, username, role, and granted authorities, which are later used for role-based access control.  
+
+**6. JWT Token Generation**   
+
+A JWT token is generated using `jwtService.generateToken()`.
+The token includes:  
+- The username as the subject, ADMIN as role, issued & expiry timestamps
+- And an internal “management flag” indicating this is a **Management-grade token**, separate from user tokens.
+
+**7. Successful Authentication Response**   
+
+The API returns a **200 OK** response containing:  
+- A success message with admin’s full name
+- And the generated **JWT token** required for subsequent protected admin operations.
+
+#### 📤 Success Response
+<details> 
+  <summary>View screenshot</summary>
+   ![Management Login Success]()
 </details>
+
+#### ❗ Error Response
+> 400 BAD_REQUEST — DTO Validation Failed  
+<details> 
+  <summary>View screenshot</summary>
+   ![Management Login Error]()
+</details>
+
+> 401 UNAUTHORIZED — Invalid Credentials  
+ <details> 
+  <summary>View screenshot</summary>
+   ![Management Login Error]()
+</details>
+
+> 404 NOT_FOUND — Username Not Found  
+ <details> 
+  <summary>View screenshot</summary>
+   ![Management Login Error]()
+</details>
+
+#### HTTP Status Code Table  
+
+| HTTP Code | Status Name       | Meaning               | When It Occurs                                |
+| --------- | ----------------- | --------------------- | --------------------------------------------- |
+| 200       | SUCCESS           | Request succeeded     | Valid credentials → token returned            |
+| 400       | BAD_REQUEST       | Validation Falied     | Missing/invalid fields in login DTO           |
+| 401       | UNAUTHORIZED      | Authentication Failed | Username exists but password incorrect        |
+| 404       | NOT_FOUND         | Resource Not Found    | Username does not exist in DB                 |
+| 500       | INTERNAL_SERVER_ERROR | Unexpected Error | Unexpected server-side error                   |
+
+#### ⚠️ Edge Cases & Developer Notes
+**1. Automatic Creation of First Admin User**  
+- When the application starts for the first time, the system checks whether any management accounts exist.
+- If none are found, the `ManagementBootstrap` class (powered by `CommandLineRunner`) automatically creates the first admin user using credentials from `application.properties`.
+- This ensures secure, zero-downtime setup without temporarily disabling Spring Security.
+
+**2. Admin Token vs User Token Separation**   
+- The custom `UserDetailsService` differentiates between mobile numbers (user accounts) and alphanumeric usernames (management accounts).
+As a result:
+ - A user token cannot access management endpoints.
+ - A management token cannot be used in user flows.
+ - Token roles and the internal “management flag” enforce this separation at authentication and authorization layers.  
+
+**3. Invalid or Non-Regex Subjects**  
+- If the login subject resembles a mobile number (via regex), the system routes the authentication attempt through the USER account flow.
+- Otherwise, it is interpreted strictly as a MANAGEMENT login. This mechanism prevents cross-domain login attacks.
+
+**4. Importance of Keeping Bootstrap Credentials Secure**  
+- Since the initial admin account is generated from properties, those property values must be protected.
+- Once logged in, the admin is expected to update default credentials to enforce better security hygiene.
+</details>
+
 
 
 ### 🔐 2. Update Management Profile
 
-<details>
-  <summary>🛠 PUT: /management/profile </summary>
+<details> 
+  <summary><strong>Method: PUT /management/profile</strong></summary>
 
 #### 📝 Description
 - Allows the logged-in Management/Admin user to update their profile information.
@@ -711,7 +797,7 @@ This endpoint allows management users to view, filter, sort, and paginate locati
 | HTTP Code | Status Name       | Meaning               | When It Occurs                                |
 | --------- | ----------------- | --------------------- | --------------------------------------------- |
 | 200       | SUCCESS           | Request succeeded     | Data found and returned successfully          |
-| 400       | VALIDATION_FAILED | Bad Request           | Invalid ID / regex or enum fail               |
+| 400       | BAD_REQUESt       | Validation Failed     | Invalid ID / regex or enum fail               |
 
 
 #### ⚠️ Edge Cases & Developer Notes
@@ -838,7 +924,7 @@ Entire operation runs inside a single `@Transactional` block:
 | HTTP Code | Status Name       | Meaning               | When It Occurs                                |
 | --------- | ----------------- | --------------------- | --------------------------------------------- |
 | 200       | SUCCESS           | Request succeeded     | Data found and returned successfully          |
-| 400       | VALIDATION_FAILED | Bad Request           | Invalid ID / invalid DTO / regex or enum fail |
+| 400       | BAD_REQUEST       | Validation Falied     | Invalid ID / invalid DTO / regex or enum fail |
 | 401       | UNAUTHORIZED      | Authentication Failed | Missing or invalid JWT                        |
 | 404       | NOT_FOUND         | Resource Not Found    | CityEntity / MasterLocation entity missing    |
 | 403       | FORBIDDEN         | Access Denied         | Only Authority users could modify             |
