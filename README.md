@@ -184,7 +184,7 @@ src/
 This API authenticates the **Management/Admin user** using the system-generated username and password.
 It represents the **entry point** for all management-level administrative operations such as managing locations, buses, bookings, and master data.  
 
-Key behaviors:  
+Key highlights:  
 
 - Uses **Spring Security’s AuthenticationManager** to verify credentials.
 - Supports **username-only login** for management users (regular users log in using mobile number, handled automatically by custom `UserDetailsService`).
@@ -364,12 +364,6 @@ Key highlights:
 </details>
 
 
-#### 🗒️ Response Schema
-<details> 
-  <summary>View Response schema</summary>
-</details>
-
-
 #### ❗ Error Responses
 > BAD_REQUEST — DTO Validation Failed  
  <details> 
@@ -450,47 +444,67 @@ Key highlights:
 </details>  
 
 
-### 🔐 3. Change Password (Management User)
+### 🔑 3. Change Password (Management user)
 
-<details>
-  <summary>🛠 PATCH: /management/change-password</summary>
+<details> 
+  <summary><strong>PATCH</strong> <code>/management/change-password</code></summary>
+
+#### 🛠 Endpoint Summary  
+**Method:** PATCH  
+**URL:** /auth/bookmyride/management/change-password   
+**Authentication:** Required (Admin JWT token)  
+**Authorized Roles:** ADMIN  
+
 
 #### 📝 Description
- - Allows the logged-in Management user to securely change their password.
- - Even though the user is authenticated, this API performs a second-level credential verification using Spring Security to ensure the old password is correct.
+This API allows a Management/Admin user to change their account password securely. After login and profile updates, admins are required to update their system-generated password to a personal, secure password.  
+
+Key highlights:  
+
+ - Validates the authenticated admin user before making any updates.
+ - Even though the user is **authenticated**, this API performs a **second-level credential verification** using Spring Security to ensure the old password is correct.
+ - Enforces strong password rules for the new password.
+ - Updates the password and records the timestamp of the change.
  - This provides bank-level security, preventing unauthorized or session-hijacked password changes.
 
-#### 🔑 Roles Allowed
- > MANAGEMENT / ADMIN (Internally assigned — cannot be changed via API)
 
  #### 📥 Request Body
 {  
 &nbsp;&nbsp;&nbsp; "oldPassword": "Your Current Password",  
 &nbsp;&nbsp;&nbsp; "newPassword": "Your New Password"  
 }  
+> 💡 Notes: Password rules are enforced using centralized validation (e.g., length, character variety).
 > 💡 Tip: Replace the placeholder values with your own details.
 
 
 #### ⚙️ How the Backend Validates This (Important) 
-**1.** Extracts the **currently authenticated username** using:  
-&nbsp;&nbsp;&nbsp; `@AuthenticationPrincipal UserPrincipal principal` 
+**1. Authenticate and Validate UserPrincipal**  
+ - Extracts UserPrincipal from `@AuthenticationPrincipal`; returns **401 Unauthorized** ("Invalid token. Please try after re-login.") if null/expired.
+ - Fetches live `Management` account via `managementService.fetchById(userPrincipal.getId())`; returns **404 Not Found** ("Account not found or no longer exists") if deleted/stale, blocking compromised tokens.​
+  
+**2. Role-Based Access Control (RBAC)**  
+ - Verifies the role is `ADMIN` if not returns **403 Forbidden** ("Access denied for this role.") if mismatched.
+ - Return **400 Bad Request** if validation fails.
+ - Passes validated Management object to controller for `username` extraction, enabling secure downstream auth.
 
-**2.** Uses `AuthenticationManager` to re-validate credentials:  
-&nbsp;&nbsp;&nbsp; `new UsernamePasswordAuthenticationToken(username, oldPassword)`
+**3. DTO & Input Validation**  
+- Applies `@Valid` to `ChangeManagementPasswordDto` (`oldPassword`, `newPassword`) with `BindingResult`; returns **400 Bad Request** listing constraint violations (non-blank, strength rules).
+- Ensures no weak/invalid inputs reach core logic.
 
-**3.** If old password is incorrect →  
-&nbsp;&nbsp;&nbsp; Spring Security throws:
- - `BadCredentialsException` 
- - `UsernameNotFoundException` 
+**4. Old Password Verification (Critical Security Layer)**  
+- Builds `UsernamePasswordAuthenticationToken(username, oldPassword)`.Hash the new password securely (e.g., using `BCryptPasswordEncoder`) and store it in the database.
+ - Calls `authenticationManager.authenticate()`; catches `BadCredentialsException` → **401** ("Invalid credentials. Given old password is incorrect.") or `UsernameNotFoundException` → **404**.
+ - Forces proof of current knowledge, preventing token-only attacks even from authenticated sessions.
 
-**4.** These are caught and returned as **clean JSON errors** using `ApiResponse`.  
-**5.** If old password is valid →  
-&nbsp;&nbsp;&nbsp; The service layer updates the password securely (BCrypt hashing).  
+**5. Secure Password Update**  
+ - On success, `managementService.changeNewPassword()` hashes newPassword (`BCryptPasswordEncoder`), updates DB with last-changed timestamp.
+ - Returns **200 OK** via `ApiResponse`; generic exceptions → **500 Internal Server Error**. All responses use clean, standardized JSON hiding internals.  
 
-This ensures:  
-✔ Even authenticated users cannot change password without proving old one  
-✔ Zero shortcuts  
-✔ Consistent with enterprise-grade security flows  
+**Enterprise Benefits:**  
+- **Zero Trust:** Multi-factor proof (JWT + old password + role + DB fresh).
+- **Audit-Ready:** Consistent error codes, no sensitive leaks.
+- **Scalable:** Reusable UserPrincipalValidationUtils across endpoints
+- **Demo note:** Production adds rate limiting, MFA prompts, session invalidation.
 
 #### 📤 Success Response
 <details>
@@ -523,38 +537,78 @@ This ensures:
 </details>  
 
 
+#### HTTP Status Code Table
+| HTTP Code | Status Name           | Meaning               | When It Occurs                       |
+| --------- | --------------------- | --------------------- | ------------------------------------ |
+| 200       | SUCCESS               | Request succeeded     | Password updated successfully        |
+| 400       | BAD_REQUEST           | Validation Failed     | Invalid DTO or missing fields        |
+| 401       | UNAUTHORIZED          | Authentication Failed | Old password incorrect               |
+| 404       | NOT_FOUND             | Resource Not Found    | Admin account not found              |
+| 403       | FORBIDDEN             | Access Denied         | User does not have ADMIN role        |
+| 500       | INTERNAL_SERVER_ERROR | Unexpected Error      | Unexpected failure during processing |
+
+
+
 #### ⚠️ Critical Notes & Security Flow
-- This API requires a valid JWT from the latest login
-- If the admin previously updated their profile and their username was regenerated, the old JWT becomes invalid — and this API will not work until re-login
-- Old password is validated using Spring Security's authentication pipeline, giving maximum protection
-- Ensures:
-    - No one can change password using a stolen token
-    - No change is possible without verifying the old password
-    - Only the true authenticated, verified Admin can modify credentials
+**1. Old Password Verification**  
+- Malicious actors with stolen JWT tokens attempt password overwrite without knowing current credentials. The `AuthenticationManager.authenticate()` with `UsernamePasswordAuthenticationToken` catches `BadCredentialsException`, returning **401 Unauthorized** ("Invalid credentials. Given old password is incorrect.")—blocks token-only attacks.
+- Username changes or account modifications since token issuance trigger `UsernameNotFoundException` → **404 Not Found**.  
+
+**2. Strong Password Enforcement**  
+- Weak submissions (blank, short, simple patterns) via `ChangeManagementPasswordDto` fail `@Valid` + `BindingResult` checks, returning **400 Bad Request** with detailed error list from `BindingResultUtils.getListOfStr()` utility class.
+- Centralized validation logic in DTO annotations ensures consistency across endpoints; easily extensible for regex complexity, history checks, or breached password screening in production.  
+
+**3. UserPrincipal Validation**  
+- Null/expired JWT → 401 ("Invalid token. Please try after re-login."). Stale tokens for deleted accounts → 404 ("Account not found..."). Non-ADMIN roles → 403 ("Access denied for this role.").
+- `UserPrincipalValidationUtils.validateUserPrincipal()` is reusable across sensitive endpoints, providing early exit with validated `Management` object—reduces controller bloat and enforces defense-in-depth.
+
+**4. Role-Based Access Control**  
+- Standard users exploit endpoint via valid **JWT** → blocked by `management.getRole() != Role.ADMIN` check in utility, returning **403 Forbidden**.
+- **Granular RBAC** prevents privilege escalation; extend to enum hierarchies or permission matrices for microservices scaling.
+
+**3. Timestamps for Auditing**
+- Compliance audits require change history; `managementService.changeNewPassword()` updates `passwordLastUpdatedAt` timestamp on success.
 </details>
 
 
-### 🔐 4. Get Management Profile
+### 👤 4. View Profile (Management/Admin)
 
-<details>
-  <summary>🛠 GET: /management/profile </summary>
+<details> 
+  <summary><strong>GET</strong> <code>/management/profile</code></summary>
 
+#### 🛠 Endpoint Summary  
+**Method:** GET  
+**URL:** /management/profile  
+**Authentication:** Required (Admin JWT token)  
+**Authorized Roles:** ADMIN  
+
+  
 #### 📝 Description
+This API allows a **Management user** to fetch their current profile information. After login and optional profile updates, admins can view details such as full name, gender, email, and mobile number.
+
+Key highlights:  
+
 - Fetches the **currently authenticated Management/Admin** user's profile information.
 - This endpoint uses Spring Security’s `@AuthenticationPrincipal` to obtain the identity (UserPrincipal) of the logged-in Management user.
 - It ensures that only **valid, authenticated, ADMIN-role** users can view their own profile.
 - The API returns profile details as a **DTO**, hiding sensitive database fields such as password, internal identifiers, and security metadata.
 - This is typically the first action an authenticated admin performs after updating profile or changing password.
 
-#### 🔑 Roles Allowed
-> MANAGEMENT / ADMIN (Authorization is internally assigned — NOT modifiable via profile/update API)
 
-#### ❗ Error Responses
-<details>
-  <summary>View error response screenshot</summary>
-    <br>
-  ![Management Profile view Error]()
-</details>  
+#### ⚙️ Backend Processing Workflow
+**1. Authenticate and Validate UserPrincipal**  
+- Extracts `UserPrincipal` from `@AuthenticationPrincipal`.
+- Validates the **JWT token** and ensures the user exists and has the **ADMIN** role via `UserPrincipalValidationUtils.validateUserPrincipal()`.
+- Returns **401 Unauthorized** if the token is null/expired, **403 Forbidden** if the role is invalid, or **404 Not Found** if the user account is deleted/stale.  
+
+**2. Fetch Profile Data**  
+- Calls `managementService.fetchProfileData(management)` to convert the `Management` entity into a `ManagementProfileDto`.
+- Ensures that only relevant, safe profile data is returned (no sensitive fields like passwords).
+
+**3. Return Response**  
+- Wraps the DTO in a standardized `ApiResponse.successStatusMsgData()` object.
+- Returns HTTP **200 OK** with profile data and a success message.
+
 
 #### 📤 Success Response
 <details>
@@ -563,22 +617,60 @@ This ensures:
   ![Management Profile view Error]()
 </details>  
 
-#### 🔐 Security Notes
-- This endpoint uses the same authentication & authorization rules. For detailed security behavior, refer to:  
-🔗 [API #2 – Update Profile](README.md#2-update-management-profile)  
-🔗 [API #3 – Change Password](README.md#3-change-password-management-user)  
-- These include:
-   - JWT validation
-   - UserPrincipal sanity checks
-   - ADMIN role enforcement
-   - Token invalidation after username change 
+
+#### ❗ Error Responses
+<details>
+  <summary>View error response screenshot</summary>
+    <br>
+  ![Management Profile view Error]()
+</details>  
+
+#### HTTP Status Code Table
+| HTTP Code | Status Name           | Meaning               | When It Occurs                       |
+| --------- | --------------------- | --------------------- | ------------------------------------ |
+| 200       | SUCCESS               | Request succeeded     | Profile loaded successfully          |
+| 401       | UNAUTHORIZED          | Authentication Failed | JWT token null/expired               |
+| 403       | FORBIDDEN             | Access Denied         | User does not have ADMIN role        |
+| 404       | NOT_FOUND             | Resource Not Found    | Admin account not found              |
+| 500       | INTERNAL_SERVER_ERROR | Unexpected Error      | Unexpected failure during processing |
+
+
+
+#### ⚠️ Edge Cases & Developer Notes  
+**1. UserPrincipal Validation**  
+- The system extracts `UserPrincipal` from the JWT token for every request. This ensures that only authenticated sessions can access sensitive endpoints.
+- `UserPrincipalValidationUtils.validateUserPrincipal()` performs a multi-step check: verifies the token is valid, confirms the user exists in the database, and ensures the account has not been deleted or disabled.
+- This prevents unauthorized access from stale tokens, deleted accounts, or tokens from compromised sessions. Even if a token is valid structurally, it won’t grant access if the underlying account is no longer active.
+
+**2. Role-Based Access Control (RBAC)**  
+- The endpoint is strictly limited to `ADMIN` users.
+- The validation utility checks the role of the authenticated user. Any mismatch results in a **403 Forbidden**, ensuring that standard users—even with a valid JWT—cannot access administrative profile data.
+
+
+**3. DTO Mapping & Data Privacy**  
+- The `ManagementMapper.managementToDto()` converts the internal entity into a safe DTO for exposure. Sensitive fields such as `password`, internal system IDs, or audit metadata are excluded from the API response.
+- This approach balances transparency for front-end integration while maintaining security and privacy standards.
+
+**4. Scalability & Reusability**  
+- By centralizing validation in `UserPrincipalValidationUtils`, the system reduces duplicate checks across multiple endpoints.
+- This design makes it easy to extend future features, such as additional profile fields, audit logging, or multi-factor authentication hooks.
 </details>  
 
 ### 🗺️ 5. Create New Location (City + State + Country Hierarchy)
-<details>
-  <summary>🛠 POST: /bookmyride/management/locations</summary>
+<details> 
+  <summary><strong>POST</strong> <code>/bookmyride/management/locations</code></summary>
+
+#### 🛠 Endpoint Summary  
+**Method:** POST  
+**URL:** /bookmyride/management/locations  
+**Authentication:** Required (Admin JWT token)  
+**Authorized Roles:** ADMIN  
 
 #### 📝 Description
+This API allows a **Management/Admin user** to create a new location by adding a **City**, **State**, and **Country** in a hierarchical manner. It ensures that duplicate or conflicting entries are prevented using **multi-level validation** and database constraints.
+
+Key highlights:  
+- Validates the authenticated admin user before performing any database operations.
 - Allows the authenticated **Management/Admin user** to create a complete Location set:
      - **city**
      - **state**
@@ -586,7 +678,7 @@ This ensures:
 - All three values are provided in a **single DTO**, and the backend ensures the correct creation or reuse of **hierarchical entities** using a strict validation + enum-parsing system.
 - Backend validates & parses StateEnum and CountryEnum using your custom `ParsingEnumUtils`.
 - Ensures uniqueness and avoids duplication in:
-    - Main tables (City → State → Country)
+    - Main tables (cities → states → countries)
     - **MasterLocation table** (string-based fast lookup)
 - Automatically syncs the **MasterLocation** projection table after successful creation.
 - The operation is fully protected with:
@@ -596,49 +688,46 @@ This ensures:
     - Optimistic locking
     - MasterLocation projection sync
 
-#### 🔑 Roles Allowed
-> MANAGEMENT / ADMIN (JWT required — extracted & validated via `@AuthenticationPrincipal`)
-
-
 #### 📥 Request Body (Sample)
 {  
 &nbsp;&nbsp;&nbsp; "city": "Chennai",  
 &nbsp;&nbsp;&nbsp; "state": "Tamil Nadu",  
 &nbsp;&nbsp;&nbsp; "country": "India"  
 }  
-
+> 💡 Tips: Also can use your own values here.
+ 
+ 
 #### ⚙️ How the Backend Processes This
-**1. Validates the input DTO**  
- - Empty/invalid values → return BAD_REQUEST
- - Parses `state` & `country` via `ParsingEnumUtils`
- - On failure → clean error response using `ServiceResponse` from service layer
+**1. Authenticate and Validate Admin User**  
+ - Extracts `UserPrincipal` from `@AuthenticationPrincipal`.
+ - Uses `UserPrincipalValidationUtils.validateUserPrincipal()` to ensure the user exists, is active, and has the `ADMIN` role.
+ - Returns **401 Unauthorized** or **403 Forbidden** if validation fails.
    
-**2. Performs strict duplication checks**  
- - Checks if the same (city + state + country) exists in the main tables
- - Checks the same combination exists in **MasterLocation**
- - On conflict → return 409 with appropriate message
-  
-**3. Resolves/creates hierarchical entities**  
- - **Country**
-     - If exists → reuse
-     - Else → create new
- - **State**
-     - If exists under the chosen country → reuse
-     - Else → create new 
- - **City**
-     - If exists under the chosen state → return error
-     - Else → create new CityEntity
-      
-**4. Syncs MasterLocation table**  
- - Adds a new projection entry:  
-    `city (String), state (String), country (String)` 
- - Used for fast GET queries and user input validation.
-  
-**5. Handles optimistic locking & transactional safety**  
- - Wrapped inside `@Transactional`
- - If concurrency conflict occurs
-     - Throws: `ObjectOptimisticLockingFailureException` or `OptimisticLockException`
-     - Controller maps this to **409 Conflict**   
+**2. DTO & Input Validation**  
+ - Uses `@Valid` annotation on `LocationEntryDto` with `BindingResult` to check required fields.
+ - Returns **400 Bad Request** listing validation failures if inputs are missing, malformed, or out-of-enum-range.
+
+**3. Parse Enumerated Types**  
+- Converts country and state strings into enum types via `ParsingEnumUtils`.
+- Returns **400 Bad Request** if the provided country or state is invalid or unrecognized.  
+
+**4. Check for Existing Entries**  
+- Verifies if the combination of City + State + Country already exists in either:
+    - Management-controlled locations (`cityAndStateAndCountryExists`)
+    - Master location repository (`masterLocationService.cityStateCountryExists`)
+- Returns 409 Conflict if the combination already exists to prevent duplicates.  
+
+**5. Hierarchical Creation**  
+- **Country:** Fetches or creates the country entity.
+- **State:** Checks if state exists under the country; creates if absent.
+- **City:** Checks for city uniqueness within the state; creates only if unique.
+- Saves new location in **master location table** for global reference.
+- Logs admin action with `management ID`, `username`, and created location details.
+
+**6. Error Handling**  
+- Handles `ObjectOptimisticLockingFailureException` and `OptimisticLockException` to prevent race conditions during concurrent additions.
+- Returns **409 Conflict** with descriptive message if another admin inserts the same location simultaneously.
+- Catches generic exceptions → **500 Internal Server Error** with standardized API response.  
 
 #### 📤 Success Response
 <details> <summary>View screenshot</summary> 
@@ -671,40 +760,101 @@ This ensures:
   ![Location Insertion Error]()
 </details>
 
-#### ⚠️ Important Notes
-- This API is **strictly protected** under ADMIN role
-- Enum parsing ensures that only valid, controlled master values enter the system
-- **CityEntity ID** returned in response is used for:
-    - Update Location
-    - Delete Location
+
+#### HTTP Status Code Table
+| HTTP Code | Status Name           | Meaning               | When It Occurs                                        |
+| --------- | --------------------- | --------------------- | ----------------------------------------------------- |
+| 201       | CREATED               | Location created      | Successfully added new city/state/country combination |
+| 400       | BAD_REQUEST           | Validation Failed     | Missing/invalid DTO, or country/state not recognized  |
+| 401       | UNAUTHORIZED          | Authentication Failed | Token invalid or expired                              |
+| 403       | FORBIDDEN             | Access Denied         | User does not have ADMIN role                         |
+| 409       | CONFLICT              | Duplicate Entry       | City/State/Country combination already exists         |
+| 500       | INTERNAL_SERVER_ERROR | Unexpected Error      | Any unhandled server-side exception                   |
+
+
+#### ⚠️ Edge Cases & Developer Notes
+**1. Hierarchical Data Integrity (Country → State → City Enforcement)**  
+
+The API enforces a strict top-down structure to maintain clean, conflict-free geographical data.
+ - A **City** cannot be created unless its State exists or is created during the same request.
+ - A **State** cannot exist without a valid Country.
+ - Each level is validated and resolved individually, guaranteeing **referential integrity**, and preventing corrupted structures (e.g., incorrect state–country pairing).
+ - This ensures long-term consistency and prevents the messy “**partial location trees**” that commonly appear in poorly designed systems.
+
+**2. Advanced Duplicate Prevention (Management + Master Repository Check)**   
+
+Instead of checking only the City table, the service verifies duplicates across two different sources:  
+
+**1. Management’s own hierarchical tables**  
+**2. Master location table shared across the full application**  
+
+This dual-layer validation prevents:  
+
+  - Same location being inserted seconds apart by two admins.
+  - City duplication under different states.
+  - Cross-module inconsistency (e.g., user module has a location but admin module doesn’t).
+     
+This approach ensures your platform always has a **single source of truth** for locations.  
+
+**3. Concurrency Protection with Optimistic Locking**  
+
+The system uses `ObjectOptimisticLockingFailureException` / `OptimisticLockException` to guard against race conditions where multiple admins try to insert the same location.  
+- If Admin A saves “Chennai, Tamil Nadu, India” at the same time Admin B does, one succeeds and the other cleanly receives **409 Conflict**.
+- Prevents silent overwrites or duplicate states/cities.
+- Ensures all inserts are atomic and conflict-free.
  
-- `MasterLocation` is **not** a CRUD-exposed table — only auto-maintained.
-- Ensures perfect consistency for:
-    - Bus route creation
-    - User bus search validation
-    - Backend indexing & performance  
+This mirrors real enterprise master-data systems where admins work simultaneously.  
+
+
+**4. Enum Parsing & Input Normalization Pipeline**  
+
+Before any database operations run, inputs like `country` and `state` are validated using `ParsingEnumUtils`. This layer ensures:  
+
+ - Only valid, recognized enum values pass through (no misspellings or unknown regions).
+ - Business logic remains independent of string inputs.
+ - Future expansion (e.g., adding new states/countries) is controlled and predictable.
+
+This provides a **strong validation firewall**, preventing invalid or unregulated data from entering your geographic hierarchy.  
+
+**5. Transactional Safety, Audit Logging & Scalability**  
+
+The entire creation process runs inside a `@Transactional` boundary, ensuring full rollback if anything fails in the chain — avoiding orphaned states or countries. Additionlly:  
+
+- Every successful insertion logs admin ID, username, and full location details.
+- Makes all actions traceable for auditing and debugging.
+- Architecture supports easy scaling: additional fields (zone, pincode, coordinates) or new modules can integrate without rewriting the core flow.  
+
+This combination of transaction safety + traceability + modular layering proves the system is designed for **real-world production readiness**, not just demonstration.
 </details>  
 
-### 🗺️ 6. Bulk Create Locations (City + State + Country Hierarchy)
-<details>
-  <summary>🛠 POST: /bookmyride/management/locations/list</summary>
+### 📦 6. Bulk Location Creation (City + State + Country Hierarchy)
+<details> 
+  <summary><strong>POST</strong> <code>/bookmyride/management/locations/list</code></summary>
+
+#### 🛠 Endpoint Summary  
+**Method:** POST  
+**URL:** /bookmyride/management/locations/list  
+**Authentication:** Required (Admin JWT token)  
+**Authorized Roles:** ADMIN    
 
 #### 📝 Description
+This API allows a Management/Admin user to **insert multiple locations** in bulk in a hierarchical manner: Country → State → City. It is designed to handle **hundreds of entries** efficiently, validating each entry independently while ensuring **data consistency, duplicate prevention, and transaction safety**.  
+
+Key highlights:  
+
 - Allows the authenticated **Management/Admin** user to insert **multiple locations** in a single request.
-- Each item in the list follows the same validation and hierarchical creation logic used in the single-location API (API #5).
+- Accepts a list of `LocationEntryDto` objects, iterates through each entry, and performs hierarchical validation and insertion.
 - The backend processes **each entry independently** inside a loop — meaning one invalid location **does not stop** the others from being processed.
 - For every DTO, the service records the outcome using clearly defined prefixes:
-   - SUCCESS: Location inserted successfully
-   - DUPLICATE_ENTRY: Conflict found (main tables or MasterLocation)
-   - ERROR: Unexpected issue or server-side failure 
+   - **SUCCESS:** Location inserted successfully
+   - **DUPLICATE_ENTRY:** Conflict found (main tables or MasterLocation)
+   - **ERROR:** Unexpected issue or server-side failure 
 - At the end of processing, the backend:
    - Counts successful inserts
    - Counts failures
-   - Returns a 201 status with a consolidated summary + full result list
+   - Returns a **201 status** with a consolidated summary + full result list
 - This API is especially useful during initial data setup or location migration phases.
 
-#### 🔑 Roles Allowed
-> MANAGEMENT / ADMIN (JWT required — validated via `@AuthenticationPrincipal`)
 
 #### 📥 Request Body
 [  
@@ -719,48 +869,56 @@ This ensures:
 &nbsp;&nbsp;&nbsp;&nbsp; "country": "India"  
 &nbsp;}    
 ]  
-> 💡 Each object in the list uses the same DTO rules as the single-location API.
+> 💡 Each object in the list uses the same DTO rules as the single-location API. Also can use your own any other data related to location.
 
 
 #### ⚙️ How the Backend Processes This (Step-by-Step)
-**1. Validates List Input**  
- - Checks for empty/null list
- - Each DTO validated individually
- - Enum parsing for state & country using your ParsingEnumUtils
- - If parsing fails → prefix result with:
-   **duplicate**: or **error**: (based on reason)  
+**1. Authenticate and Validate Admin User**  
+- Extracts `UserPrincipal` from `@AuthenticationPrincipal`.
+- Uses `UserPrincipalValidationUtils.validateUserPrincipal()` to ensure the user exists, is active, and has the **ADMIN** role.
+- Returns **401 Unauthorized** or **403 Forbidden** if validation fails.  
 
+**2. Validate Request Body**  
+- Checks if the list of DTOs is **empty**, returning **400 Bad Request** if true.
+- Uses `@Valid` and `BindingResult` to ensure all DTOs meet required constraints.
+- Any validation failures are accumulated and returned in a structured error response.  
 
-**2. Enhanced For-Loop Processing**  
-- Perform **duplicate checks** (main tables + MasterLocation)
-- Resolve or create:
-   - `CountryEntity`
-   - `StateEntity`
-   - `CityEntity`
-- Sync MasterLocation table at background
-- Wrap each outcome as a string:
-   - `"success: Chennai-Tamil Nadu-India added"`
-   - `"duplicate: Mumbai-Maharashtra-India already exists"`
-   - `"error: Unexpected issue while saving Delhi-Delhi-India"`  
+**3. Enhanced For-Loop Processing**  
+- Each `LocationEntryDto` is processed individually in a loop.
+- Converts `country` and `state` strings to enum objects using `ParsingEnumUtils.getParsedEnumType()`.
+- If parsing fails, the entry is immediately rejected with a **BAD_REQUEST** message explaining the invalid input.
+- Checks if the City-State-Country combination already exists in **Management tables** using `cityEntityRepo.existsByNameAndState_NameAndState_Country_Name()`.
+- Also checks the Master location table using `masterLocationService.cityStateCountryExists()`.
+- Sync MasterLocation table at background.
+- Duplicates are skipped and logged into the result list for reporting like:
+   - `success: Chennai-Tamil Nadu-India added`
+   - `duplicate: Mumbai-Maharashtra-India already exists`
+   - `error: Unexpected issue while saving Delhi-Delhi-India`
  
-**3. No Early Return / No Loop Breaks**  
+    
+**4. Hierarchical Creation & Persistence**  
+- **Country:** Fetches existing or creates new `CountryEntity`.
+- **State:** Ensures the state exists under the correct country; creates if missing.
+- **City:** Checks if the city exists within the state; creates only if unique.
+- Each successful city insertion is stored in the **master location table** to maintain a global reference.
+- Every successful insertion is appended to the `results` list with a descriptive message including entity IDs.
+
+**5. Concurrency Protection & Optimistic Locking**  
+- Handles `ObjectOptimisticLockingFailureException` and `OptimisticLockException` to prevent race conditions.
+- If another admin inserts the same location concurrently, the current entry is **skipped**, logged, and reported as a **duplicate conflict**.  
+
+
+**6. Partial Success & Transaction Handling**  
+- Tracks **success and failure** counts independently.
+- Returns **201 Created** if all entries succeed.
+- Returns **206 Partial Content** with details of skipped or failed entries if some entries could not be inserted.
+- Uses `@Transactional` to ensure that each entry’s creation is **atomic**; failures in one entry do not roll back successful insertions.  
+ 
+**7. No Early Return / No Loop Breaks**    
 - Every input is processed
 - No failures stop the batch
 - Ensures maximum data insertion rate  
 
-**4. Final Aggregation**  
-- After the loop, Make count of all “success:” & others based on prefix that get collected through a list.
-- Build a consolidated ServiceResponse:
-    - If all success → message: “All locations added successfully.”
-    - If mixed → message: “X saved, Y failed.”
-    - Include full result list for clarity  
-
-
-**5. Concurrency + Transaction Handling**  
-Inside each iteration:
-   - Critical DB writes wrapped safely
-   - Optimistic locking exceptions are caught and converted to "error:" messages
-   - Bulk operation does not fail entirely due to one conflict
 
 
 #### 📤 Success Response
@@ -795,20 +953,62 @@ Inside each iteration:
 </details>  
 
 
-#### ⚠️ Important Notes
-- This API **never stops midway** — designed for stability during large imports.
-- The same **single-location validation & creation logic** (from the POST /management/locations API) is reused for each DTO, ensuring consistent behavior across all entries.
-- All valid entries are synced into the MasterLocation table, ensuring fast and accurate location lookup during Bus Search and Management operations.
-- **Status Codes**:
-    - **201 (Created)** → When **all locations** are successfully inserted
-    - **206 (Partial Content)** → When at least one location failed (duplicate/error), but others were saved successfully
+#### HTTP Status Code Table  
+| HTTP Code | Status Name           | Meaning               | When It Occurs                                   |
+| --------- | --------------------- | --------------------- | ------------------------------------------------ |
+| 201       | CREATED               | Locations created     | All entries successfully added                   |
+| 206       | PARTIAL_CONTENT       | Partial Success       | Some entries skipped due to duplicates or errors |
+| 400       | BAD_REQUEST           | Validation Failed     | Invalid DTO or empty list                        |
+| 401       | UNAUTHORIZED          | Authentication Failed | Token invalid or expired                         |
+| 403       | FORBIDDEN             | Access Denied         | User lacks ADMIN role                            |
+| 500       | INTERNAL_SERVER_ERROR | Unexpected Error      | Any unhandled server-side exception              |
+
+
+
+#### ⚠️ Edge Cases & Developer Notes
+**1. Hierarchical Data Integrity (Country → State → City Enforcement)**  
+- The API enforces a strict **top-down structure**.
+- Each DTO entry is checked: **City cannot exist without State**, and **State cannot exist without Country**.
+- Even in bulk operations, this ensures **referential integrity**, preventing incomplete or invalid location hierarchies.
+- Long-term data consistency is guaranteed; avoids “**partial trees**” in production.
+
+**2. Advanced Duplicate Prevention (Management + Master Repository Check)**   
+- Every entry is checked against **two sources**:
+    - Management’s own hierarchical tables.
+    - Master location table shared across the application.
+
+- This Prevents:
+    - Same location inserted by two admins seconds apart.
+    - City duplication under different states.
+    - Cross-module inconsistencies.
+     
+- Results list contains detailed messages for skipped entries.  
+ 
+**3. Concurrency Protection with Optimistic Locking**  
+- Handles **simultaneous insertions** by multiple admins or other management users.
+- If Admin A inserts a location at the same time as Admin B:
+    - One succeeds.
+    - The other receives **duplicate conflict** and is skipped.
+     
+- Ensures **atomic, conflict-free inserts** even at scale (600+ cities).  
+
+**4. Enum Parsing & Input Normalization Pipeline**  
+- Country and State strings are validated using `ParsingEnumUtils` utility class for enum parsing across my system.
+- Ensures only **recognized values** pass through.
+- Guards business logic from invalid inputs and misspellings or dirty data's.
+- Supports controlled future expansion of countries/states.  
+
+**5. Transactional Safety, Audit Logging & Scalability**  
+- Each entry creation is **transactional**. Failures in one entry do not rollback the others.
+- Logs every successful insertion with **Management ID, username, and full location details**.
+- Designed for **real-world production usage** and massive datasets.
 </details>  
 
 
-### 📍 7. View Location Records (Filter + Sorting + Pagination)
+### 🔍 7. View Location Records (Filter + Sorting + Pagination)
 <details> 
-  <summary>GET: /bookmyride/management/locations</summary>
-
+  <summary><strong>GET</strong> <code>/bookmyride/management/locations</code></summary>
+  
 #### 🛠 Endpoint Summary
 **Method:** GET  
 **URL:** /bookmyride/management/locations  
@@ -816,16 +1016,16 @@ Inside each iteration:
 **Roles Allowed:** ADMIN  
 
 #### 📝 Description
-This endpoint allows management users to view, filter, sort, and paginate location records (City + State + Country).
-- Supports optional filters: country, state, city, role.
-- Supports pagination: page, size, sortBy, sortDir.
-- Optimized for performance, with backend checks ensuring valid enum values for Country, State, and Role.  
+This API allows `Management users` to **fetch paginated, filtered, and sorted lists of location records** (City → State → Country). It supports **dynamic filtering** by `country`, `state`, `city`, and `role` of the creator. The service ensures **input validation, enum parsing, pagination safety, sorting correctness**, and **detailed feedback** for empty or invalid queries.  
+
+Key highlights:  
 
 **Edge-case behaviors:**  
-- If an invalid enum value is passed → returns `400 BAD_REQUEST` with details.
-- Pagination starts at `1` from client side; internally adjusted for zero-based indexing.
-- Empty result sets return `404 NOT_FOUND` with proper page info.
-- Role filtering validates against enum values and returns `400` if invalid.  
+- Validates Admin user access using `@PreAuthorize` and `UserPrincipalValidationUtils` utility class.
+- Accepts query parameters for **page, size, sorting,** and **filtering**.
+- Uses `PaginationRequest` for **pagination input validation** and pageable construction.
+- Filters are validated against **RegEx patterns** and parsed into enums (`Country`, `State`, `Role`) where applicable.
+- Returns `ApiPageResponse` (custom class) wrapping the results along with pagination metadata.
 
 
 #### 📥 Query Parameters
@@ -835,36 +1035,50 @@ This endpoint allows management users to view, filter, sort, and paginate locati
 | size      | Integer| 10      | Number of items per page                                                                      | No       |
 | sortBy    | String | id      | Field to sort by (`id`, `name`, `state.name`, `state.country.name`, `createdAt`, `updatedAt`) | No       |
 | sortDir   | String | asc     | Sort direction (`asc` or `desc`)                                                              | No       |
-| country   | String | -       | Filter by Country (starts with capital letter & must match with Country regEx pattern)        | No       |
-| state     | String | -       | Filter by State (starts with capital letter & must match with State regEx pattern)            | No       |
+| country   | String | -       | Filter by Country (must match Country regex, capitalized)                                     | No       |
+| state     | String | -       | Filter by State (must match State regex, capitalized)                                       | No       |
 | city      | String | -       | Filter by City (starts with capital letter)                                                   | No       |
 | role      | String | -       | Filter by Creator Role                                                                        | No       |
 
 > Example url to try: `/bookmyride/management/locations?page=2&size=5&country=India&sortBy=city&sortDir=desc`
 
 #### ⚙️ Backend Processing Flow
-**1. Validate Pagination Parameters**
-- Handled by `PaginationRequest.getRequestValidationForPagination()`
-- Validates `page`, `size`, `sortBy`, `sortDir`.
-- Returns 400 if invalid.
-
-**2. Validate Filters**  
-- Country, State, City → regex validation
-- Role → enum validation via `ParsingEnumUtils`  
+**1. Pagination & Sorting Validation**  
+- Invokes `PaginationRequest.getRequestValidationForPagination()` to validate:
+   - `page >= 1`
+   - `size >= 1`
+   - `sortBy` in allowed fields (`id`, `name`, `state.name`, `state.country.name`, `createdAt`, `updatedAt`)
+   - `sortDir` as `ASC/DESC`  
+- Returns **400 Bad Request** if any parameter is invalid.
+- Converts validated request into `Pageable` object using `PageRequest.of(page-1, size, sortDir, sortBy)`.
   
-**3. Repository Selection Logic**  
-- Depending on which filters are provided, calls the correct JPA repository query (`findByNameAndState_NameAndState_Country_Name`, etc.)
-- Supports partial or full filter combinations.  
+**2.Filter Parsing & Enum Validation**  
+- For `country`, `state`, and `role` filters:
+    - Validates using regex patterns.
+    - Parses string values into corresponding enums (`Country`, `State`, `Role`) via `ParsingEnumUtils.getParsedEnumType()`.
+- Returns **400 Bad Request** for invalid enum values.
 
-**4. Pagination**  
-- Converts validated params into `Pageable`
-- Uses Spring Data JPA `Page<T>` for sorting + paging  
+**3. Dynamic Query Selection**  
+Based on which filters are provided, the backend selects the proper repository method:  
 
-**5. Response Construction**  
-- Maps `CityEntity` → `LocationResponseDto`
-- Wraps results in `ApiPageResponse`
-- Returns structured data with total pages, total elements, current page, size, isFirst, isEmpty  
+ - `country + state + city` → `cityEntityRepo.findByNameAndState_NameAndState_Country_Name()`
+ - `country + state` → `cityEntityRepo.findByState_NameAndState_Country_Name()`
+ - `state + city` → `cityEntityRepo.findByNameAndState_Name()`
+ - Single filters (`country`, `state`, `city`) → respective methods
+ - `role` filter → `cityEntityRepo.findByCreatedById_Role()`
+ - No filters → `cityEntityRepo.findAll(pageable)`  
 
+**4. Mapping & Response Construction**  
+- Converts `CityEntity` results into `LocationResponseDto` via `LocationMapper.entityToLocationResponseDto()`.
+- Wraps the result into `ApiPageResponse`, including:
+   - `totalPages`, `totalElements`, `currentPage`, `pageSize`, `isFirst`, `isEmpty`.
+- Returns **200 OK** with data or **404 Not Found** if the page has no results.
+- Provides descriptive message: `"No data found"` vs `"Data found"` depending on result presence.
+
+**5. Error Handling & Feedback**   
+- Invalid regex or enum → **400 Bad Request** with precise guidance (capitalization, valid options).
+- Non-existent filter combination → **404 Not Found**, but still provides empty page metadata.
+- Internal server exceptions → **500 Internal Server Error** (rare due to defensive validations).
 
 #### 📤 Success Response
 <details> 
@@ -886,14 +1100,32 @@ This endpoint allows management users to view, filter, sort, and paginate locati
 | 400       | BAD_REQUESt       | Validation Failed     | Invalid ID / regex or enum fail               |
 
 
-#### ⚠️ Edge Cases & Developer Notes
-- Pagination page numbers are **1-based from client**, internally converted to 0-based.
-- If multiple filters provided, all are validated **before DB query**.
-- Invalid enum strings immediately return `400` (no DB hit).
-- Even with empty results, API returns structured `ApiPageResponse` with empty content (not null).
-- Query performance optimized for large datasets (~10k+ records).
-- Role filter checks exact enum match; incorrect casing → 400.
-   
+#### ⚠️ Edge Cases & Developer Notes  
+**1. Hierarchical Filtering & Enum Safety**  
+- Ensures **Country → State → City** hierarchy is respected in queries.
+- Parsing enums prevents invalid or misspelled inputs from reaching the repository.
+- Allows the system to scale safely when new countries or states are added without code modification.  
+
+**2. Flexible Partial Filtering**  
+- Supports any combination of filters (`country`, `state`, `city`, `role`).
+- Each combination triggers a **specific repository method** to optimize database queries.
+- Handles **missing intermediate levels gracefully**, e.g., querying `city + state` without `country`.  
+
+**3. Pagination & Sorting Safety**  
+- Page numbers are **1-based externally**, **0-based internally**.
+- Returns **structured page metadata** even if the page is empty.
+- Protects against invalid sort fields or directions with clear error messages.  
+
+**4. Dynamic Query Behavior**  
+- Multiple filter combinations are resolved **dynamically at runtime**.
+- Prevents unnecessary full-table scans by delegating to filtered repository methods.
+- Ensures **consistent, predictable pagination** even with partial data.
+
+**5. Performance & Maintainability**  
+- Mapping entities to DTOs ensures **API response decoupled from database structure**.
+- Regex validation and enum parsing **prevents invalid queries**, reducing load and errors.
+- Designed for **enterprise readiness**, supporting role-based access, filtered views, and large dataset pagination.  
+- Query performance optimized for large datasets (~10k+ records).  
 </details>
 
 
