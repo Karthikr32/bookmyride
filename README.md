@@ -1131,11 +1131,11 @@ Based on which filters are provided, the backend selects the proper repository m
 
 ### 📝 8. Update Location Records (City + State + Country Hierarchy)
 <details> 
-  <summary>PUT: /bookmyride/management/locations/{id}</summary>
+  <summary><strong>PUT</strong> <code>/bookmyride/management/locations/{id}</code></summary>
 
 #### 🛠 Endpoint Summary
 **Method:** PUT  
-**URL:** /bookmyride/management/locations/{id}
+**URL:** /bookmyride/management/locations/{id}  
 **Authentication:** Required (JWT)  
 **Roles Allowed:** ADMIN  
 
@@ -1159,71 +1159,81 @@ It enforces strict cross-entity consistency between the 3-level relational struc
 &nbsp;&nbsp;&nbsp; "state": "Tamil Nadu",  
 &nbsp;&nbsp;&nbsp; "country": "India"  
 }  
-
+> 💡 Also can use your own values here.  
+> 💡 Uses the exact same DTO validation rules as creation APIs — including enum validation and required fields.  
 
 #### ⚙️ Backend Processing Workflow (High-Density Version)
-**1. Authorization & User Validation**  
-- Validates JWT, Ensures authenticated user is ADMIN only
-- Fetches management user via `UserPrincipalValidationUtils` for `updatedBy` tracking.  
+**1. Authorization & Management User Validation**  
+- VExtracts `UserPrincipal` via `@AuthenticationPrincipal`.
+- Uses `UserPrincipalValidationUtils.validateUserPrincipal()` to verify:      
+     - **JWT** is valid
+     - Management account exists
+     - Account role is exactly `ADMIN`
+- Returns **401**, **403**, or **404** depending on failure type.  
 
-**2. Preliminary Input Validation**  
-- id must be a positive long.
-- DTO undergoes Spring @Valid rules.
-- Any violation → 400 with standardized ApiResponse.  
-
-**3. Fetch Current Location Set**  
-
-Loads the existing CityEntity (root) → retrieves linked StateEntity & CountryEntity.
-If city not found → 404.  
+**2. Validate Path Variable & Request Body**  
+- Ensures `{id}` is not null, zero, or negative.
+- Uses `@Valid` + `BindingResult` to check DTO constraints.
+- Any field-level errors return **400** with aggregated messages using `BindingResultUtils`.  
+ 
+**3. Fetch Existing Location Record**    
+- Attempts to load `CityEntity` for the provided ID.
+- If absent → returns **404 NOT_FOUND** immediately.
+- Fetches associated `StateEntity` and `CountryEntity` for contextual checks.
 
 **4. Enum Parsing & Syntax Validation**  
-- Converts input state/country → Enum via `ParsingEnumUtils`  
-- Validates name formats using strict RegEx.  
-  If invalid → 400.  
+- Uses `ParsingEnumUtils` to validate and convert input strings to enum types:
+   - `Country`
+   - `State`
+- If parsing fails → returns **400 BAD_REQUEST** with a descriptive error message.  
+-This ensures only clean, normalized, and recognized geographical enums enter the logic.
 
-**5. Duplicate Combination Check (Two-Level)**  
+**5. Duplicate & Hierarchy Conflict Prevention (Two-Level)**  
+- Before applying any update:  
+- Checks if the new City-State-Country combination already exists in:   
+   - **Level 1:** Location (`CityEntity`, `StateEntity`, `CountryEntity`) relational tables.     
+   - **Level 2:** `MasterLocation` table.  
+- If found and it differs from the current record: → returns **409 CONFLICT** (prevents creating invalid duplicates under new states/countries)  
 
-**Level 1:** Checks if (city, stateEnum, countryEnum) combo already exists in relational tables.    
-**Level 2:** Checks same combo in MasterLocation.  
-If either exists and it’s not the current record → **409 Conflict.**  
-
+**Additional duplicate check:**  
+- If city name changes, ensures the same city does not already exist under the target state.  
+- These validations guarantee:  
+    - No duplicate cities across the state
+    - No cross-hierarchy collisions
+    - No conflicting MasterLocation records
 
 **6. MasterLocation Consistency Guard**  
+- Attempts to fetch the related MasterLocation record for the current location.
+- If missing → returns **404 NOT_FOUND** with a clear inconsistency diagnostic.  
 
-Ensures MasterLocation entry for the current (old) city/state/country exists.  
-If missing → marks data inconsistency → **404**.  
+This protects against silent desynchronization between:  
+ - Management hierarchy (City/State/Country Entities)
+ - MasterLocation reference table
 
-**7. Conditional Entity Updates**  
+**7. Hierarchical Update Execution**  
 
 Each entity updates **only if changed**:  
-  - If Country changed → update CountryEntity
-  - If State changed → update StateEntity (linked to updated/new country)
-  - If City changed → update CityEntity (linked to updated/new state)
-Every update applies `updatedAt`, `updatedBy`, version increment.
+  - If country changed → update `CountryEntity`
+  - If state changed → update `StateEntity` (linked to updated/new country)
+  - If city changed → update `CityEntity` (linked to updated/new state)
+Every update applies `updatedAt`, `updatedBy`, version increment. All changes are performed inside a `@Transactional` boundary ensuring entity-level atomicity.  
 
-**8. Secondary Duplicate Check for City Under State**  
+**8. MasterLocation Synchronization**  
 
-When state changes: ensures no other City with same name exists in that state.
-If conflict → **409**.  
+After city, state, and country updates:  
 
-**9. MasterLocation Synchronization**  
+- Updates the corresponding MasterLocation record.
+- Ensures global location references remain consistent.
+- Tracks modifying admin details for audit logs.
 
-After updating relational entities:  
-  - Updates MasterLocation with new city/state/country
-  - Updates audit fields
-  - Guarantees the consolidated table is always consistent  
+Critical for multi-module cross-referencing.  
 
-**10. Optimistic Locking Protection**  
+**9. Concurrency Protection**  
 
-If another admin modified the location during update:
- - JPA throws `ObjectOptimisticLockingFailureException` or OptimisticLockException
- - Controller returns **409 MODIFIED_BY_OTHER**  
-
-**11. Transaction Completion**  
-
-Entire operation runs inside a single `@Transactional` block:  
-- All changes commit only if every step succeeds
-- Any exception → full rollback
+If any other admin modified the location during update:
+ - JPA throws `ObjectOptimisticLockingFailureException` or `OptimisticLockException`.
+ - Returns **409 CONFLICT** with a message indicating that the record was modified elsewhere.
+ - Prevents overwriting changes or causing corrupted hierarchies.  
 
 
 #### 📤 Success Response
@@ -1233,15 +1243,41 @@ Entire operation runs inside a single `@Transactional` block:
 </details>
 
 #### ❗ Error Response
+> Invalid ID / DTO / Parsing Errors  
 <details> 
   <summary>View screenshot</summary>
-   ![Location Update Success]()
-</details>
+   ![Location Update Error]()
+</details>  
+
+> Not Found (ID or MasterLocation Missing)  
+<details> 
+  <summary>View screenshot</summary>
+   ![Location Update Error]()
+</details>  
+
+> Duplicate Conflict (Hierarchy / City / MasterLocation)  
+<details> 
+  <summary>View screenshot</summary>
+   ![Location Update Error]()
+</details>  
+
+> Optimistic Lock / Concurrent Modification  
+<details> 
+  <summary>View screenshot</summary>
+   ![Location Update Error]()
+</details>   
+
+> Unauthorized / Forbidden  
+<details> 
+  <summary>View screenshot</summary>
+   ![Location Update Error]()
+</details>  
+
 
 #### HTTP Status Code Table
 | HTTP Code | Status Name       | Meaning               | When It Occurs                                |
 | --------- | ----------------- | --------------------- | --------------------------------------------- |
-| 200       | SUCCESS           | Request succeeded     | Data found and returned successfully          |
+| 200       | OK                | Request succeeded     | Data found and returned successfully          |
 | 400       | BAD_REQUEST       | Validation Falied     | Invalid ID / invalid DTO / regex or enum fail |
 | 401       | UNAUTHORIZED      | Authentication Failed | Missing or invalid JWT                        |
 | 404       | NOT_FOUND         | Resource Not Found    | CityEntity / MasterLocation entity missing    |
@@ -1250,20 +1286,480 @@ Entire operation runs inside a single `@Transactional` block:
 | 500       | INTERNAL_SERVER_ERROR | Unexpected Error | Unexpected server-side error              |
 
 
-#### 🧪 Edge Case Rules (Refined)
-- Case differences alone (e.g., "chennai" → "Chennai") do not trigger duplicates.
-- State or Country change triggers cascaded re-evaluation of duplicates within new hierarchy.
-- MasterLocation must always exist — no silent auto-create during update.
-- Concurrent updates gracefully fail with explicit conflict messaging.
-- Update operation is designed to be deterministic and free of side effects.
-- Also, I faced more challenges while building this one, Let me describe that in **Challenge section.**
-  
+#### ⚠️ Edge Cases & Developer Notes
+**1. Hierarchical Integrity & Cross-Level Data Consistency Enforcement**  
+
+This API enforces end-to-end hierarchical integrity across `Country → State → City` during updates, even when only **one field value is changed**. Before applying updates, the system re-evaluates the entire hierarchy to ensure that the modified values still form a valid and consistent location structure.  
+
+This mechanism prevents:  
+
+- **Orphan States** (states pointing to incorrect or outdated countries).
+- **City-State Mismatches** (cities detached from their intended state or shifted incorrectly).
+- **Invalid Cross-Country Assignments** (states being reassigned across countries accidentally).
+- **Partial or fragmented hierarchies** caused by updating one entity without synchronizing the others.  
+
+ By enforcing strict re-validation rules across all layers, the system guarantees that every update maintains structural correctness, referential integrity, and long-term maintainability of the location hierarchy.  
+
+**2. Multi-Layer Duplicate Detection Across Main Location & MasterLocation Domains**  
+
+Duplicate prevention logic runs through two independent validation layers:  
+
+**1. Management Hierarchy Tables**  
+- `CountryEntity`
+- `StateEntity`
+- `CityEntity`  
+ 
+**2. Global MasterLocation Repository**  
+- Application-wide index used across modules
+ 
+This dual-layer approach ensures:  
+- **Zero conflicting entries** across different modules.
+- **Prevention of multiple cities with the same name under the same state.**
+- **Guarding against inconsistent or “hidden” duplicates** that may originate from older data or cross-service operations.
+- **Full avoidance of state-level and country-level duplication** when values change during update
+
+This is essential for large-scale environments handling **1000+ hierarchical entries**, ensuring that all updates respect existing relationships and global constraints.  
+
+**3. MasterLocation Integrity Validation & Data Recovery Protection**  
+
+Before performing any update, the system verifies the presence and correctness of the corresponding `MasterLocation` record for the current city–state–country.  
+
+If the MasterLocation entry is missing:  
+- The update is **immediately stopped**
+- A **404 NOT_FOUND** is returned with a precision diagnostic
+
+ This protects the system from severe data integrity failures, including:  
+- **Silent reference** loss between Management and MasterLocation
+- **Inconsistencies across modules** relying on MasterLocation identifiers
+- **Broken relational mapping** that could corrupt downstream services
+- **Partial updates** where hierarchy tables update, but global references do not
+
+ This mechanism ensures that **no update proceeds unless both layers remain in perfect sync**, making the system highly resilient to corruption and misalignment.  
+
+ 
+**4. Robust Concurrency Control with Optimistic Locking**  
+- The update pipeline is fortified with optimistic locking to handle multi-admin, high-concurrency environments.  
+- If two administrators update the same record simultaneously:
+    - **First update succeeds**
+    - **Second receives a deterministic** `409 CONFLICT` with an actionable message  
+
+This prevents:  
+- **Dirty writes**
+- **Lost updates**
+- **Overwritten changes from other admins**
+- **Race-condition-related corruption of hierarchical data** 
+
+By relying on entity versioning, the API guarantees consistent, predictable modification behavior even under heavy concurrency, ensuring that location data remains stable and conflict-free.  
+
+
+**5. Transactional Update Pipeline with Enum Normalization & Atomic Hierarchical Persistence**  
+- The entire update operation executes within a strict `@Transactional` block, ensuring atomicity and consistency at every layer of the hierarchy.  
+
+**Transactional Guarantees:**
+- **All-or-nothing persistence** for each hierarchical update
+- **Rollback of only the current update attempt**, preserving previously correct data.
+- Automatic consistency between updated country, updated state, and updated city.
+- Safe updates to **MasterLocation synchronously** within the same transaction cycle.
+- **Comprehensive audit logging**, capturing admin ID, username, and modified values.    
+
+**Enum Normalization:**   
+
+Input values for `country` and `state` undergo validation via `ParsingEnumUtils`, ensuring:  
+- No typos or irregular formats.
+- No unsupported enum values.
+- No inconsistent naming across services.
+- Fully standardized and sanitized input before reaching deeper logic.  
+
+This combination ensures a highly scalable, error-resistant update pipeline capable of maintaining long-term hierarchical accuracy across all related domains.
 </details>
 
 
+### 🗑️ 9. Delete Location Record (City + State + Country Hierarchy)  
+<details> 
+  <summary><strong>DELETE</strong> <code>/bookmyride/management/locations/{id}</code></summary>
+ 
+#### 🛠 Endpoint Summary
+**Method:** DELETE  
+**URL:** /bookmyride/management/locations/{id}  
+**Authentication:** Required (JWT)  
+**Roles Allowed:** ADMIN  
+
+#### 📝 Description  
+This API allows an authenticated Management/Admin user to permanently delete a location entry from the **hierarchical structure (City → State → Country)**.
+The deletion ensures synchronized removal across both the Management location tables and the MasterLocation global repository.  
+The API includes robust validation, optimistic locking protection, and detailed integrity checks to prevent inconsistent data states.  
+
+Key highlights:  
+- Deletes an existing `CityEntity` and its corresponding entry in `MasterLocation`.
+- Ensures the MasterLocation reference for the city exists before deletion.
+- Fully transactional — protects against partial or inconsistent deletions.
+- Applies optimistic locking to prevent concurrent deletion conflicts.
+- Provides clear, descriptive responses for missing IDs, missing records, or synchronization issues.  
+
+#### 📥 Request Parameter  
+**Path Variable:** `id` — The unique `City ID` to delete.  
+
+#### ⚙️ How the Backend Processes This (Step-by-Step)
+**1. Authenticate and Validate Admin User**  
+- Extracts `UserPrincipal` from **JWT Token**.
+- Validates admin identity using `UserPrincipalValidationUtils.validateUserPrincipal()`, Ensures:
+   - Valid token
+   - Management account exists
+   - Role = ADMIN
+- Returns **401, 403**, or **404** if validation fails.
+
+**2. Validate Path Variable**  
+- Checks if `id` is null, zero, or negative.
+- Returns **400 BAD_REQUEST** for invalid IDs with a clear error message.
+
+**3. Fetch CityEntity for the Given ID**   
+- Queries `cityEntityRepo.findById(id)`.
+- If no record exists → 404 NOT_FOUND with message.
+- This avoids unnecessary operations and protects from invalid deletion attempts.
+
+**4. Load Associated Hierarchy (State + Country)**  
+
+Once the city exists, the system fetches:  
+- `StateEntity` via `cityEntity.getState()`
+- `CountryEntity` via `stateEntity.getCountry()` 
+
+This provides the necessary hierarchical context for:
+   - Logging
+   - MasterLocation validation
+   - Deletion consistency checks 
+
+
+**5. Validate MasterLocation Consistency Before Deletion**  
+- The system must confirm that the location also exists in the global MasterLocation index by using `masterLocationService.fetchByName(city, state, country)`.
+- If missing: Logs a warning (indicating potential data inconsistency) & Returns **404 NOT_FOUND** with message.
+- This prevents partial deletions that break system-wide consistency.
+
+**6. Perform Hierarchy Deletion (Transactional & Atomic)**  
+
+Deletion happens inside a `@Transactional` block to ensure atomicity:
+ - After getting `CityEntity`, through that retrieved related `StateEntity` & `CountryEntity`
+ - And removes the those entites from the location hierarchy.
+ - Removes the `MasterLocation` record which Ensures global references remain clean and consistent.
+ - Logs details such as: Management ID, username, Deleted city/state/country values, Deleted ID.
+ - Ensures traceability for all destructive actions.
+
+ **7. Concurrency Protection with Optimistic Locking**   
+ 
+ If another admin modifies or deletes the same record concurrently:
+   - The system throws `OptimisticLockException`.
+   - Controller catches and returns → **409 CONFLICT** with message.
+    
+This prevents race-condition-based partial deletions or inconsistent states.  
+
+
+#### 📤 Success Response
+<details> 
+  <summary>View screenshot</summary>
+   ![Location Delete Success]()
+</details>  
+
+#### ❗ Error Responses  
+> Invalid ID
+<details> 
+  <summary>View screenshot</summary>
+   ![Location Delete Error]()
+</details>  
+
+> Record Not Found (City or MasterLocation Missing)
+<details> 
+  <summary>View screenshot</summary>
+   ![Location Delete Error]()
+</details>  
+
+> Unauthorized / Access Denied
+<details> 
+  <summary>View screenshot</summary>
+   ![Location Delete Error]()
+</details>  
+
+
+#### 📊 HTTP Status Code Table
+| HTTP Code | Status Name           | Meaning               | When It Occurs                              |
+| --------- | --------------------- | --------------------- | ------------------------------------------- |
+| 200       | OK                    | Location deleted      | Successful deletion                         |
+| 400       | BAD_REQUEST           | Validation Failed     | Invalid ID                                  |
+| 401       | UNAUTHORIZED          | Authentication Failed | Invalid/expired token                       |
+| 403       | FORBIDDEN             | Access Denied         | Role not ADMIN                              |
+| 404       | NOT_FOUND             | Record Missing        | City or MasterLocation not found            |
+| 409       | CONFLICT              | Concurrency Issue     | Deleted by another admin / version conflict |
+| 500       | INTERNAL_SERVER_ERROR | Unexpected Error      | Unhandled system failure                    |
+
+
+#### ⚠️ Edge Cases & Developer Notes
+**1. MasterLocation & Management Hierarchy Synchronization**  
+- Deletion requires both:
+   - `CityEntity`
+   - `MasterLocation`
+- If `CityEntity` is missing -> **404 NOT_FOUND**, Rather operation is blocked.
+- If MasterLocation is missing, deletion is blocked to prevent:
+   - Half-deleted records
+   - Broken references across modules
+   - Inconsistent relationships in analytics or downstream services
+- This ensures data consistency across all layers.   
+
+**2. Concurrency & Race-Condition Protection**  
+
+Because deletion is destructive, optimistic locking prevents:  
+- Two admins deleting the same record at the same time.
+- Deleting a record immediately after another update.
+- Partial cascade deletions.
+
+The API ensures only one admin can modify that location at any given moment. 
+
+**3. Transactional Atomic Deletion**  
+
+ The entire delete operation is atomic:
+   - `MasterLocation` and `CityEntity` deletions happen together.
+   - Any exception automatically rolls back the operation.
+   - Prevents leftover orphan records or partially removed hierarchies.  
+
+**4. Defensive Design Against Inconsistent Historical Data**  
+
+If older data becomes corrupted or out-of-sync:  
+ - The API halts deletion
+ - Gives a meaningful error
+ - Logs the inconsistency  
+
+ Allowing developers to diagnose and repair underlying data issues.
+ </details> 
+
+
+### 🗑️ 10. Delete ALL Location Data (Complete Hierarchical Wipe)
+<details> 
+  <summary><strong>DELETE</strong> <code>/bookmyride/management/locations/all</code></summary>
+
+#### 🛠 Endpoint Summary  
+**Method:** DELETE  
+**URL:** /bookmyride/management/locations/all  
+**Authentication:** Required (JWT)  
+**Roles Allowed:** ADMIN  
+
+#### 📝 Description
+This API performs a complete hierarchical wipe of all location data stored in the system. The deletion is fully transactional, ensuring that all records are removed atomically without leaving behind partial or inconsistent data. Optimistic locking protects against concurrent admin-triggered mass deletions. Detailed audit logs are captured for accountability.
+It deletes entries across:
+- `CityEntity`
+- `StateEntity`
+- `CountryEntity`
+- `MasterLocation` global reference table
+
+#### 📥 Request Body
+This endpoint **does not require any request body**.  
+
+#### ⚙️ How the Backend Processes This (Step-by-Step)  
+**1. Authenticate & Validate Admin User**  
+- Extracts the `UserPrincipal` from **JWT** and pas through `UserPrincipalValidationUtils`.
+- Validates that:
+    - Token is valid
+    - User exists
+    - Role = ADMIN
+      
+- If validation fails → returns **401, 403, or 404** with structured JSON.  
+
+**2. Trigger the Hierarchical Data Wipe (Transactional Scope)**  
+- Inside a strict `@Transactional` block:
+   - Deletes all data inside `CityEntity` through JPA method `cityEntityRepo.deleteAll()`.
+   - Deletes all data inside `StateEntity` through JPA method `stateEntityRepo.deleteAll()`.
+   - Deletes all data inside `CountryEntity` through JPA method `countryEntityRepo.deleteAll()`
+- This maintains relational correctness — cities and states are removed before countries to avoid FK violations.  
+
+**3. Wipe the MasterLocation Table**  
+- Using masterLocation's repository JPA method `masterLocationService.deleteAllLocationData()` deletes all records in it. Synchronizes global reference indexing with the freshly cleared hierarchy.
+- Therefore it Guarantees:
+   - No leftover city/state/country entries
+   - No orphaned global locations
+   - Full dataset reset
+
+**4. Concurrency Protection (Optimistic Locking)**  
+
+If two admins attempt a full wipe simultaneously:
+- First wipe succeeds
+- Second receives -> **409 CONFLICT** with message “All location data was already deleted by other authority.”
+- This prevents:
+    - Duplicate operations
+    - Race-condition induced partial deletions
+    - Unnecessary system load
+- Finally logs that include Logs include: **Management ID, Username, Time of deletion and Action description**.
+- Ensures traceability for all large-scale destructive operations.
+
+
+#### 📤 Success Response
+<details> 
+  <summary>View screenshot</summary>
+   ![Location Delete All Success]()
+</details>    
+
+#### ❗ Error Responses  
+> Authentication / Authorization Failure
+<details> 
+  <summary>View screenshot</summary>
+   ![Location Delete All Error]()
+</details>    
+
+> Deletion failed due to id
+<details> 
+  <summary>View screenshot</summary>
+   ![Location Delete All Error]()
+</details>  
+
+#### 📊 HTTP Status Code Table
+| HTTP Code | Status                | Meaning               | When It Occurs                   |
+| --------- | --------------------- | --------------------- | -------------------------------- |
+| 200       | OK                    | All data deleted      | Successful hierarchical wipe     |
+| 401       | UNAUTHORIZED          | Authentication failed | JWT missing or invalid           |
+| 403       | FORBIDDEN             | Access denied         | Role ≠ ADMIN                     |
+| 404       | NOT_FOUND             | Invalid admin         | Principal validation failed      |
+| 409       | CONFLICT              | Concurrent deletion   | Another admin already wiped data |
+| 500       | INTERNAL_SERVER_ERROR | Server error          | Underlying system failure        |
+
+
+#### ⚠️ Edge Cases & Developer Notes
+**1. Atomic Hierarchical Reset With MasterLocation Synchronization**  
+
+The deletion process removes **City → State → Country** records in the correct hierarchical order and synchronizes the `MasterLocation` index in the same transactional flow. This guarantees:
+- No orphaned states or cities.
+- No dangling MasterLocation entries.
+- No mismatched global mappings.
+- A perfectly clean reset of the entire location ecosystem.  
+
+The hierarchy and its master index are always wiped together, maintaining strict cross-table integrity.
+
+**2. Full Transactional Safety With Optimistic Lock Concurrency Control**   
+- All delete operations occur inside a **single atomic transaction**:  
+    - `cityEntityRepo.deleteAll()`
+    - `stateEntityRepo.deleteAll()`
+    - `countryEntityRepo.deleteAll()`
+    - `masterLocation deleteAll()`
+
+- If any step fails, the entire wipe is rolled back → ensuring **zero partial-deletion scenarios**. Optimistic locking protects against multi-admin conflicts:
+   - First admin → deletion succeeds
+   - Second admin → receives **409 CONFLICT**
+   - Prevents destructive race conditions and duplicate mass-wipes
+- This guarantees stability even in high-concurrency environments.
+
+**3. Ideal for System Resets With Strong Audit Traceability**  
+- This endpoint is designed for situations requiring a **clean slate**, such as:  
+  - Environment resets
+  - Test data cleanup
+  - Re-initializing corrupted datasets
+
+#### ➡️ What To Do Next  
+Once all location data has been fully reset and re-initialized, the next operational step for a Management user is to begin **adding Bus records** into the system.  
+
+With the Country → State → City hierarchy now clean and consistent:
+ - Bus registration
+ - Route assignments
+ - Trip creation
+ - Booking workflows
+
+This ensures that the transportation module is built on a fully validated and conflict-free location foundation, allowing all downstream APIs to function reliably. 
+</details>
+
+
+### 🚌 11. Add New Bus Data (Bus Registration & Scheduling)
+<details> 
+  <summary><strong>POST</strong> <code>/management/buses</code></summary>
+
+#### 🛠 Endpoint Summary  
+**Method:** POST  
+**URL:** /management/buses  
+**Authentication:** Required (Admin JWT token)  
+**Authorized Roles:** ADMIN  
+
+#### 📝 Description
+This API allows a **Management/Admin** user to register a **new bus** into the system. It captures the bus details including name, number, type, registration state, permit status, capacity, route, schedule, and fare. The service ensures **uniqueness of bus number, validation of enumerated inputs, and location integrity**. Optimistic locking and transactional safety prevent race conditions and ensure consistent state in the database.  
+
+Key highlights:  
+- Validates authenticated admin user before performing any operations.
+- Ensures **bus number uniqueness** to prevent duplicates.
+- Parses and validates enumerated inputs:
+    - BusType (e.g., AC, Sleeper, AC_SEATER, etc..)
+    - State of Registration (e.g., TAMIL_NADU, ANDRA_PRADESH, KARNATAKA, etc..)
+    - Permit Status (eg., PERMITTED, NOT_PERMITTED)
+- Validates route locations using `MasterLocation` repository (fromLocation → toLocation).
+- Converts departure time from string → `LocalTime` with strict format checking.
+- Sets available seats equal to total capacity automatically.
+- Calculates arrival time from **departure + duration**.
+- Audit logs all admin actions (Management ID, username, created bus details).
+- Protected by:
+    - JWT authentication
+    - ADMIN role enforcement
+    - DTO validation
+    - Optimistic locking
+    - Transactional safety
+
+#### 📥 Request Body (Sample)
+{
+&nbsp;&nbsp;&nbsp; "busNumber": "TN01CC1234",
+&nbsp;&nbsp;&nbsp; "busName": "Chennai Express",
+&nbsp;&nbsp;&nbsp; "busType": "Sleeper",
+&nbsp;&nbsp;&nbsp; "stateOfRegistration": "Tamil nadu",
+&nbsp;&nbsp;&nbsp; "interStatePermitStatus": "Permitted",
+&nbsp;&nbsp;&nbsp; "capacity": 50,
+&nbsp;&nbsp;&nbsp; "fromLocation": "Chennai",
+&nbsp;&nbsp;&nbsp; "toLocation": "Madurai",
+&nbsp;&nbsp;&nbsp; "hours": 6,
+&nbsp;&nbsp;&nbsp; "minutes": 30,
+&nbsp;&nbsp;&nbsp; "departureAt": "21:00:00",
+&nbsp;&nbsp;&nbsp; "fare": 650.00
+}
+> 💡 Tip: Substitute placeholders with your preferred values. But remember, my system will block entries that do not match its rules. For more info please refer the **BusDto class** under **dto package** in the application folder.  
+
+#### ⚙️ How the Backend Processes This  
+**1. Authenticate and Validate Admin User**  
+- Extracts `UserPrincipal` from `@AuthenticationPrincipal`.
+- Uses `UserPrincipalValidationUtils.validateUserPrincipal()` to ensure the user exists, is active, and has the **ADMIN role**.
+- Returns **401 Unauthorized** or **403 Forbidden** if validation fails.  
+
+**2. DTO & Input Validation**  
+- Uses `@Valid` annotation on `BusDto` with `BindingResult`.
+- Returns **400 Bad Request** listing validation failures if inputs are missing or malformed.  
+
+**3. Bus Number Uniqueness Check**  
+- Checks if `busService.existsBusNumber(busDto.getBusNumber())`.
+- Returns **409 Conflict** if the bus number already exists.  
+
+**4. Parse Enumerated Types**   
+- Converts `busType`, `stateOfRegistration`, and `interStatePermitStatus` strings into enum types via `ParsingEnumUtils`.
+- Returns **400 Bad Request** if invalid or unrecognized.  
+
+**5. Validate Route Locations**  
+- Uses `ValidateLocationUtils.validateLocation()` to ensure `fromLocation` and `toLocation` exist in `MasterLocation` repository.
+- Returns **400 Bad Request** or **404 Not Found** if locations are invalid or missing.  
+
+**6. Time & Duration Processing**  
+- Parses `departureAt` into `LocalTime` using strict **HH:mm:ss format**.
+- Computes `arrivalAt = departureAt + duration`.
+- Returns **400 Bad Request** if time parsing fails.  
+
+**7. Hierarchical Entity Mapping & Bus Creation**  
+- Maps DTO → Entity via BusMapper.toEntity().
+- Sets all fields:
+    - AC type & seat type (derived from BusType)
+    - Capacity & available seats
+    - From → To MasterLocation
+    - Fare, schedule, and duration
+    - Audit info (createdBy, createdAt)
+- Saves the bus entity in a transactional manner.  
+
+**8. Error Handling**  
+- `ObjectOptimisticLockingFailureException` or `OptimisticLockException` → **409 Conflict**, with descriptive message.
+- Generic exceptions → **500 Internal Server Error** with standardized response.
+
+#### 📤 Success Response
 
 
 
+
+
+
+
+ 
+</details>  
 
 
 
