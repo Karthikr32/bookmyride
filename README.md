@@ -1552,12 +1552,10 @@ This endpoint **does not require any request body**.
 
 #### ⚙️ How the Backend Processes This (Step-by-Step)  
 **1. Authenticate & Validate Admin User**  
-- Extracts the `UserPrincipal` from **JWT** and pas through `UserPrincipalValidationUtils`.
-- Validates that:
+- Extracts the `UserPrincipal` from **JWT** and pas through `UserPrincipalValidationUtils`. This validates:
     - Token is valid
     - User exists
-    - Role = ADMIN
-      
+    - Role = ADMIN  
 - If validation fails → returns **401, 403, or 404** with structured JSON.  
 
 **2. Trigger the Hierarchical Data Wipe (Transactional Scope)**  
@@ -1671,94 +1669,208 @@ This ensures that the transportation module is built on a fully validated and co
 **Authorized Roles:** ADMIN  
 
 #### 📝 Description
-This API allows a **Management/Admin** user to register a **new bus** into the system. It captures the bus details including name, number, type, registration state, permit status, capacity, route, schedule, and fare. The service ensures **uniqueness of bus number, validation of enumerated inputs, and location integrity**. Optimistic locking and transactional safety prevent race conditions and ensure consistent state in the database.  
+This API allows an authorized **Management/Admin** user to add a **brand-new bus entry** into the enterprise bus registry. It serves as the core provisioning endpoint used to enrich the fleet with new travel buses, fully capable of:  
 
-Key highlights:  
-- Validates authenticated admin user before performing any operations.
-- Ensures **bus number uniqueness** to prevent duplicates.
-- Parses and validates enumerated inputs:
-    - BusType (e.g., AC, Sleeper, AC_SEATER, etc..)
-    - State of Registration (e.g., TAMIL_NADU, ANDRA_PRADESH, KARNATAKA, etc..)
-    - Permit Status (eg., PERMITTED, NOT_PERMITTED)
-- Validates route locations using `MasterLocation` repository (fromLocation → toLocation).
-- Converts departure time from string → `LocalTime` with strict format checking.
-- Sets available seats equal to total capacity automatically.
-- Calculates arrival time from **departure + duration**.
-- Audit logs all admin actions (Management ID, username, created bus details).
-- Protected by:
-    - JWT authentication
-    - ADMIN role enforcement
-    - DTO validation
-    - Optimistic locking
-    - Transactional safety
+Key highlights:   
+  - Strict validation of Management user identity and role before any processing.
+  - Deep validation of all submitted bus attributes.
+  - Enum-driven data normalization for:  
+       - BusType (e.g., AC, Sleeper, AC_SEATER, etc..)
+       - State of registration (e.g., TAMIL_NADU, ANDRA_PRADESH, KARNATAKA, etc..)
+       - Inter-state permit status (eg., PERMITTED, NOT_PERMITTED)
+  - Location validation for both **origin (fromLocation)** and **destination (toLocation)** using centralized `MasterLocation`.
+  - Intelligent attribute derivation (AC type, seat type) based on the BusType
+  - Converts departure time from string → `LocalTime` with strict format checking.
+  - Sets available seats equal to total capacity automatically.
+  - Calculates arrival time from **departure + duration**.
+  - Audit logs all admin actions (Management ID, username, created bus details).
+  - Protected by:
+     - **JWT authentication**
+     - **Role-based access enforcement**
+     - **DTO validation**
+     - **Optimistic locking**
+     - **Transactional safety**
+     - **enterprise-grade error safety**
 
-#### 📥 Request Body (Sample)
-{
-&nbsp;&nbsp;&nbsp; "busNumber": "TN01CC1234",
-&nbsp;&nbsp;&nbsp; "busName": "Chennai Express",
-&nbsp;&nbsp;&nbsp; "busType": "Sleeper",
-&nbsp;&nbsp;&nbsp; "stateOfRegistration": "Tamil nadu",
-&nbsp;&nbsp;&nbsp; "interStatePermitStatus": "Permitted",
-&nbsp;&nbsp;&nbsp; "capacity": 50,
-&nbsp;&nbsp;&nbsp; "fromLocation": "Chennai",
-&nbsp;&nbsp;&nbsp; "toLocation": "Madurai",
-&nbsp;&nbsp;&nbsp; "hours": 6,
-&nbsp;&nbsp;&nbsp; "minutes": 30,
-&nbsp;&nbsp;&nbsp; "departureAt": "21:00:00",
-&nbsp;&nbsp;&nbsp; "fare": 650.00
-}
-> 💡 Tip: Substitute placeholders with your preferred values. But remember, my system will block entries that do not match its rules. For more info please refer the **BusDto class** under **dto package** in the application folder.  
+#### 📥 Request Body (Sample)  
+{  
+&nbsp;&nbsp;&nbsp; "busNumber": "TN01CC1234",  
+&nbsp;&nbsp;&nbsp; "busName": "Chennai Express",  
+&nbsp;&nbsp;&nbsp; "busType": "Sleeper",  
+&nbsp;&nbsp;&nbsp; "stateOfRegistration": "Tamil nadu",  
+&nbsp;&nbsp;&nbsp; "interStatePermitStatus": "Permitted",  
+&nbsp;&nbsp;&nbsp; "capacity": 50,  
+&nbsp;&nbsp;&nbsp; "fromLocation": "Chennai",  
+&nbsp;&nbsp;&nbsp; "toLocation": "Madurai",  
+&nbsp;&nbsp;&nbsp; "hours": 6,  
+&nbsp;&nbsp;&nbsp; "minutes": 30,   
+&nbsp;&nbsp;&nbsp; "departureAt": "21:00:00",  
+&nbsp;&nbsp;&nbsp; "fare": 650.00  
+}  
+> 💡 Departure time must strictly follow HH:mm:ss format.  
+> 💡 Tip: Substitute placeholders with your preferred values. But remember, My system will block entries that do not match its rules.  
+> 💡 Tip: For more info please refer the **BusDto class** under **dto package** in the application folder.  
 
 #### ⚙️ How the Backend Processes This  
 **1. Authenticate and Validate Admin User**  
-- Extracts `UserPrincipal` from `@AuthenticationPrincipal`.
-- Uses `UserPrincipalValidationUtils.validateUserPrincipal()` to ensure the user exists, is active, and has the **ADMIN role**.
-- Returns **401 Unauthorized** or **403 Forbidden** if validation fails.  
 
-**2. DTO & Input Validation**  
-- Uses `@Valid` annotation on `BusDto` with `BindingResult`.
-- Returns **400 Bad Request** listing validation failures if inputs are missing or malformed.  
+Before the system touches any bus logic, it verifies:
+ 
+**1.** Authenticated JWT is provided  
+**2.** UserPrincipal exists  
+**3.** Management account is active  
+**4.** Role == ADMIN 
+
+Failure triggers:  
+
+  - **401 Unauthorized** if token invalid
+  - **404 Not Found** if account missing
+  - **403 Forbidden** if non-admin
+ 
+This ensures only valid authority accounts can register a new bus.  
+
+**2. DTO Validation & Syntax Checking**  
+
+The incoming BusDto is validated using:
+- `@Valid` annotation on `BusDto` with `BindingResult`.
+- Mandatory fields
+- Numeric ranges (capacity, fare)
+- Non-empty string fields
+- Time formatting
+ 
+Returns **400 Bad Request** listing validation failures if inputs are missing or malformed.  
 
 **3. Bus Number Uniqueness Check**  
-- Checks if `busService.existsBusNumber(busDto.getBusNumber())`.
-- Returns **409 Conflict** if the bus number already exists.  
 
-**4. Parse Enumerated Types**   
-- Converts `busType`, `stateOfRegistration`, and `interStatePermitStatus` strings into enum types via `ParsingEnumUtils`.
-- Returns **400 Bad Request** if invalid or unrecognized.  
+Before deeper validations, the system performs a **fast duplicate lookup** using `existsBusNumber(busDto.getBusNumber())` JPA Method.
+If the bus number already exists:  
+- Operation immediately stops
+- Returns 409 CONFLICT
+- Prevents two buses from being assigned the same registration number.
+ 
+This step enforces real-world fleet data uniqueness.
+
+**4. Enum Parsing & Data Normalization Pipeline**   
+
+The API converts incoming string values into domain enums:
+ - BusType
+ - State (state of registration)
+ - PermitStatus  
+  
+Enum parsing uses centralized strict utilities:
+ - Rejects misspellings
+ - Rejects unsupported types
+ - Ensures canonical system-wide naming  
+
+If any input fails parsing → Returns **400 BAD_REQUEST** with precise error details.  
+This avoids unregulated string inputs flowing deeper into business logic.
 
 **5. Validate Route Locations**  
-- Uses `ValidateLocationUtils.validateLocation()` to ensure `fromLocation` and `toLocation` exist in `MasterLocation` repository.
-- Returns **400 Bad Request** or **404 Not Found** if locations are invalid or missing.  
+- Uses `ValidateLocationUtils.validateLocation()` to ensure `fromLocation` and `toLocation` exist in `MasterLocation` registry:
+    - Ensures both endpoints exist
+    - Ensures locations are globally consistent
+    - Ensures no missing or malformed location strings
+- Returns **400 Bad Request** or **404 Not Found** if locations are invalid or missing.
+- This guarantees that every scheduled bus route uses valid, standardized, cross-module location references.
 
 **6. Time & Duration Processing**  
-- Parses `departureAt` into `LocalTime` using strict **HH:mm:ss format**.
-- Computes `arrivalAt = departureAt + duration`.
-- Returns **400 Bad Request** if time parsing fails.  
+- Parses `departureAt` into `LocalTime` using strict **HH:mm:ss ((zero-tolerant, strict resolver))**.
+- Returns **400 Bad Request** if time parsing fails.
+- This ensures predictable daily scheduling behavior.
 
-**7. Hierarchical Entity Mapping & Bus Creation**  
+**7. Entity Construction & Intelligent Attribute Derivation**  
 - Maps DTO → Entity via BusMapper.toEntity().
 - Sets all fields:
-    - AC type & seat type (derived from BusType)
+    - AcType/Seat type (derived from `BusType`)
     - Capacity & available seats
-    - From → To MasterLocation
+    - From → To locations via `MasterLocation`
     - Fare, schedule, and duration
+    - ArrivalTime = departureAt + duration
+    - Registration details
     - Audit info (createdBy, createdAt)
-- Saves the bus entity in a transactional manner.  
+- Saves the bus entity in a transactional manner.
+- This ensures every bus is stored with a **complete, ready-to-use operational profile**.
 
-**8. Error Handling**  
+**8. Optimistic Locking (Concurrency Safety)**  
+If two admins attempt to add a bus with identical details:
+ - One succeeds
+ - The other receives a deterministic **409 CONFLICT**  
+
+Triggered by:  
 - `ObjectOptimisticLockingFailureException` or `OptimisticLockException` → **409 Conflict**, with descriptive message.
 - Generic exceptions → **500 Internal Server Error** with standardized response.
+ 
+Prevents conflicted or duplicate entries in high-concurrency admin environments.
 
 #### 📤 Success Response
+<details> 
+  <summary>View screenshot</summary>
+   ![Bus Added Success]()
+</details>  
+
+#### ❗ Error Responses  
+> Duplicate Bus Number  
+<details> 
+  <summary>View screenshot</summary>
+   ![Bus Added Success]()
+</details>  
+
+> Invalid Enum / Time Format  
+<details> 
+  <summary>View screenshot</summary>
+   ![Bus Added Success]()
+</details>  
+
+> Invalid/Missing Location   
+<details> 
+  <summary>View screenshot</summary>
+   ![Bus Added Success]()
+</details>  
+
+#### 📊 HTTP Status Code Table
+| HTTP Code | Status                | Meaning               | When It Occurs                   |
+| --------- | --------------------- | --------------------- | -------------------------------- |
+| 201       | CREATED               | Bus Created           | All validations passed, save successful|
+| 400       | BAD_REQUEST           | Validation Error      | Bad DTO, invalid enum, invalid time, or location error|
+| 401       | UNAUTHORIZED          | Auth Failed           | oken missing/invalid Or UserPrincipal null|
+| 403       | FORBIDDEN             | Access denied         | Role mismatch                    |
+| 404       | NOT_FOUND             | Invalid admin         | Admin not found OR master location/ DB entities missing|
+| 409       | CONFLICT              | Concurrent deletion   | Bus number exists OR optimistic lock triggered |
+| 500       | INTERNAL_SERVER_ERROR | Server error          | Underlying system failure        |
 
 
+#### ⚠️ Edge Cases & Developer Notes  
+**1. Multi-Layer Validation Pipeline Ensuring Full Data Integrity**   
+- Bus creation passes through a highly structured validation chain: **DTO → Enums → Locations → Time Format → Derived Attributes**.
+- Each layer **stops** the pipeline immediately **upon failure**, guaranteeing that no malformed or partially resolved bus record enters the system.
+- This protective sequence preserves operational correctness across booking engines, schedule generators, and fleet analytics by ensuring that every bus stored is structurally valid, complete, and routable.  
 
 
+**2. Centralized Route Validation via MasterLocation for Cross-Module Consistency**  
+- Both the `fromLocation` and `toLocation` are validated against the `MasterLocation` registry, ensuring consistent geography across all modules such as booking, pricing, dispatching, and user search.
+- This prevents buses from being assigned to nonexistent or stale routes, eliminates **cross-country/state mismatches**, and ensures that every bus route is globally recognized by the platform.
+- Developers integrating future modules can trust that all route endpoints are canonical and clean.  
+
+**3. Enum Normalization & Attribute Derivation to Prevent Client-Side Misconfiguration**  
+- Critical enum fields like `BusType`, `State`, and `PermitStatus` undergo strict enum parsing to eliminate typos and non-standard formats.
+- Additionally, key characteristics such as **AC Type** and **Seat Type** are derived automatically on the server using BusType mapping logic, preventing clients from injecting incorrect operational attributes.
+- This ensures uniform behavior across all interfaces—web, mobile, admin dashboards—and maintains predictable system-wide fleet semantics.  
 
 
+**4. Time Parsing, Duration Logic & Arrival Calculation Ensuring Scheduling Accuracy**   
+- **Departure time** is parsed with **strict resolver** rules (“**HH:mm:ss**” mandatory), and arrival times are computed using validated durations, not client-supplied values.
+- This removes ambiguity around day rollovers, invalid time formats, and timing misalignment in timetable generation.
+- By controlling time calculations internally, the system maintains reliable departure–arrival consistency essential for fare calculations, ticket availability windows, and real-time journey tracking.  
 
- 
+**5. Robust Duplicate & Concurrency Protection via Pre-Checks + Optimistic Locking**  
+- The system performs a fast **duplicate bus-number check** before deeper validations to save substantial processing cost.
+- For high-concurrency admin environments, optimistic locking prevents race conditions where two managers attempt to register similar buses.
+- One insertion succeeds while others fail cleanly with a conflict response, ensuring that the fleet registry remains free from duplicates and unresolved partial writes.  
+
+**6. Transactional Atomicity, Audit Logging & Strict Referential Integrity**  
+- All write operations occur within a single transactional boundary, guaranteeing atomic persistence—either all components of a bus entry are stored, or none are.
+- Each successful insertion logs management identity and bus ID, forming a consistent audit trail essential for operations, troubleshooting, and compliance.
+- Dependence on MasterLocation and strict mapping rules ensures no orphaned references or mismatched relationships appear even if the platform grows with new modules or more complex fleet management features.
 </details>  
 
 
