@@ -1153,6 +1153,13 @@ It enforces strict cross-entity consistency between the 3-level relational struc
 - Uses **optimistic locking controls** to detect collisions when multiple authority-level users attempt to edit the same record simultaneously.
 - Executes the entire operation within a **single transactional boundary**, guaranteeing atomic, consistent, and rollback-safe updates.
 
+
+#### 📥 Request Parameter
+| Parameter | Type | Description                                         | Required |
+| --------- | ---- | --------------------------------------------------- | -------- |
+| `id`      | Long | ID of the existing location(CityEntity) to update. Must be positive. | Yes      |
+
+
 #### 📥 Request Body
 {  
 &nbsp;&nbsp;&nbsp; "city": "Chennai",  
@@ -1161,6 +1168,8 @@ It enforces strict cross-entity consistency between the 3-level relational struc
 }  
 > 💡 Also can use your own values here.  
 > 💡 Uses the exact same DTO validation rules as creation APIs — including enum validation and required fields.  
+
+
 
 #### ⚙️ Backend Processing Workflow (High-Density Version)
 **1. Authorization & Management User Validation**  
@@ -1397,7 +1406,10 @@ Key highlights:
 - Provides clear, descriptive responses for missing IDs, missing records, or synchronization issues.  
 
 #### 📥 Request Parameter  
-**Path Variable:** `id` — The unique `City ID` to delete.  
+| Parameter | Type | Description                                         | Required |
+| --------- | ---- | --------------------------------------------------- | -------- |
+| `id`      | Long | ID of the existing location(CityEntity) to delete. Must be positive. | Yes      |
+
 
 #### ⚙️ How the Backend Processes This (Step-by-Step)
 **1. Authenticate and Validate Admin User**  
@@ -1874,7 +1886,892 @@ Prevents conflicted or duplicate entries in high-concurrency admin environments.
 </details>  
 
 
+### 🚌 12. Viewing Bus Entries (Management View)
+<details> 
+  <summary><strong>GET</strong> <code>/management/buses</code></summary>
 
+
+#### 🛠 Endpoint Summary   
+**Method:** GET  
+**URL:** /management/buses  
+**Authentication:** Required (Admin JWT token)  
+**Authorized Roles:** ADMIN  
+
+#### 📝 Description  
+This API endpoint facilitates paginated and filtered retrieval of bus records from the system, intended exclusively for administrative purposes. It supports operational tasks such as viewing, updating, or deleting bus entries within the management dashboard.  
+
+Key functionalities:  
+- **Strict Role-Based Access Control** 
+Only `ADMIN` users can access this endpoint. Unauthorized or inactive tokens result in **401** or **403** with precise error descriptions.  
+
+- **Pagination + Sorting**  
+Supports page-wise retrieval and sorting via a controlled whitelist of allowed fields. Prevents excessive payloads and unsafe `ORDER BY` usage.  
+
+- **Advanced Filtering System**  
+A versatile keyword parser supports:  
+    - Prefix-based filters (`id_`, `fare_`, `bus_`, `location_`)
+    - Regex-driven matching for complex formats (bus numbers, times, dates)
+    - Enum-safe validation of values such as bus type, booking status, seat type, AC/non-AC, and state of registration
+    - Case-insensitive matching for all fields except bus number
+    - Multi-format date/time parsing with strict validation  
+
+- **DTO-Driven Output**  
+Internal bus entities are transformed into `ManagementBusDataDto`, exposing only safe, relevant fields while protecting sensitive operational data.
+
+- **Robust Error Handling**
+Returns highly descriptive error responses for pagination, date/time formats, invalid enums, or unmatched keyword searches. 
+
+- **Extensible Architecture**  
+Built using a modular filtering pipeline, enabling new filters or enum types to be added without modifying core logic.
+
+
+#### 📥 Query Parameters  
+| Parameter | Type    | Default | Description                                                                                                                                                                    | Required |
+| --------- | ------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------- |
+| page      | Integer | 1       | The page number for paginated results (1-based indexing)                                                                                                                       | No       |
+| size      | Integer | 10      | Number of records per page                                                                                                                                                     | No       |
+| sortBy    | String  | id      | Field by which to sort the results—options include: `id`, `busName`, `busNumber`, `busType`, `stateOfRegistration`, `fare`, `departureAt`, `arrivalAt`, `createdAt`, `updatedAt`                   | No       |
+| sortDir   | String  | ASC     | Sort direction, either `ASC` (ascending) or `DESC` (descending)                                                                                                                    | No       |
+| keyword   | String  | -       | Optional filter string supporting multiple formats and patterns including prefixed filters (id_, fare_, bus_, location_), regex-based enums, and dates/times in strict formats | No       |
+
+
+#### ⚙️ Backend Processing Flow  
+**1. Authentication & Authorization**  
+- Validates JWT token integrity, extracts `UserPrincipal`, confirms user exists and is active, then strictly enforces **ADMIN role requirement**. Invalid tokens trigger **401 Unauthorized**; non-admin users receive **403 Forbidden** with precise role deficiency messaging. Comprehensive token revocation list checks prevent compromised access.  
+
+**2. Pagination Validation**  
+- Applies rigorous bounds checking: `page >= 1`, `size >= 1 and <= 100`, `sortBy` restricted to whitelist of 10 canonical fields, `sortDir` limited to **ASC/DESC** variants. Utilizes `PaginationRequest.getRequestValidationForPagination()` utility for atomic validation.
+- Any violation immediately returns **400 Bad Request** with field-specific error diagnostics.  
+
+**3. Sort & Pageable Construction**  
+- Transforms validated parameters into **Spring Data JPA Pageable** object with `Sort.Direction` mapping.
+- Ensures database query efficiency through indexed field prioritization and avoids N+1 query pitfalls.
+- Constructs optimized **PageRequest** for repository layer consumption.  
+
+**4. Keyword Processing & Filtering**  
+- Executes hierarchical filter resolution: empty keyword bypasses to busRepo.findAll(pageable).
+
+**Prefix-Based Filters**  
+   - id_ → numeric ID search
+   - fare_ → fare-based filtering
+   - bus_ → bus name or type
+   - location_ → validated against MasterLocation  
+
+**Other Search Capabilities**  
+   - Bus number (`TN01AB1234`)
+   - Departure/arrival dates and times
+   - Booking statuses (`pending`, `processing`, `confirmed`, etc.)
+   - Bus types (AC Sleeper, Non-AC Seater, etc.)
+   - State of registration (Tamil Nadu, Kerala, etc.)
+   - Seat types / AC normalization
+
+  **Additional Notes**  
+   - All fields except bus number are **case-insensitive**.
+   - Enum validations performed through `ParsingEnumUtils.getParsedEnumType()`.
+   - Matched results return **200 OK with pagination**.
+   - If no matches → **404 Not Found with empty paginated structure**.
+
+**5. Entity → DTO Mapping**  
+- Applies BusMapper to transform `Page<Bus>` into `List<ManagementBusDataDto>`, deliberately excluding sensitive operational fields. Preserves audit trail via `createdAt`/`updatedAt` while formatting `departureAt`/`arrivalAt` as standardized `LocalTime` strings.
+- Ensures frontend receives type-safe, consistent response schema.  
+
+
+**6. Date & Time Parsing**  
+- Date formats supported: `dd/MM/yyyy`, `dd-MM-yyyy`, `yyyy-MM-dd`.
+- Time formats supported: `HH:mm` or `HH:mm:ss`.
+- Employs `DateTimeFormatter with ResolverStyle.STRICT` for unambiguous resolution across supported formats.
+     - Rejects invalid dates (30/02/2025)
+     - Rejects invalid times (25:00, malformed seconds)
+- Parsing errors return **400 Bad Request** with corrective guidance.
+
+
+**7. Service Layer Logic**  
+- Orchestrates dynamic query composition through **Spring Data JPA Specifications** for compound filtering. Wraps `Page<Bus>` in `ApiPageResponse` with complete pagination metadata including: `totalPages`, `totalElements`, `pageSize`, `isFirst`, `isEmpty`, etc.
+- Implements circuit breaker protection for repository stress scenarios.
+
+**8. Response Structure**  
+ - Returns standardized **HTTP 200** with structured JSON envelope containing status, code, contextual message, and fully populated data payload. Pagination metadata enables seamless client-side infinite scrolling and dashboard rendering.  
+
+
+
+#### 📤 Success Response
+<details> 
+  <summary>View screenshot</summary>
+   ![Bus View Success]()
+</details>  
+
+#### ❗ Error Responses  
+> Duplicate Bus Number  
+<details> 
+  <summary>View screenshot</summary>
+   ![Bus View Error]()
+</details>  
+  
+
+#### 📊 HTTP Status Code Table
+| HTTP Code | Status                | Meaning               | When It Occurs                   |
+| --------- | --------------------- | --------------------- | -------------------------------- |
+| 401       | UNAUTHORIZED          | Auth Failed           | Role mismatch due to token invalid|
+| 403       | FORBIDDEN             | Access denied         | Role mismatch                    |
+| 400       | BAD_REQUEST           | Validation Error      | Bad DTO, invalid enum, invalid time, or location error|
+| 200       | OK                    | Success               | Results a paginated output        |
+
+
+
+#### ⚠️ Edge Cases & Developer Notes
+**1. Keyword Parsing Pipeline Robustness**  
+- Prefix priority eliminates collision risks (`id_123` never matches bus number `TN01CC1234`).
+- Centralized Regex patterns prevents incorrect matches (bus number regex > time regex).
+- Enum validation uses reflection-based valueOf() with fallback to contains() for partial AC/Non-AC detection.
+- Location_ prefix performs existence check against MasterLocation before query execution (prevents ghost location queries).  
+
+**2. Pagination & Sorting Security**  
+- Negative/zero page/size values **blocked** at validation gate (no database roundtrip).
+- Whitelisted `sortBy`prevents `ORDER BY` injection attempts on unindexed fields.
+- Max size limit prevents memory-heavy queries.
+
+
+**3. Date & Time Safety Measures**  
+- **STRICT resolver rejects 30/02/2025, 2025-13-01, or 24:00 time inputs**.
+- Timezone-agnostic `LocalTime/LocalDate` processing prevents DST schedule corruption.
+- Cross-field date filtering (`createdAt` vs `departureAt.date`) uses temporal range expansion (±1 day tolerance).
+
+**4. Performance & Scalability Considerations**  
+- Composite indexes recommended: (`busType`, `stateOfRegistration`, `departureAt`) for common admin filters. Query timeout set to 30s prevents long-running regex scans on massive datasets.
+- Response caching disabled due to real-time availableSeats mutation by booking engine.  
+
+**5. DTO Security & Compliance**  
+- Excludes operational fields & Sensitive fields for future safety precision.
+- `availableSeats = capacity – bookedSeats` computed on demand.
+- Audit logging captures adminId, full keyword, page/sort params, execution time, result count.
+
+**6. Extensibility Architecture**   
+- New filters added via FilterStrategy interface (prefixHandler, regexHandler) without core logic changes.
+- Enum expansion handled automatically through reflection scanning.
+- Pagination metadata supports client-side caching strategies (ETag, Last-Modified headers recommended).   
+ 
+**7. Error Transparency & Debugging**   
+- Distinguishes parsing failures (400) from business logic failures (404). Structured error payloads include validation path, expected format, and correction hints.
+- Slow query logging (>500ms) with execution plan capture for index optimization.
+</details>
+
+
+### 🔧 13. Updating an Existing Bus Entry (Management Action)
+<details> 
+  <summary><strong>PUT</strong> <code>/management/buses/{id}</code></summary>
+
+#### 🛠 Endpoint Summary   
+**Method:** POST  
+**URL:** /management/buses  
+**Authentication:** Required (Admin JWT token)  
+**Authorized Roles:** ADMIN  
+
+
+#### 📝 Description
+This endpoint allows **Management/Admin** to update an existing bus entry with new operational data such as bus number, type, registration state, permit status, timing, locations, and fare. It enforces **strict validation, robust enum parsing, safe location checks**, and **optimistic locking** to maintain data consistency.  
+
+Key Functionalities:  
+- **Role-Secured Update:** Only ADMIN users may modify bus records.
+- **Strict ID & DTO Validation:** Ensures data integrity and avoids malformed updates.
+- **Deep Enum & Location Parsing:** Prevents invalid bus types, states, or city mappings.
+- **Departure Time Validation (STRICT):** Accepts only HH:mm:ss format.
+- **Optimistic Locking Protection:** Prevents overwriting changes made by other admins.
+- **Atomic Update via Mapper:** Ensures consistent transformation and recalculation of dependent fields such as duration, arrival time, AC/seat type, and availability.
+- **Clear Response Messaging:** Provides granular **400/404/409 responses** for each failure type.
+
+#### 📥 Request Parameter
+| Parameter | Type | Description                                         | Required |
+| --------- | ---- | --------------------------------------------------- | -------- |
+| `id`      | Long | ID of the existing bus to update. Must be positive. | Yes      |
+
+
+#### 📥 Request Body
+{  
+&nbsp;&nbsp;&nbsp; "busNumber": "TN01CC1234",  
+&nbsp;&nbsp;&nbsp; "busName": "Chennai Express",  
+&nbsp;&nbsp;&nbsp; "busType": "Sleeper",  
+&nbsp;&nbsp;&nbsp; "stateOfRegistration": "Tamil nadu",  
+&nbsp;&nbsp;&nbsp; "interStatePermitStatus": "Permitted",  
+&nbsp;&nbsp;&nbsp; "capacity": 50,  
+&nbsp;&nbsp;&nbsp; "fromLocation": "Chennai",  
+&nbsp;&nbsp;&nbsp; "toLocation": "Madurai",  
+&nbsp;&nbsp;&nbsp; "hours": 6,  
+&nbsp;&nbsp;&nbsp; "minutes": 30,   
+&nbsp;&nbsp;&nbsp; "departureAt": "21:00:00",  
+&nbsp;&nbsp;&nbsp; "fare": 650.00  
+}  
+> 💡 Departure time must strictly follow HH:mm:ss format.  
+> 💡 Tip: Substitute placeholders with your preferred values. But remember, My system will block entries that do not match its rules.  
+> 💡 Tip: For more info please refer the **BusDto class** under **dto package** in the application folder.  
+
+
+#### ⚙️ Backend Processing Flow
+**1. Authentication & Authorization Phase**  
+
+Upon receiving the request, the first checkpoint is validating the UserPrincipal bound to the JWT token.
+This step ensures:  
+  - The system verifies whether the supplied JWT token is cryptographically valid, not tampered with, and not expired.
+  - It performs a lookup against a token revocation registry to detect manually invalidated or blacklisted tokens (ex: logout, credential rotation, detected compromise).
+  - Using `UserPrincipalValidationUtils.validateUserPrincipal(...)` is invoked to confirm:
+       - The management user exists in the database.
+       - The user record is active (not deactivated or suspended).
+       - The user belongs to the ADMIN role.
+  - If any failure/mismatch that leads to:
+       - **401 Unauthorized** – if the token is invalid or missing.
+       - **403 Forbidden** – if the user is authenticated but lacks the ADMIN role.
+  - This ensures that only **authorized management authorities** can modify core operational data.  
+
+**2. Input Validation Layer**   
+
+My system then validates **Path Variable (id)**  
+- The bus ID must be present and positive (id > 0).
+- This prevents unnecessary DB round-trips for invalid identifiers.
+- Invalid IDs immediately return a **400 Bad Request** with a user-friendly message.  
+Then go for DTO Validation (@Valid BusDto)  
+- Spring’s validation framework checks the entire payload (bus number, hours, minutes, fare, etc.).
+- The system ensures structural correctness before touching any internal business logic.
+- If violations exist, the controller aggregates all error messages using `BindingResultUtils.getListOfStr()`.
+- Returns a structured **400 Bad Request** containing all field-level errors.
+DTO validation ensures:
+ - No missing required fields
+ - Correct data shapes
+ - Correct types and acceptable ranges
+   
+This protects the downstream business logic from malformed payloads.
+
+**3. Database Lookup for Existing Bus**  
+
+Once the request is validated, the system performs a lookup: `Optional<Bus> existingBus = busRepo.findById(id)`. Two outcomes are possible:  
+- Bus Exists -> The Bus instance is retrieved for update.
+- Bus Does Not Exist -> **404 NOT FOUND** with message: `"Bus ID X is not existed in database."`  
+This avoids ambiguous updates and ensures admins don't update deleted or nonexistent entries.
+
+**4. Enum Parsing and Business-Rule Validation**   
+- Perform controlled parsing on each string-based field in the DTO using specific utility methods to interpret and validate enum values accurately.
+- For Bus Type, use `ParsingEnumUtils.getParsedEnumType()` which validates the input text, attempts mapping to the **BusType enum** in a case-insensitive manner, and returns structured validation failures for invalid values.
+- **Invalid busType** values are rejected immediately, responding with a **400 BAD REQUEST** status and precise error messages, preventing incorrect values from reaching the entity.
+- State of Registration is validated against the State enum to ensure only properly formatted and standard state names are accepted and stored, avoiding loosely formatted or invalid entries.
+- Permit Status values are restricted to a fixed set of accepted enum values such as PERMITTED and NOT PERMITTED, enforcing strict permit status validation according to business rules.  
+
+**5. Location Validation (Route Consistency Enforcement)**  
+- Enforce location validation by verifying that `fromLocation` and `toLocation` values correspond exactly to authoritative entries in the `MasterLocation table`, ensuring route consistency and referential integrity.
+- Reject malformed spellings, nonexistent entries, or invalid formats immediately, preventing the creation of invalid routes that could disrupt downstream processes such as scheduling, seat aggregation, price computation, and tracking analytics.
+- Respond with appropriate `HTTP status codes` for failures: **400 BAD_REQUEST** for format or validation errors, and **404 NOT_FOUND** when locations do not exist in the master data   
+
+**6. Departure Time Parsing (STRICT Mode)**  
+- Departure time parsing is performed using `LocalTime` and `DateTimeFormatter` with `ResolverStyle.STRICT` mode to ensure strict adherence to the "HH:mm:ss" format.
+- This strictly enforces inclusion of hours, minutes, and seconds, preventing invalid times such as 25:99:00 or 12:60:30, and avoids ambiguous representations like 9:3 being interpreted incorrectly.
+- Strict parsing guarantees accurate downstream computations related to arrival times and durations, maintaining data integrity in scheduling.
+- On parsing failure, the system responds with **400 BAD_REQUEST** along with a precise corrective message, thereby preventing corrupted or invalid scheduling data.  
+
+**7. Optimistic Locking Protection**  
+- Implement optimistic locking protection for the update operation using a version field on the bus entity to prevent concurrent modification conflicts.
+- When an admin fetches a bus entity, it includes the current version; if another admin modifies and saves it first, a subsequent save attempt by the original admin triggers an `ObjectOptimisticLockingFailureException` or `OptimisticLockException` due to **version mismatch**.
+- The controller converts this exception into a **409 CONFLICT** response with a message indicating recent modification by another admin, ensuring no data overwrites, no stale updates, and dashboard consistency during **multi-admin operations**.
+
+**8. Entity Update via Mapper (Business Cascade Update)**  
+
+The BusMapper.updateExistingByDto() method executes a structured, field-by-field transformation from DTO to entity, implementing business cascade updates while maintaining a single source of truth for mappings.
+ - Maps core fields including `busNumber`, `busName`, `fare`, and `capacity` directly from the DTO.
+ - Re-derives `AC type` and seat type based on the resolved `BusType` enum value.
+ - Applies updated `fromLocation` and `toLocation` values from the validated DTO.
+ - Recomputes `arrivalAt` as **departureAt + duration**, converting provided hours and minutes into a proper Duration object.
+ - Resets `availableSeats` to match the updated capacity.
+ - Updates audit fields `updatedAt` and `updatedBy` with current **timestamp** and user context.
+
+This separation ensures clean decoupling of data transformation from business logic, keeps controller and service layers lightweight, and provides consistent mapping reusable across operations.  
+
+
+#### 📤 Success Response
+<details> 
+  <summary>View screenshot</summary>
+   ![Bus Update Success]()
+</details>
+
+#### ❗ Error Response  
+> Invalid ID  
+<details> 
+  <summary>View screenshot</summary>
+   ![Bus Update Error]()
+</details>  
+
+> Not Found (ID or MasterLocation Missing)  
+<details> 
+  <summary>View screenshot</summary>
+   ![Bus Update Error]()
+</details>  
+
+> Duplicate Conflict 
+<details> 
+  <summary>View screenshot</summary>
+   ![Bus Update Error]()
+</details>  
+  
+> Unauthorized / Forbidden  
+<details> 
+  <summary>View screenshot</summary>
+   ![Bus Update Error]()
+</details>  
+
+
+#### HTTP Status Code Table
+| HTTP Code | Status Name       | Meaning               | When It Occurs                                |
+| --------- | ----------------- | --------------------- | --------------------------------------------- |
+| 200       | OK                | Request succeeded     | Data found and returned successfully          |
+| 400       | BAD_REQUEST       | Validation Falied     | Invalid ID / invalid DTO / regex or enum fail |
+| 401       | UNAUTHORIZED      | Authentication Failed | Missing or invalid JWT                        |
+| 404       | NOT_FOUND         | Resource Not Found    | CityEntity / MasterLocation entity missing    |
+| 403       | FORBIDDEN         | Access Denied         | Only Authority users could modify             |
+| 409       | CONFLICT          | Duplicate Entry       | New combination already exists / Optimistic lock conflict |
+| 500       | INTERNAL_SERVER_ERROR | Unexpected Error |  Unexpected server-side error occured          |
+
+
+#### ⚠️ Edge Cases & Developer Notes  
+**1. Enum Parsing Edge Cases**  
+
+String-based enums like busType, stateOfRegistration, and permitStatus handle diverse user input errors through structured validation. The system trims whitespace, normalizes casing, and rejects partial matches or aliases, providing detailed feedback on invalid values and valid alternatives to aid developers in debugging client issues.  
+- Defends against partial spellings (e.g., "VOLV" for VOLVO), incorrect casing ("volvo"), abbreviations ("NAT" for NATIONAL), and leading/trailing whitespace.
+- Returns structured error messages listing the invalid value received and complete accepted enum names/patterns.
+- Prevents storage of invalid data that causes inconsistent filtering, API unpredictability, and downstream master data corruption.  
+
+**2. Location Validation Sensitivity**  
+
+Route definitions enforce referential integrity by cross-referencing fromLocation and toLocation against MasterLocation table entries exclusively. This rejects malformed, deprecated, or case-mismatched locations, safeguarding the scheduling engine from ghost routes that disrupt booking flows.  
+ - Rejects locations absent from MasterLocation, mismatched city/state combinations, inconsistent casing, and deprecated/removed entries.
+ - Ensures fromLocation ≠ toLocation and prevents unrelated location pairs that break pricing models and cancellation tracking.
+ - Critical for maintaining valid route graphs used in seat aggregation, analytics, and real-time operations.
+
+
+**3. Time Parsing Strictness**  
+
+STRICT resolver mode in LocalTime.parse rejects incomplete, malformed, or logically invalid time formats to guarantee cascading computation accuracy. This prevents subtle timing errors that cascade through arrival calculations, journey durations, and schedule alignments.  
+- Fails on missing seconds ("12:30"), incorrect separators ("12.30.00"), non-numeric segments ("12:AB:00"), and logical errors ("24:00:00", "22:75:10").
+- Ensures precise alignment for seat availability timelines, fare algorithms, and departure reminders.
+- Absolute correctness required since departureAt drives multiple downstream temporal computations.  
+
+**4. Capacity Recalculation Risks**  
+
+Updating `capacity` triggers `availableSeats = capacity` reset to reflect new bus configuration, eliminating stale values. Developers must note booking conflicts where existing reservations exceed new capacity, requiring defensive checks to avoid overbooking scenarios. 
+- Resets `availableSeats` outright, preventing leftover stale counts from prior configurations.
+- **Risky if bus has active bookings:** capacity reduction could create negative availability.
+- **Consider pre-validation:** compare existing bookings against new capacity before reset.   
+
+**5. Optimistic Locking & Audit Integrity**   
+
+Version-based optimistic locking detects concurrent admin updates, while audit fields capture all changes for traceability. Combined with internal error handling, this maintains data consistency and compliance across multi-admin environments.  
+- Race condition: Admin A (v1) vs Admin B (saves v2) → Admin A gets 409 CONFLICT with refresh instruction.
+- Records updatedAt, updatedBy, and affected bus ID for fraud detection, accountability, and audits.
+- Catches repository/mapper failures as 500 INTERNAL_SERVER_ERROR with masked details to prevent info leaks.
+</details>  
+
+
+### 🗑️ 14. Deleting an Existing Bus Entry (Management Action)
+<details> 
+  <summary><strong>DELETE</strong> <code>/management/buses/{id}</code></summary>
+
+#### 🛠 Endpoint Summary   
+**Method:** POST  
+**URL:** /management/buses/{id}  
+**Authentication:** Required (Admin JWT token)  
+**Authorized Roles:** ADMIN  
+
+
+#### 📝 Description
+This endpoint enables **Management/Admin** users to **safely delete existing bus entries** from the system, incorporating strict role-based authorization, ID validation, existence verification, and `@Version` **Optimistic locking** for concurrency protection. It utilizes **entity-based deletion (delete(bus))** rather than ID-only methods to ensure version-aware safety, preventing race conditions and double-deletes. Comprehensive audit logging tracks all deletion events for compliance and traceability.  
+
+Key Functionalities:  
+- **Role-Secured Delete:** Restricts operations to authenticated ADMIN users only.
+- **Path Variable Validation:** Rejects null, negative, or zero IDs with immediate **400 BAD_REQUEST**.
+- **Two-Phase Existence Check:** Verifies bus record exists before attempting deletion to avoid ambiguous failures.
+- **Optimistic Locking Protection:** Uses `@Version` field to detect concurrent modifications, returning **409 CONFLICT** on mismatches.
+- **Version-Aware Entity Deletion:** Employs delete(bus) method carrying current version for race-condition resistance.
+- **Granular Response Messaging:** Delivers precise **400/404/409/500 status codes** with contextual error details.
+
+#### 📥 Request Parameter
+| Parameter | Type | Description                                | Required |
+| --------- | ---- | ------------------------------------------ | -------- |
+| `id`      | Long | ID of the bus to delete. Must be positive. | Yes      |
+
+
+#### ⚙️ Backend Processing Flow  
+**1. Security & Authorization Gate**  
+
+Every delete request first passes through a multi-step security pipeline:  
+- JWT validation (signature, expiry, revocation list)
+- UserPrincipal validation (ensures user exists, active, and not suspended)
+- Role enforcement (ADMIN required)    
+
+Failures yield:
+- 401 for invalid token
+- 403 for insufficient privileges  
+
+This ensures that only authenticated, authorized management users can perform destructive operations.  
+
+
+**2. Input Sanity Checks**  
+
+Although Spring handles path variable type conversion, the controller adds a safety check `if(id == null || id <= 0)` for a solid reasons:
+- Prevents useless DB calls on impossible IDs.
+- Avoids malformed requests entering business logic.
+- Ensures predictable error semantics (400 Bad Request).
+
+**3. Entity Existence Validation**  
+
+The system performs `Optional<Bus> existingBus = busRepo.findById(id)`. If absent → **404 Not Found**. This prevents:
+- Attempting to delete a ghost/non-existent bus.
+- Incorrect audit trails.
+- Front-end mismatch where “Delete Success” appears for a missing record.
+
+Existence validation is mandatory before destructive operations.  
+
+**4. Versioned Deletion with Optimistic Locking**  
+
+Instead of using `deleteById()`, the system intentionally uses: `busRepo.delete(bus)`, because of some reasons like,
+- Ensures the delete operation includes the `@Version` column.
+- Detects concurrent modifications or earlier deletions.
+- Guarantees strong consistency in multi-admin environments.
+- Prevents stale delete attempts from succeeding silently.
+
+If version mismatch → Spring throws: `ObjectOptimisticLockingFailureException` → controller returns **409 Conflict**.  
+
+This maintains concurrency correctness and dashboard accuracy.  
+
+**5. Transactional Delete & Audit Logging**  
+
+Inside a transactional boundary:  
+  - The bus is deleted atomically
+  - On success, an audit log entry records _Management ID, username, bus ID, timestamp_.
+This guarentees:
+ - Non-repudiation
+ - Forensic traceability
+ - Clear operational records  
+
+Any unexpected internal error triggers a rollback and returns **500 Internal Server Error** to the client.  
+
+
+#### 📤 Success Response
+<details> 
+  <summary>View screenshot</summary>
+   ![Bus Delete Success]()
+</details>
+
+#### ❗ Error Response  
+> Invalid ID  
+<details> 
+  <summary>View screenshot</summary>
+   ![Bus Delete Error]()
+</details>   
+
+> Bus Not Found
+<details> 
+  <summary>View screenshot</summary>
+   ![Bus Delete Error]()
+</details> 
+
+> Unauthorized / Forbidden
+<details> 
+  <summary>View screenshot</summary>
+   ![Bus Delete Error]()
+</details> 
+
+
+#### 📊 HTTP Status Code Table
+| HTTP Code | Status Name           | Meaning                 | When It Occurs                   |
+| --------- | --------------------- | ----------------------- | -------------------------------- |
+| 200       | OK                    | Successfully deleted    | Bus existed & deletion succeeded |
+| 400       | BAD_REQUEST           | Invalid data            | Invalid ID                       |
+| 401       | UNAUTHORIZED          | Authentication failed   | Missing/invalid JWT              |
+| 403       | FORBIDDEN             | Access denied           | Non-admin                        |
+| 404       | NOT_FOUND             | Bus not found           | ID not in DB                     |
+| 409       | CONFLICT              | Concurrent modification | Another admin deleted same bus   |
+| 500       | INTERNAL_SERVER_ERROR | Unexpected server issue | Repo/DB/transaction failures     |
+
+
+#### ⚠️ Edge Cases & Developer Notes  
+**1. Input Boundary Condition Defense**  
+- Preemptive rejection of null, zero, or negative IDs (ID ≤ 0) averts Hibernate **InvalidIdentifierException**, malformed SQL execution paths, and superfluous connection pool exhaustion.
+- This foundational check maintains API robustness under malformed client inputs without propagating errors downstream.  
+
+
+**2. Concurrent Deletion Races**  
+- Multiple admins targeting the same bus entity simultaneously represent the primary concurrency threat. The optimistic locking mechanism ensures linearizable semantics where the first delete(bus) succeeds with current version, while subsequent attempts detect version mismatch or row absence, triggering `ObjectOptimisticLockingFailureException` or `OptimisticLockException` converted to **409 CONFLICT** with explicit refresh guidance.​  
+
+**3. Critical Distinction**  
+
+Deciding which one to use while under process:   
+- **Option 1:** `deleteById(id)` executes **blind primary key deletion** bypassing `@Version` validation, entity state verification, and optimistic locking entirely—enabling stale/phantom deletions even after concurrent modifications.
+- **Option 2:** `delete(bus)` mandates **full entity load including version field**, enforcing concurrency controls as a deliberate architectural safeguard rather than stylistic preference.  
+
+
+**4. Audit Log Sequential Integrity**   
+- Audit entries execute **post-successful transactional boundary** only, guaranteeing chronological consistency and eliminating phantom "success" logs from rollback scenarios.
+- This preserves non-repudiation for **compliance audits**, forensic reconstruction, and managerial accountability even during rapid delete/restore sequences.  
+
+**5. Exception Masking & Security Hardening**  
+- **Repository failures, transactional violations**, or **mapper exceptions** receive comprehensive server-side logging while clients receive generic **500 INTERNAL_SERVER_ERROR** with sanitized messaging. This prevents schema enumeration, infrastructure fingerprinting, and attack surface expansion through error-based reconnaissance.
+</details>    
+
+
+### 🚌 15. Public Bus Search API (Public + Registered + Management Access)
+<details> 
+  <summary><strong>GET</strong> <code>/public/buses</code></summary>
+
+#### 🛠 Endpoint Summary   
+**Method:** GET  
+**URL:** /public/buses  
+**Authentication:** Not Required  
+**Authorized Roles:** PUBLIC    
+
+#### 📝 Description  
+This API endpoint powers the **core discovery engine** of the bus reservation system, enabling seamless bus availability queries across **all user categories**—guests passengers, registered passengers, and management authorities. Users specify **from & to locations**, **travel dates**, and optional filters like,  
+   - AC type(AC/NON-AC)
+   - Seat type(SEATER/SLEEPER) preferences
+   - Departure time windows (e.g., 06:00–12:00)
+   - Sorting by fare, departure time, or bus ID.
+    
+As a **business-critical interface** feeding search pipelines, booking workflows, and fare comparisons, it enforces strict parameter validation, deterministic filter logic, and uniform response contracts for functional accuracy and operational predictability.  
+
+Key highlights:  
+- **Universal Consistency:** Identical response structure, error semantics, and query behavior across guest/registered/management users.
+- **Deterministic Filtering:** Every filter combination maps to traceable repository calls, eliminating unpredictable results.
+- **Zero-Ambiguity Rules:** Fully defined business logic ensures schedule accuracy, fare integrity, and reliable booking handoffs.
+
+
+#### 📥 Query Parameters
+| Parameter    | Type   | Default | Description                                                                                                                                                    | Required |
+| ------------ | ------ | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- |
+| `from`       | String | —       | Source location name. Must exactly match a valid entry in **MasterLocation**. Case differences & spacing are normalized, but semantic mismatches are rejected. | Yes      |
+| `to`         | String | —       | Destination location name. Same validation rules as `from`. Cannot equal `from`.                                                                               | Yes      |
+| `travelDate` | String | —       | Travel date in strict `dd-MM-yyyy`, `dd/MM/yyyy`, or `yyyy-MM-dd`. Automatically detects format and rejects invalid past dates.                                | Yes      |
+| `sortBy`     | String | `id`    | Sorting field. Restricted to: `id`, `departureAt`, `fare`. Prevents unindexed queries and ORDER-BY attacks.                                                    | No       |
+| `sortDir`    | String | `ASC`   | Sort direction. Case-insensitive. Accepted values: `ASC` / `DESC`.                                                                                             | No       |
+| `acType`     | String | —       | AC filter. Must strictly match regex-validated AC enumeration (AC / NON-AC). Partial matches or ambiguous forms are rejected.                                  | No       |
+| `seatType`   | String | —       | Seat configuration filter. Valid values: `SEATER` / `SLEEPER`.                                                                                                 | No       |
+| `timeRange`  | String | —       | Departure time window in `HH-HH` 24-hour format. Interprets integer hours only. Strict boundaries prevent semantic drift.                                      | No       |
+
+
+#### ⚙️ Backend Processing Flow  
+**1. Multi-Stage Request Parameter Normalization (The First Guard Rail)**  
+
+The controller enforces parameter correctness before any domain logic runs. This step is not limited to checking empty strings; it performs semantic validation to ensure the request is meaningful and processable.  
+
+**Input Coherence Validation**    
+  
+Using `RequestParamValidationUtils.listOfErrors()` utility class which verifies:  
+   
+  - All required parameters (from, to, travelDate) are present.  
+  - Values are non-empty, non-null, and not just whitespace.  
+  - Inputs follow acceptable structural patterns so that later parsing is safe.    
+      
+   This guards the service layer from malformed data and ensures the system never attempts expensive database queries on invalid input.  
+
+**Fail-Fast Strategy**
+  - A unified validation error is returned immediately.
+  - No parsing, business logic, or database work is performed.
+
+This design conserves resources, reduces CPU load, protects downstream logic, and promotes predictable API behavior.   
+ 
+
+**2. Travel Date Interpretation & Temporal Integrity Rules**   
+
+Travel date is a mission-critical parameter because time-dependent availability is computed from it. Date validation follows a multi-layered strategy.
+
+**Format Auto-Detection**
+ 
+The system detects date format automatically:
+   - Presence of `/` or `-` → interprets input as human-readable formats (**dd-MM-yyyy or dd/MM/yyyy**).
+   - Absence of symbols → treats it as HTML-standard **yyyy-MM-dd**.
+      
+This gives clients flexibility while maintaining strict interpretation consistency.
+
+**Strict ResolverStyle Enforcement**
+ 
+The parser uses `ResolverStyle.STRICT` to reject:  
+   - Invalid dates such as `31-02-2025`.
+   - Silent rollovers where invalid values auto-correct.
+   - Leap-year misinterpretations.
+      
+Strict parsing guarantees temporal correctness, a fundamental requirement for reliable scheduling.  
+
+**Past-Date Rejection**   
+
+The system rejects any travelDate earlier than the current day. This is crucial because:  
+  - Routes cannot be searched for past dates.
+  - Availability logic depends on future schedule windows.
+  - Prevents misleading user expectations.
+
+3. Sorting Field Whitelisting & Query Safety Enforcement
+
+Sorting is constrained to prevent DB overheating and unsafe ordering.
+Allowed fields:
+
+id
+
+departureAt
+
+fare
+
+These fields are:
+
+Indexed for performance
+
+Relevant to the business context
+
+Safe from injection vectors
+
+Any attempt to sort using external fields (like busName, busType, etc.) triggers 400 BAD REQUEST, ensuring the database never executes unstable or unbounded sort operations.
+
+4. Master Location Validation (Route Semantics Validation)
+
+Route parameters must map to valid, canonical locations in the MasterLocation table. This ensures absolute consistency in routing and prevents ghost routes.
+
+4.1 Normalization
+
+ValidateLocationUtils.validateLocation(...) ensures:
+
+Case-insensitive matching
+
+Whitespace trimming
+
+Mapping to authoritative database entities
+
+4.2 Layered Error Behavior
+
+Two distinct outcomes:
+
+Malformed format → 400 BAD REQUEST
+
+Valid format but location not found → 404 NOT FOUND
+
+This strict separation provides clear guidance to frontend systems, preventing guessing or fallback behaviors.
+
+4.3 Route Integrity Rule
+
+from must not equal to.
+This guarantees coherent route queries and eliminates degenerate travel paths.
+
+5. Deterministic Multi-Filter Query Handling
+
+Filter processing is architected using a Deterministic Filter Combination Algorithm.
+This approach avoids dynamic query builders in favor of exact, predefined pathways.
+
+Why deterministic branching?
+
+Ensures predictable execution paths
+
+Avoids overlapping conditions or filter bleed-over
+
+Guarantees only one repository query ever runs per request
+
+Enforces clean maintainability and strongly testable branches
+
+Provides maximal database efficiency through precompiled JPQL queries
+
+Filter Precedence Hierarchy
+
+Filters are evaluated in the following order:
+
+AC + SeatType + TimeRange
+
+AC + SeatType
+
+AC + TimeRange
+
+SeatType + TimeRange
+
+AC only
+
+SeatType only
+
+TimeRange only
+
+No filters → location-only search
+
+Within each branch:
+
+Regex validation ensures filter structure correctness.
+
+Enums are parsed through safe, normalized mapper utilities.
+
+Time-range boundaries are converted into integer hour segments.
+
+Repository function for that exact filter set is executed.
+
+This yields a deterministic, conflict-free search pipeline.
+
+6. Structured Repository Query Execution
+
+Each filter combination maps to a dedicated repository method, ensuring:
+
+Zero ambiguity
+
+Index-friendly selective queries
+
+Predictable JPQL structure
+
+Consistent performance
+
+Examples:
+
+filterBusByLocationWithBothTypeAndTime
+
+filterBusByAcTypeAndTimeRange
+
+filterBusBySeatTypeAndTimeRange
+
+filterBusByLocationWithSeatType
+
+No generic "one query to handle all filters" approach is used, because predictable query planning is a vital performance requirement.
+
+7. DTO Transformation & Travel-Date Awareness
+7.1 Mapping Layer
+
+BusMapper.busToBusUserDto() transforms raw entity data into output-ready DTOs:
+
+Formats departure/arrival times
+
+Converts enum values into canonical outward-facing strings
+
+Computes travel-date-adjusted seat availability
+
+Produces clean, standardized response objects
+
+7.2 Output Surface Safety
+
+The DTO excludes:
+
+Internal database identifiers
+
+Versioning fields (for optimistic locking)
+
+Audit details (createdBy, updatedBy, timestamps)
+
+Management-specific properties
+
+This protects the system from unwanted information exposure and keeps the response strictly user-facing.
+
+8. Response Semantics & Behavioral Guarantees
+8.1 Success (200 OK)
+
+A consistent success envelope includes:
+
+A message describing applied filters
+
+The final curated list of user-facing bus DTOs
+
+Clear, predictable, and structured.
+
+8.2 Not Found (404)
+
+Occurs when:
+
+Routes exist but no buses match the criteria
+
+Filter combinations eliminate all candidates
+
+Distinguishes precise conditions:
+
+Validation error → 400
+
+No results → 404
+
+8.3 Bad Request (400)
+
+Triggered by:
+
+Malformed dates
+
+Invalid enums
+
+Incorrect filter patterns
+
+Sorting violations
+
+Time-range structure errors
+
+The system never silently ignores invalid filters.
+Every such issue results in explicit, actionable feedback.
+
+
+
+⚠️ Edge Cases & Developer Notes (World-Class Depth)
+1. Temporal Edge Cases
+
+Rejects illogical ranges (e.g., 22-05 unless future enhancement is added)
+
+Ensures travel date >= system date
+
+Normalizes 24h boundaries
+
+Prevents partial hour formats (e.g., "5-8" must be "05-08")
+
+2. Filter Collision & Logical Integrity
+
+The system ensures that no two branches ever overlap.
+For example:
+
+AC + timeRange
+and
+SeatType + TimeRange
+
+Are mutually exclusive by design.
+
+This avoids:
+
+Unpredictable filter combinations
+
+Double filtering
+
+Query precedence confusion
+
+3. Regex-Driven Safety Controls
+
+Every string-based filter is validated with strict regex rules to prevent:
+
+SQL poisoning attempts
+
+Numeric/date reinterpretation
+
+Unexpected character drift
+
+Collisions between AC, seat, and bus-type patterns
+
+4. Repository-Level Performance Considerations
+
+Time-range queries benefit from boundary-only filtering, avoiding minute-level precision, making it index-friendly.
+
+AC and SeatType filters use normalized canonical strings, ensuring consistent DB search patterns.
+
+5. Data Integrity & Master Data Coupling
+
+The entire search engine relies on the MasterLocation table as the authoritative routing source, ensuring:
+
+Referential integrity
+
+Elimination of typo-driven search mismatches
+
+Coherent booking flows
+
+6. Extension-Ready Architecture
+
+The filter branching system allows the easy addition of future filters such as:
+
+Bus operator
+
+Amenities (WiFi, Charging, Water bottle)
+
+Dynamic fare filtering
+
+Real-time seat availability windows
+
+Multi-date search
+
+Without modifying deep core logic.
+
+
+
+
+</details>
 
 
 
