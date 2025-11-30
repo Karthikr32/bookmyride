@@ -2498,280 +2498,772 @@ Strict parsing guarantees temporal correctness, a fundamental requirement for re
 The system rejects any travelDate earlier than the current day. This is crucial because:  
   - Routes cannot be searched for past dates.
   - Availability logic depends on future schedule windows.
-  - Prevents misleading user expectations.
+  - Prevents misleading user expectations.  
 
-3. Sorting Field Whitelisting & Query Safety Enforcement
+**3. Sorting Field Whitelisting & Query Safety Enforcement**  
 
-Sorting is constrained to prevent DB overheating and unsafe ordering.
-Allowed fields:
+Sorting is strictly controlled to protect the database from high-cost operations and unsafe ordering conditions. Only three fields are permitted for client-side sorting:  
+  - `id`
+  - `departureAt`
+  - `fare`  
 
-id
+These fields are explicitly whitelisted because they are indexed for performance, directly relevant to business operations, and safe from injection or malformed-input risks. Any attempt to sort by a non-authorized field (such as `busName`, `busType`, etc.) results in a **400 BAD REQUEST**, ensuring the database never executes unstable or unbounded sort operations.  
 
-departureAt
 
-fare
+**4. Master Location Validation (Route Semantics Validation)**  
 
-These fields are:
+Route-level validation ensures that all search parameters map to canonical, authoritative locations stored in the `MasterLocation` table. This guarantees consistent routing, eliminates invalid **“ghost routes,”** and maintains referential integrity across the system.  
 
-Indexed for performance
+**Normalization**  
 
-Relevant to the business context
+Using `ValidateLocationUtils.validateLocation(...)` performs robust normalization by:  
+  - Applying case-insensitive matching
+  - Trimming unnecessary whitespace
+  - Mapping input values to authoritative database entities  
 
-Safe from injection vectors
+This ensures uniformity in user-provided route data regardless of input variations.  
 
-Any attempt to sort using external fields (like busName, busType, etc.) triggers 400 BAD REQUEST, ensuring the database never executes unstable or unbounded sort operations.
+**Layered Error Behavior**  
 
-4. Master Location Validation (Route Semantics Validation)
+The validation system produces two distinct error outcomes:  
+ - **Malformed format → 400 BAD REQUEST**, Returned when the input structure itself is invalid.
+ - **Valid format but location not found → 404 NOT FOUND**, Returned when the input is structurally correct but does not exist within the master dataset.  
 
-Route parameters must map to valid, canonical locations in the MasterLocation table. This ensures absolute consistency in routing and prevents ghost routes.
+This dual-layer approach offers clearer guidance for client applications and prevents unpredictable fallback behaviors.  
 
-4.1 Normalization
+**Route Integrity Rule**  
+ - The system enforces the rule that routes `from` must not equal `to`. This ensures coherent route queries and eliminates degenerate travel paths that would otherwise produce nonsensical search results.   
 
-ValidateLocationUtils.validateLocation(...) ensures:
 
-Case-insensitive matching
+**5. Deterministic Multi-Filter Query Handling**  
 
-Whitespace trimming
+Filter processing is designed around a **Deterministic Filter Combination Algorithm**, avoiding generic dynamic query builders in favor of explicit, predefined pathways. This guarantees predictable system behavior, eliminates overlapping conditions, and prevents filter bleed-over.  
 
-Mapping to authoritative database entities
+**Why Deterministic Branching?**  
+- Predictable and testable execution paths.
+- Zero ambiguity between filter combinations.
+- Strong maintainability through explicit branching.
+- Optimal performance using precompiled JPQL queries.
+- Ensures exactly one repository query is ever executed per request.  
 
-4.2 Layered Error Behavior
+**Filter Precedence Hierarchy**  
 
-Two distinct outcomes:
+Filters are evaluated in the following strict order:
+ - AC + SeatType + TimeRange
+ - AC + SeatType
+ - AC + TimeRange
+ - SeatType + TimeRange
+ - AC only
+ - SeatType only
+ - TimeRange only
+ - No filters → location-only search  
 
-Malformed format → 400 BAD REQUEST
+Within every branch:  
+ - Regex patterns ensure filter structure correctness.
+ - Enum values are parsed using safe, normalized mapper utilities.
+ - Time-range boundaries convert into validated, integer hour segments.
+ - The exact repository method mapped to that filter combination is executed.  
 
-Valid format but location not found → 404 NOT FOUND
+This provides a deterministic, conflict-free search pipeline with maximal control and reliability.  
 
-This strict separation provides clear guidance to frontend systems, preventing guessing or fallback behaviors.
+**6. Structured Repository Query Execution**  
 
-4.3 Route Integrity Rule
+Every valid filter combination resolves to a **dedicated repository function**, ensuring:  
+- Zero ambiguity in query selection
+- High performance through index-friendly queries
+- Predictable JPQL structure
+- Efficient database planning and execution  
 
-from must not equal to.
-This guarantees coherent route queries and eliminates degenerate travel paths.
+For example query like `filterBusByLocationWithBothTypeAndTime()`, `filterBusByAcTypeAndTimeRange()`, etc. The system deliberately avoids “one giant dynamic query” approaches because predictable query planning is a core performance requirement for large-scale traffic.   
 
-5. Deterministic Multi-Filter Query Handling
 
-Filter processing is architected using a Deterministic Filter Combination Algorithm.
-This approach avoids dynamic query builders in favor of exact, predefined pathways.
+**7. DTO Transformation & Travel-Date Awareness**  
+- `BusMapper.busToBusUserDto()` transforms raw entity objects into structured, user-facing DTOs. Responsibilities include:
+    - Formatting departure and arrival timestamps
+    - Exposing enum values as canonical client-safe strings
+    - Computing seat availability based on requested travel date
+    - Producing standardized, predictable response objects
 
-Why deterministic branching?
+- The DTO intentionally hides internal attributes, including:
+    - Internal database IDs
+    - Optimistic-locking version fields
+    - Audit attributes (createdBy, updatedBy, timestamps)
+    - Management-specific metadata  
+- This prevents information leakage and ensures the response remains strictly user-facing.   
 
-Ensures predictable execution paths
+**8. Response Semantics & Behavioral Guarantees**  
+- Successful operations return a consistent response structure that includes:
+   - Status code **200 OK**
+   - A **message** explicitly describing the filters applied
+   - A curated list of **user-ready Bus DTOs**
+ 
+- Routes exist but no buses match the applied filters. Filters eliminate all available candidates. This is deliberately separated from validation errors:
+  -  Status code **404 NOT FOUND**
+  -  A **message** explicitly describing the filters applied
 
-Avoids overlapping conditions or filter bleed-over
+- If any input violates structural or semantic rules, such as: Malformed dates, Invalid enums, Incorrect filter syntax, Sorting field violations, Time-range format errors, then:
+  - Status code **400 BAD REQUEST**
+  - A **message** explicitly describing the filters applied
+    
+- Used `ApiResponse` with this format is stable, predictable, and easy for clients to consume.  
 
-Guarantees only one repository query ever runs per request
 
-Enforces clean maintainability and strongly testable branches
+#### 📤 Success Response
+<details> 
+  <summary>View screenshot</summary>
+   ![Bus Public View Success]()
+</details>
 
-Provides maximal database efficiency through precompiled JPQL queries
+#### ❗ Error Response 
+> Invaid input for page, size
+<details> 
+  <summary>View screenshot</summary>
+   ![Bus Public View Error]()
+</details> 
 
-Filter Precedence Hierarchy
+> No bus data found
+<details> 
+  <summary>View screenshot</summary>
+   ![Bus Public View Error]()
+</details>   
 
-Filters are evaluated in the following order:
 
-AC + SeatType + TimeRange
 
-AC + SeatType
+#### 📊 HTTP Status Code Table
+| HTTP Code | Status Name           | Meaning                 | When It Occurs                   |
+| --------- | --------------------- | ----------------------- | -------------------------------- |
+| 200       | OK                    | Successfully delivered  | Bus existed & delivered succeeded|
+| 400       | BAD_REQUEST           | Invalid data            | Invalid pagination input / enum values|
+| 404       | NOT_FOUND             | Bus not found           | No bus data found                |
 
-AC + TimeRange
 
-SeatType + TimeRange
+#### ⚠️ Edge Cases & Developer Notes  
+**1. Temporal Edge Cases**  
 
-AC only
+The system rejects logically impossible or ambiguous time ranges (e.g., `22–05`, unless future circular-range support is added). It enforces:
+  - `travelDate >= systemDate` (To avoid past date input).
+  - Normalized 24-hour boundaries (For stable & flexible use).
+  - Strict hour-based formatting — partial formats like `"5-8"` must be `"05-08"`.  
 
-SeatType only
+**2. Filter Collision & Logical Integrity**  
 
-TimeRange only
+The deterministic branching ensures no two branches ever overlap. For example:
+ - (AC + TimeRange)
+ - (SeatType + TimeRange)
 
-No filters → location-only search
+The above are mutually exclusive execution paths. This eliminates unpredictable combinations, double filtering, and precedence ambiguity.  
 
-Within each branch:
+**3. Regex-Driven Safety Controls**  
 
-Regex validation ensures filter structure correctness.
+**Centralized regular expression pattern** in utils package for **Strict regex validation** safeguards all string-based filters, preventing:
+- SQL injection attempts
+- Numeric/date reinterpretation attacks.
+- Unexpected character patterns.
+- Cross-contamination between AC, seat type, and bus-type filters.  
 
-Enums are parsed through safe, normalized mapper utilities.
 
-Time-range boundaries are converted into integer hour segments.
+**4. Repository-Level Performance & Master Data Coupling**   
+- Time-range filtering uses boundary-only checks for index-friendly performance
+- AC and SeatType filters rely on normalized canonical strings, ensuring uniform DB lookup patterns
+- The search engine depends on `MasterLocation` as the authoritative routing source, ensuring:
+    - Guaranteed referential consistency
+    - Elimination of typo-driven mismatches
+    - Reliable downstream booking flows  
 
-Repository function for that exact filter set is executed.
 
-This yields a deterministic, conflict-free search pipeline.
+**5. Extension-Ready Architecture**  
 
-6. Structured Repository Query Execution
+The deterministic filter architecture allows effortless future expansion — e.g.:
+- Bus operator filters
+- Amenity filters (WiFi, Charging, Water Bottle, etc.)
+- Dynamic fare filtering
+- Real-time seat-availability windows
+- Multi-date search
+ 
+New filters can be added without invasive changes to the core logic.
 
-Each filter combination maps to a dedicated repository method, ensuring:
 
-Zero ambiguity
+#### ➡️ What To Do Next (MUST READ)   
 
-Index-friendly selective queries
+With `API #15 – Public Bus Search API` completed, the next major milestone is the implementation of the **Booking Module**, which governs how a passenger transitions from viewing bus availability to completing a confirmed reservation. This module is **critical** because **a successful booking can only be achieved by following a strict, sequential workflow** designed to ensure data integrity, pricing accuracy, and seat-locking consistency.  
 
-Predictable JPQL structure
 
-Consistent performance
+**Mandatory Booking Workflow**  
 
-Examples:
+The booking flow consists of four controlled stages:  
 
-filterBusByLocationWithBothTypeAndTime
+**1. Start Booking**  
+ - The initial step where a passenger initiates the booking process for a specific bus and travel date.
+ - This stage typically includes basic passenger details, seat count, preliminary fare calculation, and temporary seat-locking mechanisms.   
 
-filterBusByAcTypeAndTimeRange
+**2. Edit Booking (If Required)**  
+- Allows the user to make modifications before continue booking.
+- This may include updating passenger details, changing existing seat count, adjusting contact information, or revisiting add-on options.  
 
-filterBusBySeatTypeAndTimeRange
+**3. Continue Booking**  
+- The checkpoint stage that validates the revised information, rechecks seat availability, and prepares the booking for confirmation.
+- The system ensures the booking remains consistent with current bus status and fare structures.  
 
-filterBusByLocationWithSeatType
+**4. Confirm Booking**  
+- The final step where the booking is validated, committed to the system, and officially reserved.
+- Payment processing or final locking of seats usually occurs here.
+- System starts **generated travel ticket & transaction ID** for successful confirmation.  
 
-No generic "one query to handle all filters" approach is used, because predictable query planning is a vital performance requirement.
+**Sequential Enforcement**  
 
-7. DTO Transformation & Travel-Date Awareness
-7.1 Mapping Layer
+This four-step workflow **must be followed in order**.
+Skipping, bypassing, or directly jumping to a later stage will always result in a failed or invalid booking operation. This strict sequence guarantees:  
+- Data consistency
+- Accurate seat availability
+- Prevention of ghost or partial bookings
+- A stable and predictable booking lifecycle
+</details>  
 
-BusMapper.busToBusUserDto() transforms raw entity data into output-ready DTOs:
 
-Formats departure/arrival times
+### 📘 Booking Workflow Overview (High-Level Booking Lifecycle)  
+<details> 
+  <summary><strong>Start → Edit → Continue → Confirm</strong></summary>
+  <br>
 
-Converts enum values into canonical outward-facing strings
+The Booking Module in **BookMyRide** is a controlled, state-driven reservation system designed to guarantee accurate seat management, safe concurrency handling, and a consistent user flow. Every booking must progress through a fixed, forward-only sequence:   
 
-Computes travel-date-adjusted seat availability
+**Start → Edit → Continue → Confirm**   
 
-Produces clean, standardized response objects
+Additional operations like cancellation remain possible, but only when the booking has not yet reached the confirmed state. This workflow ensures predictable outcomes for both users and the system, preventing invalid transitions, expired operations, or seat conflicts during high-traffic scenarios.   
 
-7.2 Output Surface Safety
 
-The DTO excludes:
+#### 📌 Core Design Principles  
 
-Internal database identifiers
+**Deterministic Progression**  
 
-Versioning fields (for optimistic locking)
+The booking process always unfolds in the same order. No step can be skipped, repeated incorrectly, or executed out of turn. This prevents incomplete or inconsistent reservations.  
 
-Audit details (createdBy, updatedBy, timestamps)
+**State-Based Permissions**  
 
-Management-specific properties
+Each action is allowed only when the booking’s status and payment state match the required conditions. For example:  
+ - Editing is allowed only when the booking is **PENDING & UNPAID**.
+ - Confirmation is allowed only when the booking is **PROCESSING & PENDING**.
+ - Cancellation is allowed only until confirmation.  
 
-This protects the system from unwanted information exposure and keeps the response strictly user-facing.
+**Immediate Seat Locking**  
 
-8. Response Semantics & Behavioral Guarantees
-8.1 Success (200 OK)
+Seats are deducted the moment a booking is started. This ensures accurate availability even during simultaneous booking attempts. Optimistic locking is used to detect and gracefully handle conflicts when multiple users select the last remaining seats.  
 
-A consistent success envelope includes:
+**Automatic Expiry Enforcement**  
 
-A message describing applied filters
+Every booking includes an expiration timestamp (`bookingExpiresAt`). Once expired, the booking is invalidated automatically, seat locks are released, and further operations are blocked. This prevents abandoned bookings from holding seats indefinitely.  
 
-The final curated list of user-facing bus DTOs
 
-Clear, predictable, and structured.
+#### Start Booking  
 
-8.2 Not Found (404)
+**Endpoint:** **POST** `/public/bookings`   
 
-Occurs when:
+This is the entry point to the booking lifecycle. When a user initiates a booking:  
+- Input validation is performed (mobile, seat count, date format, etc.)
+- The bus is verified for existence
+- Seat availability is checked and locked
+- User information is created or updated
+- A new booking is created in a `PENDING` state with `UNPAID` status
+- Temporary hold time (`bookingExpiresAt`) is set  
 
-Routes exist but no buses match the criteria
+If another user books the same seats milliseconds earlier, optimistic locking ensures the conflict is detected and the user receives a graceful retry message.  
 
-Filter combinations eliminate all candidates
+**Output:** A **Booking Preview**, displaying passenger details, trip details, and seat info.  
 
-Distinguishes precise conditions:
 
-Validation error → 400
+#### Edit Booking (Optional)  
 
-No results → 404
+**Endpoint:** **PUT** `/public/bookings/{id}/edit
 
-8.3 Bad Request (400)
+Editing allows the user to update passenger details, travel date, or seat count — but **only before moving to payment**. This step is allowed only when the booking is: `PENDING`, and `UNPAID`, and Not expired. When the seat count changes, the system calculates the seat delta and checks whether the bus has enough remaining seats before applying the update.  
 
-Triggered by:
+Editing is blocked if the booking is already: `PROCESSING`, `CANCELLED`, `EXPIRED` & `CONFIRMED`.
 
-Malformed dates
+**Output:** An updated **Booking Preview**.  
 
-Invalid enums
+#### Continue Booking  
 
-Incorrect filter patterns
+**Endpoint:** **PATCH** `/public/bookings/{id}/continue`  
 
-Sorting violations
+This step transitions the booking into the payment phase. When continued:
+- The system checks whether the booking is still valid (not expired).
+- Status moves from PENDING → PROCESSING.
+- Payment status moves from UNPAID → PENDING.
+- Any existing ticket or transaction data is cleared.
+- The booking is prepared for payment and confirmation.  
 
-Time-range structure errors
+If the booking has already expired, the system marks it as EXPIRED, releases the seats, and prompts the user to start a fresh booking.
 
-The system never silently ignores invalid filters.
-Every such issue results in explicit, actionable feedback.
+**Output:** A **Booking Summary** ready for payment.  
 
+#### Confirm Booking  
 
+**Endpoint:** **PATCH** `/public/bookings/{id}/confirm`  
 
-⚠️ Edge Cases & Developer Notes (World-Class Depth)
-1. Temporal Edge Cases
+This finalizes the booking after payment details are provided. Confirmation is allowed only when the booking is:  
+- `PROCESSING`
+- `PENDING` (payment)
+- Not expired  
 
-Rejects illogical ranges (e.g., 22-05 unless future enhancement is added)
+Once validated:  
+- Payment method is recorded
+- Payment status becomes PAID
+- Booking status becomes `CONFIRMED`
+- Unique Ticket ID and Transaction ID are generated
+- Expiry timestamp is cleared (booking no longer expires)   
 
-Ensures travel date >= system date
+A confirmed booking becomes immutable — no edits, no cancellation.  
 
-Normalizes 24h boundaries
+**Output:** The **Final Booking** Information including ticket data and payment details.
 
-Prevents partial hour formats (e.g., "5-8" must be "05-08")
+#### Cancel Booking (Additional Operation)  
 
-2. Filter Collision & Logical Integrity
+**Endpoint:** **PATCH** `/public/bookings/{id}/cancel`  
 
-The system ensures that no two branches ever overlap.
-For example:
+Cancellation is supported as a user-friendly operation but is intentionally restricted to maintain system integrity. A booking can be cancelled **at any point before it is confirmed**. A booking is eligible for cancellation only when:  
+- Status is `PENDING` or `PROCESSING`
+- Payment status is `UNPAID` or `PENDING`
+- Booking has not expired  
 
-AC + timeRange
-and
-SeatType + TimeRange
+Upon cancellation:  
+- Booking is marked as `CANCELLED`
+- Payment method is reset (`NONE`)
+- Ticket and transaction data are cleared
+- Seats reserved earlier are immediately released back to the bus
+- A cancellation timestamp is recorded  
 
-Are mutually exclusive by design.
+Attempts to cancel a booking that is already **CONFIRMED, EXPIRED**, or **CANCELLED** are rejected.  
 
-This avoids:
+**Output:** A success message confirming the cancellation.  
 
-Unpredictable filter combinations
+#### Booking State Lifecycle  
 
-Double filtering
+The system strictly controls transitions between states to avoid invalid operations. A simplified lifecycle representation:  
 
-Query precedence confusion
+START BOOKING →  PENDING  → (optional) EDIT  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; → CONTINUE  →  PROCESSING  →  CONFIRM  →  CONFIRMED  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;CANCEL  
 
-3. Regex-Driven Safety Controls
+Expired or cancelled bookings exit the flow and cannot re-enter.  
 
-Every string-based filter is validated with strict regex rules to prevent:
+#### Final Outcome  
 
-SQL poisoning attempts
+The Booking Workflow in BookMyRide offers a predictable, secure, and user-friendly process that balances ease-of-use with strict backend consistency. The architecture is engineered to:  
+- Prevent seat conflicts
+- Avoid stale or expired bookings
+- Maintain strict ordering of steps
+- Provide controlled editing
+- Allow cancellations safely
+- Ensure reliable confirmation
+- Protect all operations through concurrency & state validation mechanisms
 
-Numeric/date reinterpretation
+This delivers a world-class ticketing flow that mirrors real-world transport booking systems and scales reliably during peak traffic. 
+</details>  
 
-Unexpected character drift
 
-Collisions between AC, seat, and bus-type patterns
+### 🚌 16. Start a New Booking (Seat Locking & Booking Initialization)
+<details> 
+  <summary><strong>POST</strong> <code>/public/bookings</code></summary>
 
-4. Repository-Level Performance Considerations
+#### 🛠 Endpoint Summary   
+**Method:** POST  
+**URL:** /public/bookings  
+**Authentication:** Not Required  
+**Authorized Roles:** PUBLIC(Both Registered & Non-Registered Users)       
 
-Time-range queries benefit from boundary-only filtering, avoiding minute-level precision, making it index-friendly.
+#### 📝 Description  
+This API is the **Step 1** of the Booking Workflow initializes a brand-new booking for a selected bus, creates or updates the passenger profile, ensures seat availability, and securely locks the requested seats. A booking created through this endpoint enters the system in a PENDING state and becomes the foundation for subsequent operations:  
+- Edit Booking (Optional)
+- Continue Booking
+- Confirm Booking  
 
-AC and SeatType filters use normalized canonical strings, ensuring consistent DB search patterns.
+Key highlights:  
+- Strict DTO validation for all booking inputs
+- Robust date format parsing (dd-MM-yyyy or dd/MM/yyyy) with strict resolver
+- Automatic user creation or profile update (based on mobile number)
+- Bus existence validation using canonical busNumber
+- Seat availability check + immediate seat locking
+- Centralized discount calculation
+- Travel/arrival time computation using schedule metadata
+- Booking expiration timestamp setup (10-minute hold window)
+- Optimistic locking to prevent seat conflicts during high traffic
+- Fully atomic booking creation using transactional boundaries
+- Returns a full Booking Preview object, ready for Review/Continue  
 
-5. Data Integrity & Master Data Coupling
+The entire operation is engineered for real-time, high-concurrency environments where multiple users may attempt to book the last few seats simultaneously.
 
-The entire search engine relies on the MasterLocation table as the authoritative routing source, ensuring:
+#### 📥 Request Body  
+{  
+&nbsp;&nbsp;&nbsp; "name": "Your Name",  
+&nbsp;&nbsp;&nbsp; "mobile": "Your Mobile Number",   
+&nbsp;&nbsp;&nbsp; "email": "Your email ID",  
+&nbsp;&nbsp;&nbsp; "busNumber": "TN01CC1234",  
+&nbsp;&nbsp;&nbsp; "seatsBooked": 2,  
+&nbsp;&nbsp;&nbsp; "travelAt": "17-12-2024"  
+}  
+> 💡 Notes:
+- Ypu can replace the placeholders with your details or any dummy details for testing.
+- The value given for `busNumber` is also a placeholder/dummy. Can use any bus number that you want to book. But that must present/active in DB.   
+- travelAt can be dd-MM-yyyy or dd/MM/yyyy — strict mode parsing ensures no invalid dates slip through.  
 
-Referential integrity
 
-Elimination of typo-driven search mismatches
+#### ⚙️ How the Backend Processes  
 
-Coherent booking flows
+**1. DTO Validation & Syntax Enforcement**   
 
-6. Extension-Ready Architecture
+The request payload undergoes strict validation via @Valid + BindingResult. The system checks:
+- Mandatory fields (name, mobile, busNumber, travelAt, seatsBooked)
+- Mobile number format
+- Email format
+- seatsBooked ≥ 1
+- Clean string values  
 
-The filter branching system allows the easy addition of future filters such as:
+If any validation fails → **400 BAD_REQUEST** with a detailed list of validation errors.  
 
-Bus operator
+**2. Travel Date Parsing (Strict Resolver Mode)**  
 
-Amenities (WiFi, Charging, Water bottle)
+The system identifies format by checking the delimiter `dd-MM-yyyy` and `dd/MM/yyyy`. It then parses the date using: `DateTimeFormatter + ResolverStyle.STRICT`. This ensures:  
+- No invalid dates (31-02-2024)
+- No partial dates
+- No rollover quirks
+- No ambiguous inputs  
 
-Dynamic fare filtering
+If parsing fails → **400 BAD_REQUEST**.  
 
-Real-time seat availability windows
+**3. Mobile Number Access-Control Check**   
 
-Multi-date search
+Before proceeding, the system checks if the provided mobile number belongs to:  
+- A management/admin user
+- Any restricted user category  
 
-Without modifying deep core logic.
+If yes → **403 FORBIDDEN** – **Access Denied**, preventing unauthorized users (like Admins) from booking seats meant for public users.  
 
+**4. Passenger Profile Handling**  
 
+The system checks if the mobile number already exists in AppUser:
+- If existing: user profile is updated with new details (name/email).
+- If not existing: a new passenger profile is created.   
 
+Strict business validation ensures:  
+- No duplicate emails
+- No conflicting user roles
+- No malformed user attributes  
 
+Failure cases return:
+- **400 BAD_REQUEST** (invalid profile data)
+- **409 CONFLICT** (duplicate email or conflicting user state)  
+
+On success, a clean **AppUser** object is obtained for downstream booking logic.   
+
+**5. Bus Lookup & Route Validation**   
+
+The bus is fetched using busNumber:
+- If bus not found → **404 NOT_FOUND**.
+- If bus exists, its schedule, fare, locations, and timing metadata are loaded.  
+
+This ensures every booking is tied to a valid, operational bus entity.  
+
+**6. Seat Availability Verification & Seat Locking**  
+- This step is the heart of Start Booking. The system checks: If booked seats is lesser than `availableSeats` in Bus data.  
+- If insufficient: → **409 CONFLICT** – `INSUFFICIENT_SEATS`    
+
+If valid:  
+- Remaining seats are computed.
+- Bus.availableSeats is updated immediately.
+- Seat lock is enforced inside a transactional + optimistic locking boundary.  
+
+This prevents:
+- Overbooking
+- Parallel request conflicts
+- Race conditions during peak traffic  
+
+Any optimistic lock exception is turned into a user-friendly: **409 CONFLICT** – Seats just got booked by others.
+
+**7. Booking Entity Construction (BookingMapper.newBooking)**    
+
+The system computes and assigns:  
+- fromLocation / toLocation (copied from the bus)
+- travelAt
+- departureAt = travelAt + bus.departureAt
+- arrivalAt = departureAt + duration
+- cost breakdown
+- discount (5% for regular USER role)
+- UNPAID / PENDING statuses
+- bookingExpiresAt = now + 10 minutes  
+
+This ensures **consistent, centrally-derived booking properties** with ZERO reliance on user-supplied cost or timing.  
+
+**8. Transactional Save & Audit Logging**  
+
+Inside a single atomic transaction:  
+- The booking is saved
+- Bus seat count is simultaneously adjusted
+- Audit logs record booking ID, user ID, and metadata  
+
+If any unexpected failure occurs → **500 INTERNAL_SERVER_ERROR**
+
+
+**9. Successful Output – Booking Preview DTO**  
+
+Upon successful creation:
+- HTTP Status: **201 CREATED**
+- Response Body: A fully populated **BookingPreviewDto**  
+
+This preview includes:  
+- Passenger info
+- Bus details
+- Trip schedule
+- Fare breakdown
+- Seats booked
+- Expiry timestamp
+- Next-step instruction  
+
+The user is now ready to proceed with **Continue Booking**.  
+
+#### 📤 Success Response
+<details> 
+  <summary>View screenshot</summary>
+   ![Booking Preview Success]()
+</details>
+
+#### ❗ Error Response 
+> Invaid input
+<details> 
+  <summary>View screenshot</summary>
+   ![Booking Preview Error]()
+</details> 
+
+> No bus data found
+<details> 
+  <summary>View screenshot</summary>
+   ![Booking Preview Error]()
+</details>     
+
+#### 📊 HTTP Status Code Table   
+| HTTP Code                     | Status             | Meaning                                      | When It Occurs            |
+| ----------------------------- | ------------------ | -------------------------------------------- | ------------------------- |
+| **201 CREATED**               | Booking Created    | Booking + seat lock succeeded                | Normal success            |
+| **400 BAD_REQUEST**           | Validation Error   | DTO invalid, malformed date, seats < 1       | Client input issue        |
+| **403 FORBIDDEN**             | Access Denied      | Mobile belongs to restricted/management role | Role mismatch             |
+| **404 NOT_FOUND**             | Bus not found      | Invalid bus number                           | Missing bus entity        |
+| **409 CONFLICT**              | Seat Conflict      | Optimistic lock, seats booked by others      | High concurrency conflict |
+| **409 CONFLICT**              | Insufficient Seats | availableSeats < seatsBooked                 | Capacity limitation       |
+| **500 INTERNAL_SERVER_ERROR** | Server failure     | System error, unexpected failure             | Internal issues           |
+
+
+#### ⚠️ Edge Cases & Developer Notes  
+
+**1. High-Traffic Seat Collision & Optimistic Lock Behavior**  
+- When multiple passengers attempt to book the **last few seats**, all requests may initially pass validation but only one will commit successfully.
+- The losing transactions will trigger database-level optimistic locking, ensuring **zero overbooking** regardless of concurrency volume.
+- This scenario most commonly occurs during weekends, holidays, or flash-discount events where seat demand spikes sharply.
+- The API converts such collisions into a predictable **409 CONFLICT: Seats booked by others** to maintain a clean, user-friendly experience.  
+  
+**2. Expired Passenger Profiles & Auto-Update Logic**  
+- If a returning user enters updated name/email during booking, the system **automatically refreshes** their profile.
+- This avoids the need for separate profile management steps and ensures real-time identity accuracy.
+- Email conflicts (e.g., reused in another account) are detected immediately, preventing downstream inconsistencies.
+- This mechanism is essential for long-term users whose details change (new email, corrected spelling, etc.).  
+
+**3. Time-Based Booking Expiry & Seat Replenishment**  
+- Every new booking receives a strict 10-minute expiry window, during which seats remain locked but not confirmed.
+- If the user abandons or delays payment, these seats automatically return to availability, protecting inventory accuracy.
+- This prevents “ghost locks” — a common issue in ticketing systems where incomplete transactions block seats indefinitely.
+- The expiry mechanism is critical during peak loads, ensuring a continuous flow of available inventory.  
+
+
+**4. Cross-Version Mobile Number Restrictions**  
+- If a mobile number belongs to a **Management/Admin account**, booking attempts are blocked for security and role isolation.
+- This prevents privileged accounts from engaging in regular passenger transactions, which could create audit distortions.
+- It also ensures clean separation between operational roles and consumer-facing flows.
+- This rule evolves from real-world enterprise systems where internal staff are restricted from booking through public channels.
+</details>   
+
+
+
+### 🚌 17. Edit an Existing Booking (Passenger Data & Seat Update)  
+<details> 
+  <summary><strong>PUT</strong> <code>/public/bookings/{id}/edit</code></summary>
+
+#### 🛠 Endpoint Summary   
+**Method:** PUT  
+**URL:** /public/bookings/{id}/edit  
+**Authentication:** Not Required  
+**Authorized Roles:** PUBLIC(Both Registered & Non-Registered Users) 
+
+#### 📝 Description  
+
+This API allows a passenger to **edit an existing booking before it is continued  ** (PENDING + UNPAID). It provides flexibility to:  
+- Update passenger information (name, mobile, email)
+- Adjust the number of seats booked (increase or decrease)
+- Automatically validate bus seat availability
+- Maintain booking integrity with optimistic locking  
+
+Key highlights:  
+- Only bookings in **PENDING + UNPAID** status can be edited.
+- Strict DTO validation for all editable fields.
+- Robust date format parsing (`dd-MM-yyyy` or `dd/MM/yyyy`).
+- Automatic user profile update if passenger details have changed.
+- Recalculates seat availability and ensures no overbooking.
+- Provides a **Booking Preview** reflecting updated passenger details, seat count, and trip summary.
+- Handles expired bookings gracefully, returning a clear timeout message.
+- Atomic transactional updates to prevent partial edits.  
+
+#### 📥 Request Body
+{  
+&nbsp;&nbsp;&nbsp; "name": "Updated Name",  
+&nbsp;&nbsp;&nbsp; "mobile": "Updated Mobile Number",   
+&nbsp;&nbsp;&nbsp; "email": "Updated email ID",    
+&nbsp;&nbsp;&nbsp; "seatsBooked": 4,  
+&nbsp;&nbsp;&nbsp; "travelAt": "20-12-2024"  
+}  
+> 💡 Notes:
+- Ypu can replace the placeholders with your details or any dummy details for testing.
+- Editing can only done at/for same bus.   
+- travelAt can be dd-MM-yyyy or dd/MM/yyyy — strict mode parsing ensures no invalid dates slip through. 
+
+
+#### ⚙️ How the Backend Processes  
+
+**1. Backend Booking Edit Process**  
+The backend processes booking edits through a structured sequence of validations, fetches, updates, and responses, ensuring data integrity and availability. Each step enforces specific HTTP status codes and error messages for clear feedback.  
+
+**2. Initial Validations**  
+- **Booking ID validation** confirms the provided ID is greater than zero; invalid IDs trigger a **400 BAD_REQUEST** response.
+- DTO validation then verifies all fields, including mobile/email formats and seatsBooked ≥ 1, returning 400 BAD_REQUEST with a list of errors if issues arise.
+- Travel date parsing uses DateTimeFormatter with STRICT ResolverStyle to handle '-' or '/' delimiters, rejecting invalid dates like 31-02-2024 with **400 BAD_REQUEST**.  
+
+**3. Booking Retrieval and Status Check**  
+- The system fetches the existing booking by ID, responding with **404 NOT_FOUND** if absent.
+- It enforces edit eligibility by requiring PENDING + UNPAID status; other states (**PROCESSING, CONFIRMED, CANCELLED, EXPIRED**) result in **403 FORBIDDEN** with explanatory messaging.​  
+
+**4. Seat and Passenger Updates**  
+- Seat modifications calculate modifiedCount as new seats minus original, checking bus.availableSeats ≥ modifiedCount; shortages yield **409 CONFLICT** with remaining seats details.
+- Passenger profiles update the linked AppUser, handling **400 BAD_REQUEST** for invalid input or **409 CONFLICT** for duplicates like email/role issues.  
+
+**5. Final Update and Response**  
+
+`BookingMapper.editedBooking()` constructs updates for seats, travel date, and times while preserving cost breakdown, all within a transaction using optimistic locking. On success, it commits changes, logs details (booking ID, user ID, modified seats, metadata), and returns **200 OK** with `BookingPreviewDto` containing passenger info, trip details, seats, cost, and date; failures trigger **500 INTERNAL_SERVER_ERROR** or **408 REQUEST_TIMEOUT** for lock issues.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#### 📤 Success Response
+<details> 
+  <summary>View screenshot</summary>
+   ![Booking Edit Success]()
+</details>
+
+#### ❗ Error Response 
+> Invaid input
+<details> 
+  <summary>View screenshot</summary>
+   ![Booking Edit Error]()
+</details> 
+
+> No bus data found
+<details> 
+  <summary>View screenshot</summary>
+   ![Booking Edit Error]()
+</details>     
+
+
+#### 📊 HTTP Status Code Table
+| HTTP Code | Status                | Meaning                                 | When It Occurs                                     |
+| --------- | --------------------- | --------------------------------------- | -------------------------------------------------- |
+| 200       | OK                    | Booking edited successfully             | All validations pass, saved                        |
+| 400       | BAD_REQUEST           | Validation Error                        | Invalid DTO, seats < 1, invalid travelAt           |
+| 403       | FORBIDDEN             | Edit Not Allowed                        | Booking status not editable                        |
+| 404       | NOT_FOUND             | Booking not found                       | ID not present in DB                               |
+| 408       | REQUEST_TIMEOUT       | Booking expired                         | Optimistic lock detects expiration                 |
+| 409       | CONFLICT              | Seats unavailable / duplicate user info | Requested seats > available, conflicting user data |
+| 500       | INTERNAL_SERVER_ERROR | System failure                          | Unexpected exception                               |
+
+
+#### ⚠️ Edge Cases & Developer Notes    
+
+**1. Pending Booking Enforcement**  
+- Only `PENDING` + `UNPAID` bookings are editable.
+- Ensures that confirmed, processing, cancelled, or expired bookings remain immutable.
+- Protects the system from inconsistent seat allocations.  
+
+**2. Dynamic Seat Adjustment with Concurrency Safety**  
+- Seat count changes are computed relative to current availability.
+- Optimistic locking prevents overbooking during high-concurrency scenarios.
+- Guarantees accurate seat availability even with multiple simultaneous edits.  
+
+**3. Passenger Profile Integrity**  
+- Editing updates AppUser records.
+- Duplicate emails or conflicting roles trigger precise **409 CONFLICT** responses.
+- Maintains clean, centralized user data across all bookings.  
+
+**4. Booking Expiry Handling**  
+- If the booking expires during editing (optimistic lock), API returns **408 REQUEST_TIMEOUT**.
+- Ensures that no stale booking edits corrupt inventory or seat counts.
+- Encourages users to re-initiate booking for expired reservations. 
 </details>
 
 
+### 🚌 18. Continue Booking (Proceed to Confirm & Payment Preparation)
+<details> 
+  <summary><strong>PATCH</strong> <code>/public/bookings/{id}/continue</code></summary>
 
+#### 🛠 Endpoint Summary   
+**Method:** PATCH  
+**URL:** /public/bookings  
+**Authentication:** Not Required  
+**Authorized Roles:** PUBLIC(Both Registered & Non-Registered Users)    
+
+#### 📝 Description  
+
+This API allows passengers to **continue a previously initiated booking** (created via Start Booking or edited via Edit Booking). It finalizes booking details, ensures all data is consistent, and prepares the booking for **payment confirmation**.  
+
+Key highlights:  
+- Only bookings in **PENDING + UNPAID** status are eligible.
+- Revalidates **seat availability** to prevent conflicts before confirmation.
+- Consolidates **passenger details, seat counts, fare, discounts, and schedule metadata**.
+- Maintains transactional integrity and concurrency safety.
+- Returns a **Booking Preview DTO** with the full booking summary for confirmation and payment.    
+
+This API is effectively the **bridge between Start/Edit Booking and Confirm Booking**, providing a snapshot of the booking that is guaranteed to be valid and ready for payment.   
+
+#### 📥 Request Parameter
+| Parameter | Type | Description                                | Required |
+| --------- | ---- | ------------------------------------------ | -------- |
+| `id`      | Long | ID of the bus to delete. Must be positive. | Yes      |
+> 💡 Notes:  
+- The id is the booking ID obtained from Start Booking or Edit Booking.
+- Booking must be **PENDING + UNPAID**; otherwise, the API returns FORBIDDEN.
+- No new seats can be added here; any seat changes must be done via Edit Booking before continuing.
+- Travel date and passenger details are revalidated against the latest AppUser profile and bus availability.  
+
+
+#### ⚙️ How the Backend Processes   
+
+**1. Booking Retrieval and Status Check**  
+- First, the system validates the booking exists by `ID`, returning **404 NOT_FOUND** if absent. It enforces **PENDING + UNPAID** status only.
+- Other states like PROCESSING, CONFIRMED, CANCELLED, or EXPIRED trigger **403 FORBIDDEN**.  
+
+**2. Availability and Profile Validation**  
+
+Seat availability rechecks current bus capacity against requested seats, issuing **409 CONFLICT** if exceeding limits. Passenger profile verifies the linked AppUser for consistency, responding with **400 BAD_REQUEST** for invalid data or 409 CONFLICT for issues like duplicates.  
+
+**3. Fare Calculation and Preview**  
+
+
+
+
+  
+</details>  
