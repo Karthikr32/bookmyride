@@ -298,7 +298,7 @@ As a result:
 </details>
 
 
-### 🔐 2. Update Management Profile
+### 🖋️ 2. Update Management Profile
 
 <details> 
   <summary><strong>PUT</strong> <code>/management/profile</code></summary>
@@ -1059,6 +1059,7 @@ Key highlights:
 - Returns **400 Bad Request** for invalid enum values.
 
 **3. Dynamic Query Selection**  
+
 Based on which filters are provided, the backend selects the proper repository method:  
 
  - `country + state + city` → `cityEntityRepo.findByNameAndState_NameAndState_Country_Name()`
@@ -1069,11 +1070,18 @@ Based on which filters are provided, the backend selects the proper repository m
  - No filters → `cityEntityRepo.findAll(pageable)`  
 
 **4. Mapping & Response Construction**  
-- Converts `CityEntity` results into `LocationResponseDto` via `LocationMapper.entityToLocationResponseDto()`.
-- Wraps the result into `ApiPageResponse`, including:
-   - `totalPages`, `totalElements`, `currentPage`, `pageSize`, `isFirst`, `isEmpty`.
-- Returns **200 OK** with data or **404 Not Found** if the page has no results.
-- Provides descriptive message: `"No data found"` vs `"Data found"` depending on result presence.
+- After fetching the paginated list of city entities, the system maps each entity into a structured LocationResponseDto using `LocationMapper.entityToLocationResponseDto()`.
+- This DTO organizes location data into three clearly defined sections—**City**, **State**, and **Country**—each including metadata such as creation and update timestamps, as well as the responsible user and role.
+- This structure ensures that future updates can target any level individually (city, state, or country) without breaking the API contract.
+- The mapped results are then wrapped into a standard `ApiPageResponse`, which includes: `totalPages`, `totalElements`, `currentPage`, `pageSize`, `isFirst`, `isEmpty`
+- The API returns **200 OK** when data is present, providing a complete, paginated snapshot of location information. If the requested page has no results, the API returns **404 NOT_FOUND** with a clear, descriptive message—**“No data found”**—to distinguish empty results from successful retrieval.
+
+**Response Includes (via `LocationResponseDto`):**  
+- **City** — Contains the city ID, name, creation and update metadata (user name, role, timestamps).
+- **State** — Mirrors the City structure, providing state-level identification and metadata for administrative clarity.
+- **Country** — Encapsulates country-level details in the same structured format, ensuring uniformity across the location hierarchy.  
+
+This design delivers a **consistent, audit-ready, and future-proof response** that supports both paginated listing and granular updates at any hierarchical level (City/State/Country), making it suitable for enterprise-grade applications.   
 
 **5. Error Handling & Feedback**   
 - Invalid regex or enum → **400 Bad Request** with precise guidance (capitalization, valid options).
@@ -1129,7 +1137,7 @@ Based on which filters are provided, the backend selects the proper repository m
 </details>
 
 
-### 📝 8. Update Location Records (City + State + Country Hierarchy)
+### 🖋️ 8. Update Location Records (City + State + Country Hierarchy)
 <details> 
   <summary><strong>PUT</strong> <code>/bookmyride/management/locations/{id}</code></summary>
 
@@ -1990,9 +1998,15 @@ Built using a modular filtering pipeline, enabling new filters or enum types to 
 - Implements circuit breaker protection for repository stress scenarios.
 
 **8. Response Structure**  
- - Returns standardized **HTTP 200** with structured JSON envelope containing status, code, contextual message, and fully populated data payload. Pagination metadata enables seamless client-side infinite scrolling and dashboard rendering.  
+ - Upon successful retrieval of bus details and associated bookings, the API returns a **standardized HTTP 200 OK** response. The payload is structured to provide a **comprehensive snapshot** of both bus metadata and its bookings, wrapped in a JSON envelope that includes status, code, and contextual messages for better client-side handling.
+ - Pagination metadata can be incorporated for large datasets, enabling **infinite scrolling or dashboard** rendering without losing context.  
 
+**Response Includes (via ManagementBusDataDto):**  
+- **BusInfo** — Captures full bus details including identification (bus number, name, type), operational attributes (AC type, seat type, capacity, available seats), registration and permit status, route (from/to locations), duration, fare, and metadata about who created or last updated the bus (`ManagementInfo`). This ensures auditability and clear operational tracking.
+- **BookingInfo (List)** — Contains all active bookings associated with the bus, including booking ID, passenger details (ID, name, mobile), travel date, timestamps (booked, departure, arrival), number of seats booked, booking and payment statuses, payment method, ticket, transaction ID, and final cost. This allows management or administrative clients to **track occupancy, fare collection, and booking lifecycle** directly alongside bus details.
+- **ManagementInfo** — Provides audit metadata for each bus, including the management user’s ID, username, mobile, role, and action timestamp, supporting compliance and operational traceability.  
 
+This structure ensures that clients receive a **single, holistic view** of a bus and its bookings in a format optimized for dashboards, reporting, and operational decision-making. The DTO design also supports easy future extension for additional attributes, filtering, or hierarchical updates without breaking existing contracts.
 
 #### 📤 Success Response
 <details> 
@@ -2056,7 +2070,7 @@ Built using a modular filtering pipeline, enabling new filters or enum types to 
 </details>
 
 
-### 🔧 13. Updating an Existing Bus Entry (Management Action)
+### 🖋️ 13. Updating an Existing Bus Entry (Management Action)
 <details> 
   <summary><strong>PUT</strong> <code>/management/buses/{id}</code></summary>
 
@@ -2732,7 +2746,7 @@ The Booking Module in **BookMyRide** is a controlled, state-driven reservation s
 Additional operations like cancellation remain possible, but only when the booking has not yet reached the confirmed state. This workflow ensures predictable outcomes for both users and the system, preventing invalid transitions, expired operations, or seat conflicts during high-traffic scenarios.   
 
 
-#### 📌 Core Design Principles  
+### 📌 Core Design Principles  
 
 **Deterministic Progression**  
 
@@ -2754,7 +2768,7 @@ Seats are deducted the moment a booking is started. This ensures accurate availa
 Every booking includes an expiration timestamp (`bookingExpiresAt`). Once expired, the booking is invalidated automatically, seat locks are released, and further operations are blocked. This prevents abandoned bookings from holding seats indefinitely.  
 
 
-#### Start Booking  
+### Start Booking  
 
 **Endpoint:** **POST** `/public/bookings`   
 
@@ -2771,9 +2785,9 @@ If another user books the same seats milliseconds earlier, optimistic locking en
 **Output:** A **Booking Preview**, displaying passenger details, trip details, and seat info.  
 
 
-#### Edit Booking (Optional)  
+### Edit Booking (Optional)  
 
-**Endpoint:** **PUT** `/public/bookings/{id}/edit
+**Endpoint:** **PUT** `/public/bookings/{id}/edit`
 
 Editing allows the user to update passenger details, travel date, or seat count — but **only before moving to payment**. This step is allowed only when the booking is: `PENDING`, and `UNPAID`, and Not expired. When the seat count changes, the system calculates the seat delta and checks whether the bus has enough remaining seats before applying the update.  
 
@@ -2781,7 +2795,7 @@ Editing is blocked if the booking is already: `PROCESSING`, `CANCELLED`, `EXPIRE
 
 **Output:** An updated **Booking Preview**.  
 
-#### Continue Booking  
+### Continue Booking  
 
 **Endpoint:** **PATCH** `/public/bookings/{id}/continue`  
 
@@ -2796,7 +2810,7 @@ If the booking has already expired, the system marks it as EXPIRED, releases the
 
 **Output:** A **Booking Summary** ready for payment.  
 
-#### Confirm Booking  
+### Confirm Booking  
 
 **Endpoint:** **PATCH** `/public/bookings/{id}/confirm`  
 
@@ -2816,7 +2830,7 @@ A confirmed booking becomes immutable — no edits, no cancellation.
 
 **Output:** The **Final Booking** Information including ticket data and payment details.
 
-#### Cancel Booking (Additional Operation)  
+### Cancel Booking (Additional Operation)  
 
 **Endpoint:** **PATCH** `/public/bookings/{id}/cancel`  
 
@@ -2836,18 +2850,18 @@ Attempts to cancel a booking that is already **CONFIRMED, EXPIRED**, or **CANCEL
 
 **Output:** A success message confirming the cancellation.  
 
-#### Booking State Lifecycle  
+### Booking State Lifecycle  
 
 The system strictly controls transitions between states to avoid invalid operations. A simplified lifecycle representation:  
 
-START BOOKING →  PENDING  → (optional) EDIT  
+START BOOKING →  PENDING  → EDIT (optional)   
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; → CONTINUE  →  PROCESSING  →  CONFIRM  →  CONFIRMED  
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|  
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;CANCEL  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;CANCEL   
 
 Expired or cancelled bookings exit the flow and cannot re-enter.  
 
-#### Final Outcome  
+### Final Outcome  
 
 The Booking Workflow in BookMyRide offers a predictable, secure, and user-friendly process that balances ease-of-use with strict backend consistency. The architecture is engineered to:  
 - Prevent seat conflicts
@@ -2862,7 +2876,7 @@ This delivers a world-class ticketing flow that mirrors real-world transport boo
 </details>  
 
 
-### 🚌 16. Start a New Booking (Seat Locking & Booking Initialization)
+### ▶ 16. Start a New Booking (Seat Locking & Booking Initialization)
 <details> 
   <summary><strong>POST</strong> <code>/public/bookings</code></summary>
 
@@ -2903,7 +2917,7 @@ The entire operation is engineered for real-time, high-concurrency environments 
 &nbsp;&nbsp;&nbsp; "travelAt": "17-12-2024"  
 }  
 > 💡 Notes:
-- Ypu can replace the placeholders with your details or any dummy details for testing.
+- You can replace the placeholders with your details or any dummy details for testing.
 - The value given for `busNumber` is also a placeholder/dummy. Can use any bus number that you want to book. But that must present/active in DB.   
 - travelAt can be dd-MM-yyyy or dd/MM/yyyy — strict mode parsing ensures no invalid dates slip through.  
 
@@ -3005,21 +3019,16 @@ If any unexpected failure occurs → **500 INTERNAL_SERVER_ERROR**
 
 
 **9. Successful Output – Booking Preview DTO**  
+- When a new booking is successfully created, the system compiles all relevant details into a structured `BookingPreviewDto` and returns it with **201 CREATED**. This DTO acts as the initial snapshot of the freshly created booking, containing all information the user needs before moving forward to the Continue step.
+- It encapsulates booking metadata, seat and fare calculations, bus schedule, and passenger details—presented in a clean, grouped format for easy client-side rendering.  
+  
+**Response Includes (via `BookingPreviewDto`):**  
+- **BookingInfo** — Contains the system-generated booking ID, creation timestamp, intended travel date, applied discount details, cost breakdown (total and final cost), and the computed bookingExpiresAt timestamp that defines how long the user has to continue the booking.
+- **BusInfo** — Provides all route and schedule details including bus identification, type, origin/destination, standard fare, and computed departure/arrival timestamps based on the selected travel date.
+- **PassengerInfo** — Includes the passenger’s submitted profile and the number of seats initially reserved in this booking.  
 
-Upon successful creation:
-- HTTP Status: **201 CREATED**
-- Response Body: A fully populated **BookingPreviewDto**  
+This preview serves as the **starting point of the booking workflow**, giving the user complete clarity on the reservation they just created and indicating that the next step is to proceed with **Continue Booking** to lock the booking into the processing stage.  
 
-This preview includes:  
-- Passenger info
-- Bus details
-- Trip schedule
-- Fare breakdown
-- Seats booked
-- Expiry timestamp
-- Next-step instruction  
-
-The user is now ready to proceed with **Continue Booking**.  
 
 #### 📤 Success Response
 <details> 
@@ -3041,15 +3050,14 @@ The user is now ready to proceed with **Continue Booking**.
 </details>     
 
 #### 📊 HTTP Status Code Table   
-| HTTP Code                     | Status             | Meaning                                      | When It Occurs            |
-| ----------------------------- | ------------------ | -------------------------------------------- | ------------------------- |
-| **201 CREATED**               | Booking Created    | Booking + seat lock succeeded                | Normal success            |
-| **400 BAD_REQUEST**           | Validation Error   | DTO invalid, malformed date, seats < 1       | Client input issue        |
-| **403 FORBIDDEN**             | Access Denied      | Mobile belongs to restricted/management role | Role mismatch             |
-| **404 NOT_FOUND**             | Bus not found      | Invalid bus number                           | Missing bus entity        |
-| **409 CONFLICT**              | Seat Conflict      | Optimistic lock, seats booked by others      | High concurrency conflict |
-| **409 CONFLICT**              | Insufficient Seats | availableSeats < seatsBooked                 | Capacity limitation       |
-| **500 INTERNAL_SERVER_ERROR** | Server failure     | System error, unexpected failure             | Internal issues           |
+| HTTP Code | Status                | Meaning                                 | When It Occurs                                     |
+| --------- | --------------------- | --------------------------------------- | -------------------------------------------------- |
+| 201       | CREATED               | Booking Created successful              | Booking + seat lock succeeded                      |
+| 400       | BAD_REQUEST           | Validation Error                        | DTO invalid, malformed date, seats < 1             |
+| 403       | FORBIDDEN             | Role mismatch                           | Mobile belongs to restricted/management role       |
+| 404       | NOT_FOUND             | Bus not found                           | ID not present in DB                               |
+| 409       | CONFLICT              | Insufficient Seats                      | availableSeats < seatsBooked or Capacity limitation|
+| 500       | INTERNAL_SERVER_ERROR | System failure                          | Unexpected exception                               |
 
 
 #### ⚠️ Edge Cases & Developer Notes  
@@ -3082,7 +3090,7 @@ The user is now ready to proceed with **Continue Booking**.
 
 
 
-### 🚌 17. Edit an Existing Booking (Passenger Data & Seat Update)  
+### 🖋️ 17. Edit an Existing Booking (Passenger Update, Seat Modification & Recalculation)  
 <details> 
   <summary><strong>PUT</strong> <code>/public/bookings/{id}/edit</code></summary>
 
@@ -3094,11 +3102,7 @@ The user is now ready to proceed with **Continue Booking**.
 
 #### 📝 Description  
 
-This API allows a passenger to **edit an existing booking before it is continued  ** (PENDING + UNPAID). It provides flexibility to:  
-- Update passenger information (name, mobile, email)
-- Adjust the number of seats booked (increase or decrease)
-- Automatically validate bus seat availability
-- Maintain booking integrity with optimistic locking  
+This API handles the optional **Edit** step in the **booking workflow (Start → Edit → Continue → Confirm)**, allowing users to adjust passenger details, travel date, and seat count while strictly enforcing validation, status checks `Booking Status = PENDING & Payment Status = UNPAID`, expiration rules, and seat availability; it ensures safe concurrent updates through optimistic locking and transactions, recalculates fare and discounts, auto-refreshes passenger data, and returns an updated Booking Preview reflecting all modifications.
 
 Key highlights:  
 - Only bookings in **PENDING + UNPAID** status can be edited.
@@ -3126,39 +3130,119 @@ Key highlights:
 
 #### ⚙️ How the Backend Processes  
 
-**1. Backend Booking Edit Process**  
-The backend processes booking edits through a structured sequence of validations, fetches, updates, and responses, ensuring data integrity and availability. Each step enforces specific HTTP status codes and error messages for clear feedback.  
+**1. DTO Validation & Field Checks**  
 
-**2. Initial Validations**  
-- **Booking ID validation** confirms the provided ID is greater than zero; invalid IDs trigger a **400 BAD_REQUEST** response.
-- DTO validation then verifies all fields, including mobile/email formats and seatsBooked ≥ 1, returning 400 BAD_REQUEST with a list of errors if issues arise.
-- Travel date parsing uses DateTimeFormatter with STRICT ResolverStyle to handle '-' or '/' delimiters, rejecting invalid dates like 31-02-2024 with **400 BAD_REQUEST**.  
+Using `@Valid` + `BindingResult`, the system first enforces:
+- Mandatory fields (name, email, seatsBooked, travelAt)
+- Mobile format rules
+- Email format correctness
+- Seat count ≥ 1
+- Clean input strings
+ 
+Invalid inputs → **400 BAD_REQUEST** containing the full list of validation issues.   
 
-**3. Booking Retrieval and Status Check**  
-- The system fetches the existing booking by ID, responding with **404 NOT_FOUND** if absent.
-- It enforces edit eligibility by requiring PENDING + UNPAID status; other states (**PROCESSING, CONFIRMED, CANCELLED, EXPIRED**) result in **403 FORBIDDEN** with explanatory messaging.​  
+**2. Travel Date Parsing (Strict Dual-Format Logic)**   
 
-**4. Seat and Passenger Updates**  
-- Seat modifications calculate modifiedCount as new seats minus original, checking bus.availableSeats ≥ modifiedCount; shortages yield **409 CONFLICT** with remaining seats details.
-- Passenger profiles update the linked AppUser, handling **400 BAD_REQUEST** for invalid input or **409 CONFLICT** for duplicates like email/role issues.  
+The system identifies the correct format: **dd-MM-yyyy or dd/MM/yyyy or yyyy-MM-dd** parsed via: `ResolverStyle.STRICT` using a `DateParser.validateAndParseDate()` utility class which ensures:
+  - No invalid dates like 31-02-2024
+  - No rollover quirks
+  - Full 4-digit year
+  - No ambiguous or auto-adjusted inputs  
 
-**5. Final Update and Response**  
+If parsing fails → **400 BAD_REQUEST** with relevant parsing message.  
 
-`BookingMapper.editedBooking()` constructs updates for seats, travel date, and times while preserving cost breakdown, all within a transaction using optimistic locking. On success, it commits changes, logs details (booking ID, user ID, modified seats, metadata), and returns **200 OK** with `BookingPreviewDto` containing passenger info, trip details, seats, cost, and date; failures trigger **500 INTERNAL_SERVER_ERROR** or **408 REQUEST_TIMEOUT** for lock issues.
+**3.Booking Lookup & State Validation**   
+
+The system fetches the existing booking by ID, responding with **404 NOT_FOUND** if absent. It enforces edit eligibility by requiring  
+`bookingStatus = PENDING &&
+paymentStatus = UNPAID &&
+bookingExpiresAt > now()`   
+
+This editing feature is **rejected** for:
+
+| Status     | Reason                                       |
+| ---------- | -------------------------------------------- |
+| PROCESSING | Already moved to payment; no changes allowed |
+| CONFIRMED  | Booking is final & immutable                 |
+| CANCELLED  | Closed booking cannot be edited              |
+| EXPIRED    | Auto-expired; seats already released         |  
+
+Each invalid state returns → **403 FORBIDDEN** with contextual messages.
 
 
+**4. Seat Modification Logic (Delta-Based Update)**   
+
+The real power of this API lies in its **delta computation**: `modifiedCount = newSeatCount – originalSeatCount`
+  - If the user **reduces** seats → modifiedCount is negative → bus seats increase automatically.
+  - If the user **adds** seats → modifiedCount is positive → system verifies availability.  
+
+This proccess would further proceeds only if: `bus.availableSeats >= modifiedCount`. Otherwise check If the seat addition exceeds availability → **409 CONFLICT (INSUFFICIENT_SEATS)**. This ensures:
+  - No overbooking
+  - No race conditions
+  - No invalid seat deductions
 
 
+**5. Passenger Profile Update (Real-Time User Sync)**  
+
+The passenger record (AppUser) associated with the booking is updated:
+- Updated name
+- Updated email
+- Updated gender  
+
+The AppUser update step itself includes strict validation:   
+- Duplicate email detection
+- Conflict checks
+- Data consistency rules  
+
+If any of the field failed due to validation or causes then return: **400 BAD_REQUEST** (invalid data) Or **409 CONFLICT** (duplicate email).  
 
 
+**6. Optimistic Lock Protection (Expiry Detection)**   
 
+If another process (background expiry job or parallel request) modifies the booking concurrently: `OptimisticLockException` or `ObjectOptimisticLockingFailureException` is thrown by the **JPA entity version field**. When this happens, the system returns: **408 REQUEST_TIMEOUT** with a clear message: the booking expired before edit completion.  
 
+This ensures atomicity and accuracy.  
+ 
+**7. Booking Recalculation & Business Rule Application**   
 
+Using `BookingMapper.editedBooking()`, the system recomputes:   
+- New travel date
+- Departure & arrival timestamps
+- Fare breakdown
+- Discount eligibility (5% for USER role only)
+- TotalCost, DiscountAmount, FinalCost
+- Updated seat counts
+- `userEditedAt` timestamp
+- `Bus.availableSeats` adjusted by modifiedCount  
 
+All calculations use centralized **BigDecimal utilities** to avoid rounding issues. This ensures 100% consistency with the Start Booking logic.  
 
+**8. Transactional Save & Audit Logging**  
 
+Within a single `@Transactional` boundary:  
+- Updated passenger profile is saved
+- Booking record is modified
+- Bus seat availability is adjusted
+- Audit logs capture who edited what and when  
 
+If any backend issue occurs → **500 INTERNAL_SERVER_ERROR**.  
 
+**9. Final Update and Response**  
+- Once all edit validations pass, the system applies the modifications (seats, travel date, recalculated timings, and fare adjustments) using `BookingMapper.editedBooking()`.
+- These updates are executed inside a single transactional boundary with optimistic locking to ensure consistency under concurrency.
+- After the changes are persisted, the system logs the booking ID, user ID, updated seat count, travel date adjustments, and metadata related to the edit operation.
+- The finalized state is then mapped into a `BookingPreviewDto` and returned with **200 OK**, providing a complete and recalculated snapshot of the booking before proceeding to the Continue step.
+
+**Response Includes (via `BookingPreviewDto`):**     
+- **BookingInfo** — Reflects the updated booking details including the travel date, recalculated cost totals, discount information, final fare, and a refreshed `bookingExpiresAt` value to indicate the new validity window after editing.
+- **BusInfo** — Contains the updated schedule information—departure and arrival timestamps recalculated based on the new travel date—along with bus metadata, route details, type, and per-seat fare used for cost recomputation.
+- **PassengerInfo** — Provides the passenger’s identity along with the updated number of seats booked after the edit operation, ensuring full clarity before continuation.
+
+**Failure Handling**  
+- **Optimistic lock conflicts** (due to concurrent edits or near-expiry collisions) → **408 REQUEST_TIMEOUT**
+- **Unexpected failures** during update or persistence → **500 INTERNAL_SERVER_ERROR**
+
+This response serves as the **post-edit recalculated snapshot**, ensuring the client has an accurate and up-to-date view of the booking before proceeding further in the workflow. 
 
 #### 📤 Success Response
 <details> 
@@ -3167,23 +3251,47 @@ The backend processes booking edits through a structured sequence of validations
 </details>
 
 #### ❗ Error Response 
-> Invaid input
+> Invaid booking id
 <details> 
   <summary>View screenshot</summary>
    ![Booking Edit Error]()
 </details> 
 
-> No bus data found
+> No booking data found
 <details> 
   <summary>View screenshot</summary>
    ![Booking Edit Error]()
-</details>     
+</details>  
+
+> Seat conflict or insufficient seats
+<details> 
+  <summary>View screenshot</summary>
+   ![Booking Edit Error]()
+</details> 
+
+> Attempt to edit after expiry  
+<details> 
+  <summary>View screenshot</summary>
+   ![Booking Edit Error]()
+</details> 
+
+> Attempt to edit confirmed/cancelled/processing booking
+<details> 
+  <summary>View screenshot</summary>
+   ![Booking Edit Error]()
+</details> 
+
+> Validation errors
+<details> 
+  <summary>View screenshot</summary>
+   ![Booking Edit Error]()
+</details> 
 
 
 #### 📊 HTTP Status Code Table
 | HTTP Code | Status                | Meaning                                 | When It Occurs                                     |
 | --------- | --------------------- | --------------------------------------- | -------------------------------------------------- |
-| 200       | OK                    | Booking edited successfully             | All validations pass, saved                        |
+| 200       | OK                    | Booking edited successful               | All validations pass, saved                        |
 | 400       | BAD_REQUEST           | Validation Error                        | Invalid DTO, seats < 1, invalid travelAt           |
 | 403       | FORBIDDEN             | Edit Not Allowed                        | Booking status not editable                        |
 | 404       | NOT_FOUND             | Booking not found                       | ID not present in DB                               |
@@ -3194,76 +3302,594 @@ The backend processes booking edits through a structured sequence of validations
 
 #### ⚠️ Edge Cases & Developer Notes    
 
-**1. Pending Booking Enforcement**  
-- Only `PENDING` + `UNPAID` bookings are editable.
-- Ensures that confirmed, processing, cancelled, or expired bookings remain immutable.
-- Protects the system from inconsistent seat allocations.  
+**1. High-Concurrency Edit Operations**    
+- When a booking is close to expiry or multiple users interact with the same bus simultaneously, parallel edits may conflict.
+- This system employs **optimistic locking** to guarantee data integrity, reject stale updates, and provide users with clear guidance to restart the process.
+This safeguard is especially critical during **peak weekends, holidays, and festival traffic**, where contention is high.  
 
-**2. Dynamic Seat Adjustment with Concurrency Safety**  
-- Seat count changes are computed relative to current availability.
-- Optimistic locking prevents overbooking during high-concurrency scenarios.
-- Guarantees accurate seat availability even with multiple simultaneous edits.  
+**2. Seat Addition vs. Seat Reduction Rules**  
 
-**3. Passenger Profile Integrity**  
-- Editing updates AppUser records.
-- Duplicate emails or conflicting roles trigger precise **409 CONFLICT** responses.
-- Maintains clean, centralized user data across all bookings.  
+**1. Seat Reduction**  
+- Frees seats immediately.
+- Instantly updates bus availability.
+- Never introduces concurrency conflicts.
+  
+**2. Seat Addition**  
+- Requires strict seat-availability validation.
+- Executed inside a concurrency-safe transaction.
+- Prevents overbooking caused by simultaneous edits submitted seconds apart.  
 
-**4. Booking Expiry Handling**  
-- If the booking expires during editing (optimistic lock), API returns **408 REQUEST_TIMEOUT**.
+**3. Travel Date Changes & Schedule Consistency**   
+
+When the travel date is modified, the system automatically:  
+- Recalculates **departure time** using `bus.departureAt`.
+- Recomputes **arrival time** based on bus duration.
+- Ensures all schedule values remain consistent and trustworthy.
+
+User-provided date/time values are never directly trusted, protecting against invalid or manipulated inputs.  
+
+
+**4. Passenger Profile Update Integrity**  
+
+During profile updates, the system enforces strict checks to:  
+- Prevent duplicate email usage across passengers.
+- Maintain long-term identity uniqueness
 - Ensures that no stale booking edits corrupt inventory or seat counts.
-- Encourages users to re-initiate booking for expired reservations. 
+- Encourages users to re-initiate booking for expired reservations.
+- If the booking expires during editing (optimistic lock), API returns **408 REQUEST_TIMEOUT**.
+
+**5. Interaction with Auto-Expiry**  
+
+If the system auto-expires a booking before the user submits their edit:
+- The edit attempt fails with a controlled timeout response.
+- Seats have already been released to inventory.
+- Expired bookings cannot be revived or manipulated.   
+
+This preserves the integrity of seat allocation and avoids accidental resurrection of invalid bookings.   
+
+**6. Immutable Booking State Enforcement**  
+
+Once a booking transitions into **PROCESSING, CONFIRMED, CANCELLED,** or **EXPIRED**, it becomes **permanently immutable**. This prevents:
+- Mid-payment alterations
+- Invalid fare recalculations
+- Reconciliation inconsistencies.
+- Post-confirmation modification loopholes.
+
+It ensures that the booking lifecycle remains stable, auditable, and tamper-proof.
 </details>
 
 
-### 🚌 18. Continue Booking (Proceed to Confirm & Payment Preparation)
+### ⏭️ 18. Continue a Pending Booking (Move to Processing & Prepare for Payment)
 <details> 
   <summary><strong>PATCH</strong> <code>/public/bookings/{id}/continue</code></summary>
 
 #### 🛠 Endpoint Summary   
 **Method:** PATCH  
-**URL:** /public/bookings  
+**URL:** /public/bookings/{id}/continue  
 **Authentication:** Not Required  
 **Authorized Roles:** PUBLIC(Both Registered & Non-Registered Users)    
 
 #### 📝 Description  
 
-This API allows passengers to **continue a previously initiated booking** (created via Start Booking or edited via Edit Booking). It finalizes booking details, ensures all data is consistent, and prepares the booking for **payment confirmation**.  
+This API represents the **Continue booking** step in the **booking workflow (Start → Edit → Continue → Confirm)** where a user advances a **PENDING + UNPAID** booking to the **PROCESSING** stage in preparation for payment. It ensures that only eligible, unexpired bookings proceed while maintaining full transactional safety, backend consistency, and precise user feedback. This API validates booking existence, checks for expiration, updates booking and payment statuses, resets transactional fields, and handles automatic seat release for expired bookings. Concurrent modifications are safely managed through optimistic locking, and immutable or already processed bookings are strictly blocked, making this step essential for preserving the integrity of the booking lifecycle.  
 
 Key highlights:  
-- Only bookings in **PENDING + UNPAID** status are eligible.
-- Revalidates **seat availability** to prevent conflicts before confirmation.
-- Consolidates **passenger details, seat counts, fare, discounts, and schedule metadata**.
-- Maintains transactional integrity and concurrency safety.
-- Returns a **Booking Preview DTO** with the full booking summary for confirmation and payment.    
+- Validates booking existence and eligibility before proceeding.
+- Checks for booking expiration and handles expired bookings safely.
+- Resets transactional fields such as `busTicket` and `transactionId.
+- Updates booking status to **PROCESSING** and **payment status to** **PENDING**.
+- Automatically releases seats if the booking has expired.
+- Returns an updated **Booking Summary DTO** ready for payment.
+- Handles concurrent modifications via **optimistic locking**.
+- Blocks immutable or already processed bookings.  
 
-This API is effectively the **bridge between Start/Edit Booking and Confirm Booking**, providing a snapshot of the booking that is guaranteed to be valid and ready for payment.   
+It guarantees **transactional safety, backend consistency, and precise user feedback**, making it a critical stage in the booking lifecycle.  
+
 
 #### 📥 Request Parameter
 | Parameter | Type | Description                                | Required |
 | --------- | ---- | ------------------------------------------ | -------- |
-| `id`      | Long | ID of the bus to delete. Must be positive. | Yes      |
+| `id`      | Long | ID of the booking to find & do continue proccess . Must be positive. | Yes      |
 > 💡 Notes:  
 - The id is the booking ID obtained from Start Booking or Edit Booking.
-- Booking must be **PENDING + UNPAID**; otherwise, the API returns FORBIDDEN.
-- No new seats can be added here; any seat changes must be done via Edit Booking before continuing.
-- Travel date and passenger details are revalidated against the latest AppUser profile and bus availability.  
+- Booking must be **PENDING + UNPAID**; otherwise, the API returns **FORBIDDEN**.
 
 
 #### ⚙️ How the Backend Processes   
 
-**1. Booking Retrieval and Status Check**  
-- First, the system validates the booking exists by `ID`, returning **404 NOT_FOUND** if absent. It enforces **PENDING + UNPAID** status only.
-- Other states like PROCESSING, CONFIRMED, CANCELLED, or EXPIRED trigger **403 FORBIDDEN**.  
+**1. Booking ID Validation**  
+- The API first validates the `id`.
+- If the ID is `null` or `≤ 0`, the request is immediately rejected with: **400 BAD_REQUEST → "Invalid Booking ID. Please check and try again"**.
 
-**2. Availability and Profile Validation**  
+   
+**2. Booking Lookup & Eligibility Check**  
 
-Seat availability rechecks current bus capacity against requested seats, issuing **409 CONFLICT** if exceeding limits. Passenger profile verifies the linked AppUser for consistency, responding with **400 BAD_REQUEST** for invalid data or 409 CONFLICT for issues like duplicates.  
+The system fetches the booking by ID and evaluates its status:
+ 
+| Booking Status | Payment Status | Expired?    | Outcome                      |
+| -------------- | -------------- | ----------- | ---------------------------- |
+| PENDING        | UNPAID         | Not Expired | Eligible to continue         |
+| PROCESSING     | Any            | Any         | Forbidden; already processed |
+| CANCELLED      | Any            | Any         | Forbidden; cancelled         |
+| EXPIRED        | Any            | Any         | Forbidden; expired           |
+| CONFIRMED      | Any            | Any         | Forbidden; already confirmed |
 
-**3. Fare Calculation and Preview**  
+If the booking is **not found** → `404 NOT_FOUND`.  
+
+If the booking is **ineligible** → `403 FORBIDDEN` with a contextual message.  
+
+**3. Expiration Handling & Optimistic Lock Protection**  
+- If the booking has expired `(bookingExpiresAt <= now())`:  
+    - Marks the booking as **EXPIRED** using `BookingMapper.bookingExpiredBeforeContinue()`.
+    - Releases booked seats back to the bus inventory.
+    - Clears transactional fields (`busTicket`, `transactionId`)
+    - Saves the updated booking **transactionally**.   
+- In the case of a concurrent modification (optimistic lock failure):
+    - Throws `ObjectOptimisticLockingFailureException` or `OptimisticLockException`.
+    - API returns **408 REQUEST_TIMEOUT** → "Oops! Your booking has expired, and couldn't continue the process. Please make a new booking to continue."  
+
+This mechanism ensures **atomicity, consistency, and correct seat inventory management**.  
+
+**4. Status Update for Valid Booking**  
+For the eligible bookings:
+- Updates `bookingStatus` → **PROCESSING**
+- Updates `paymentStatus` → **PENDING**
+- Resets `busTicket` → **null** and `transactionId` → **null**
+- Saves the booking **transactionally**
+- Logs a detailed info message: `"Booking with Booking ID: X for User ID: Y, Name: Z was continued successfully."`
+
+**5. Response Construction**   
+- After the booking is successfully advanced to the PROCESSING stage, the system maps the updated entity into a structured `BookingSummaryDto`.
+- This summary groups all relevant booking, bus, and passenger information into three well-defined sections—ensuring the client receives a complete and accurate representation of the booking before proceeding to payment.
+- The API returns this DTO with **200 OK**, providing the exact details required for the upcoming **Confirm/Pay** step.  
+   
+**Response Includes (via `BookingSummaryDto`):**     
+- **BookingInfo** — Contains all booking-level details including the booking ID, original creation timestamp, travel date, updated statuses (**PROCESSING/PENDING**), discount information, fare breakdown, final cost, and the refreshed `bookingExpiresAt` value that reflects the remaining window for confirmation.   
+
+- **BusInfo** — Provides the associated bus metadata and trip schedule such as bus number, bus name, type, route details, duration, departure and arrival timestamps, and the per-seat fare used in cost calculation.  
+
+- **PassengerInfo** — Includes the passenger’s profile along with the updated count of seats booked after any previous edit step.  
+
+This DTO serves as the **intermediate, payment-ready snapshot** of the booking, ensuring the frontend has all necessary information to display a clear summary and guide the user seamlessly into the confirmation and payment stage.  
+ 
+
+#### 📤 Success Response
+<details> 
+  <summary>View screenshot</summary>
+   ![Booking Continue Success]()
+</details>
+
+#### ❗ Error Response 
+> Invaid booking id
+<details> 
+  <summary>View screenshot</summary>
+   ![Booking Continue Error]()
+</details> 
+
+> No booking data found
+<details> 
+  <summary>View screenshot</summary>
+   ![Booking Continue Error]()
+</details>  
+
+> Access denied for this stage
+<details> 
+  <summary>View screenshot</summary>
+   ![Booking Continue Error]()
+</details> 
+
+> Request timeout
+<details> 
+  <summary>View screenshot</summary>
+   ![Booking Continue Error]()
+</details> 
+
+#### 📊 HTTP Status Code Table
+| HTTP Code | Status                | When It Occurs                                              | Message                                                                                                     |
+| --------- | --------------------- | ----------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| 400       | BAD_REQUEST           | Invalid booking ID                                          | "Invalid Booking ID. Please check and try again"                                                            |
+| 403       | FORBIDDEN             | Booking already processed, cancelled, confirmed, or expired | Contextual message depending on status                                                                      |
+| 404       | NOT_FOUND             | Booking not found                                           | "Booking data not found for given Booking ID"                                                               |
+| 408       | REQUEST_TIMEOUT       | Booking expired before continue or optimistic lock detected | "Oops! Your booking has expired, and couldn't continue the process. Please make a new booking to continue." |
+| 500       | INTERNAL_SERVER_ERROR | Unexpected backend error                                    | "Booking failed to continue due to internal server problem. Please try again later."                        |
+
+
+#### ⚠️ Edge Cases & Developer Notes  
+
+**1. Expired Bookings**  
+- If `bookingExpiresAt <= now()`, the booking is automatically marked as **EXPIRED**.
+- Seats are released back to inventory, and transactional fields (`busTicket`, `transactionId`) are cleared.
+- Users cannot continue expired bookings and must initiate a **new booking**.
+- **Fallback:** The API returns **408 REQUEST_TIMEOUT** with guidance to restart booking.
+
+**2. Immutable Booking States**     
+- Bookings in **PROCESSING, CONFIRMED, CANCELLED, or EXPIRED** are strictly immutable.
+- Any attempt to continue such bookings is blocked with `403 FORBIDDEN`.
+- This prevents mid-payment tampering, incorrect fare recalculation, and broken payment reconciliation.  
+
+**3. Transactional Safety**  
+- All operations (status updates, seat allocation adjustments, transactional field resets) occur **within a single transactional boundary**.
+- Guarantees **data consistency**, prevents partial updates, and ensures that seat inventory and booking details remain synchronized even under high concurrency or system failures.
+- **Fallback:** In case of transaction rollback (e.g., database deadlock or unexpected exception), the booking remains in its original state, and users receive an error with guidance to retry.  
+
+**4. Logging & Audit**  
+- Every continue operation logs: **Booking ID, User ID, Passenger Name, action, and timestamp**.
+- Expiry handling, optimistic lock exceptions, and transaction rollbacks generate **warning/error logs** for system transparency and operational audit.
+- Supports troubleshooting, monitoring of peak traffic, and regulatory or compliance audits.  
+
+**5. Subtle Edge Cases / Production Considerations**  
+- **Near-Expiry Race Condition:** A booking may expire during the exact moment a user hits continue. Optimistic locking ensures atomic handling and returns clear guidance to retry.
+- **Concurrent Seat Requests:** Multiple users trying to modify the same booking or seat allocations are safely serialized by transactions and optimistic locking.
+- **Partial System Failures:** If downstream services (payment gateway, bus inventory service) fail after the booking is set to PROCESSING, the transactional boundary ensures rollback, preventing inconsistent booking or seat states.
+- **Clock Skew / Distributed Systems:** Expiry checks rely on server time; distributed deployments should synchronize clocks to avoid inconsistent expiration handling.
+</details>  
+
+
+### ☑️ 19. Confirm a Booking (Finalize Payment & Issue Ticket)  
+<details> 
+  <summary><strong>PATCH</strong> <code>/public/bookings/{id}/confirm</code></summary>
+
+#### 🛠 Endpoint Summary   
+**Method:** PATCH  
+**URL:** /public/bookings/{id}/confirm  
+**Authentication:** Not Required  
+**Authorized Roles:** PUBLIC(Both Registered & Non-Registered Users)  
+
+#### 📝 Description  
+The **Confirm Booking API** represents the final step in the **booking workflow (Start → Edit (optional) → Continue → Confirm)**, allowing users to **finalize a PROCESSING booking, complete payment, and receive a bus ticket and transaction ID**. It ensures that only eligible bookings are confirmed while maintaining **full transactional integrity, backend consistency, and accurate user feedback**. The API validates booking existence, checks eligibility, verifies the chosen payment method, performs expiration checks, updates booking and payment statuses, generates a unique `busTicket` and `transactionId`, clears `bookingExpiresAt`, and returns a detailed **Booking Final Info DTO**. Concurrent modifications are safely managed via optimistic locking, and immutable, canceled, expired, or already confirmed bookings are strictly blocked, making this step essential for the integrity of the booking lifecycle.  
+
+Key highlights:  
+- Validates booking existence and eligibility for confirmation.
+- Verifies the selected payment method (Card, UPI, Bank Transfer, Net Banking, QR Code)
+- Performs expiration checks and marks expired bookings as EXPIRED.
+- Updates `bookingStatus` to **CONFIRMED** and `paymentStatus` to **PAID**.
+- Generates unique `busTicket` and `transactionId` for each confirmed booking.
+- Clears `bookingExpiresAt` to finalize the booking window.
+- Returns a detailed **Booking Final Info DTO** with seat allocation, fare breakdown, and trip details.
+- Handles concurrent modifications via **optimistic locking**.
+- Blocks immutable, canceled, expired, or already confirmed bookings to maintain transactional safety.  
+
+
+#### 📥 Request Parameter
+| Parameter | Type | Description                                | Required |
+| --------- | ---- | ------------------------------------------ | -------- |
+| `id`      | Long | ID of the booking to find & do confirm proccess . Must be positive. | Yes      |
+> 💡 Notes:  
+- The id is the booking ID obtained from Start Booking or Edit Booking.
+- Booking must be **PROCESSING + PENDING**; otherwise, the API returns **FORBIDDEN**.    
+
+
+#### 📥 Request Body  
+{  
+&nbsp;&nbsp;&nbsp; "paymentMethod": "Your Option",   
+}   
+> 💡 Tips: Only UPI or Card or QR Code or Bank Transfer, Net Banking are allowed. You can any of these values.  
+
+#### ⚙️ How the Backend Processes  
+
+**1. Booking ID & Request Validation**  
+- `id` must be positive & not be 0; otherwise → **400 BAD_REQUEST**.
+- Request body (`ConfirmBookingDto`) is validated via` @Valid` + `BindingResult` for:
+    - Mandatory paymentMethod field
+    - Accepted enum values
+    - Rejecting NONE → only Card/UPI/Bank Transfer/Net Banking/QR accepted  
+
+- Invalid inputs → **400 BAD_REQUEST** with descriptive messages.   
+
+**2. Payment Method Parsing & Validation**  
+- Converts payment method input to enum (PaymentMethod) using `ParsingEnumUtils.getParsedEnumType` utility class.
+- If parsing fails or NONE is provided → **400 BAD_REQUEST** with clear error message.
+- Only valid payment methods are accepted for confirmation.  
+
+**3. Booking Lookup & Eligibility Check**  
+
+The system retrieves the booking by ID and evaluates its current state to determine whether it can proceed to confirmation.  
+
+| Booking Status | Payment Status | Expired?    | Outcome                       |
+| -------------- | -------------- | ----------- | ----------------------------- |
+| PROCESSING     | PENDING        | Not Expired | Eligible for confirmation     |
+| PENDING        | Any            | Any         | Forbidden; cannot confirm yet |
+| CANCELLED      | Any            | Any         | Forbidden; cancelled          |
+| EXPIRED        | Any            | Any         | Forbidden; expired            |
+| CONFIRMED      | Any            | Any         | Forbidden; already confirmed  |
+
+If the booking does not exist → **404 NOT_FOUND** or If the booking fails any eligibility requirement → **403 FORBIDDEN** with a context-specific message explaining why confirmation is not allowed.  
+
+**4. Expiration Handling & Optimistic Lock Protection**  
+
+If the booking has expired (bookingExpiresAt <= now()):  
+- Mark booking as EXPIRED using `BookingMapper.bookingExpired()`
+- Set paymentStatus → FAILED, paymentMethod → NONE
+- Clear transactional fields: `busTicket` and `transactionId`
+- Release seats back to bus inventory
+- Save transactionally
+
+**Optimistic lock** failures → **408 REQUEST_TIMEOUT** with message: "Oops! Your booking has expired, and the payment couldn’t be processed. Please make a new booking to continue."   
+
+
+**5. Confirm Booking & Generate Ticket**  
+
+For eligible bookings, The booking status will be set to:  
+- `paymentMethod` → user-selected payment method
+- `paymentStatus` → PAID
+- `bookingStatus` → CONFIRMED
+- `busTicket` → generated via `UniqueGenerationUtils.generateTravelTicket()`
+- `transactionId` → `generated via UniqueGenerationUtils.generateTransactionId()`
+- `bookingExpiresAt` → null  
+
+Saved **transactionally**, and logs detailed info: "CONFIRM BOOKING: Booking ID X has been confirmed successfully for User Y-Z".   
+
+**6. Response Construction**  
+
+Once the booking is successfully confirmed, the system maps the persisted entity into a `BookingFinalInfoDto`, which aggregates all relevant details of the finalized booking. The DTO is composed of three clearly structured blocks:  
+ - **BookingInfo** — includes confirmation details such as booking ID, timestamps, payment status, payment method, generated `busTicket`, `transactionId`, applied discounts, and fare totals.
+ - **BusInfo** — provides the associated bus and trip information including bus metadata, route, timings, duration, and fare.
+ - **PassengerInfo** — contains the passenger profile and the final number of seats booked.
+
+ The API returns this DTO with Response code -> **200 OK** a String message + DTO data, ensuring the client receives a complete, ready-to-display summary of the confirmed booking for ticket viewing, receipt generation, and post-confirmation workflows.  
 
 
 
+#### 📤 Success Response
+<details> 
+  <summary>View screenshot</summary>
+   ![Booking Continue Success]()
+</details>
 
-  
+#### ❗ Error Response 
+> Invaid booking id
+<details> 
+  <summary>View screenshot</summary>
+   ![Booking Continue Error]()
+</details> 
+
+> No booking data found
+<details> 
+  <summary>View screenshot</summary>
+   ![Booking Continue Error]()
+</details>  
+
+> Access denied for this stage
+<details> 
+  <summary>View screenshot</summary>
+   ![Booking Continue Error]()
+</details> 
+
+> Request timeout
+<details> 
+  <summary>View screenshot</summary>
+   ![Booking Continue Error]()
+</details> 
+
+
+#### 📊 HTTP Status Code Table  
+| HTTP Code | Status                | When It Occurs                                                  | Message                                                                                                         |
+| --------- | --------------------- | --------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| 400       | BAD_REQUEST           | Invalid booking ID or payment method                            | "Invalid Booking ID. Please check and try again" / "Invalid payment method"                                     |
+| 403       | FORBIDDEN             | Booking not eligible (PENDING, CANCELLED, EXPIRED, CONFIRMED)   | Contextual message                                                                                              |
+| 404       | NOT_FOUND             | Booking not found                                               | "No booking data found for given Booking ID"                                                                    |
+| 408       | REQUEST_TIMEOUT       | Booking expired before confirmation or optimistic lock detected | "Oops! Your booking has expired, and the payment couldn’t be processed. Please make a new booking to continue." |
+| 500       | INTERNAL_SERVER_ERROR | Unexpected backend error                                        | "Booking failed to confirm due to internal server problem. Please try again later."                             |
+
+
+#### ⚠️ Edge Cases & Developer Notes  
+
+**1. Expired Bookings**  
+- The Confirm API strictly validates booking eligibility before performing any confirmation-related updates.
+- If `bookingExpiresAt ≤ now()`, the booking is immediately marked **EXPIRED**, reserved seats are released to inventory, all transactional fields are cleared, and the user must create a **new booking**.
+- Immutable states such as **CONFIRMED**, **CANCELLED**, **EXPIRED**, or any booking not in **PROCESSING** + **PENDING** are rejected with **403 FORBIDDEN**, preventing double payments, stale confirmations, fare mismatches, and seat corruption.  
+
+
+**2. Immutable Booking States**   
+- All confirmation-related updates — payment status change, status transition, ticket generation, clearing expiry, and seat validation — occur within a **single atomic transactional boundary**.
+- If any component fails (DB conflict, ID generation failure, payment mismatch, or internal exception), the entire operation **rolls back**, ensuring:
+    - No half-confirmed bookings
+    - No duplicate or orphaned payments
+    - No seat inconsistencies
+    - No invalid or partially saved transaction IDs  
+
+This guarantees a fully consistent booking lifecycle even during system faults or payment delays.  
+
+
+**3. Concurrency Control & Optimistic Lock Handling**  
+
+To handle real-world concurrency scenarios (double-clicking payment, client retries, delayed UI requests, or parallel backend checks), the API uses **JPA optimistic locking**. 
+Only the first confirmation attempt succeeds; all subsequent overlapping attempts receive:
+**408 REQUEST_TIMEOUT** → stale or conflicting update. This prevents:
+ - Double confirmation
+ - Duplicate tickets
+ - Duplicate transaction IDs
+ - Race conditions around expiry and seat reallocation  
+
+It also ensures that the booking always transitions consistently and only once into a confirmed state.  
+
+
+**4. Ticket & Transaction ID Generation (Precision & Uniqueness Logic)**  
+
+Both identifiers are generated through a structured, collision-resistant algorithm designed for long-term uniqueness and traceability.  
+
+**Ticket Generation (TK)**    
+> `public static String generateTravelTicket(Integer digits, Long bookingId)`  
+- Prefix "**TK**" identifies it as a travel ticket.
+- Booking ID is formatted to **2 digits** (`%02d`) ensuring consistent length (e.g., 3 → “03”).
+- Remaining length is filled with a **UUID-based random segment**, ensuring high entropy
+- **Result:** Compact, unique, non-sequential tickets safe for public display.  
+
+**Transaction ID Generation (TNX)**  
+> `public static String generateTransactionId(Integer digits, Long bookingId)`
+- Prefix "TNX" denotes a financial transaction.
+- Uses formatted booking ID (`%02d`).
+- Appends high-precision timestamp (`HHmmssSSS`), capturing hour, minute, second, millisecond.
+- Fills remaining characters using a **UUID-derived random segment**.
+- Result: Highly traceable, time-embedded, semi-deterministic ID ideal for payment reconciliation.   
+
+**Why This Design Is Excellent**  
+- Booking ID + Timestamp + UUID guarantees **very high uniqueness** even under heavy concurrency.
+- Ticket IDs remain short and user-friendly, while transaction IDs carry detailed timing for audits.
+- Prefix isolation (TK / TNX) prevents classification ambiguity.
+- No predictable sequential pattern → secure and tamper-resistant.  
+
+**5. Logging, Auditing & Failure Transparency**  
+
+Every confirmation event logs key identifiers including **Booking ID, User ID, Passenger Name, action, timestamp, and payment method**.
+Advanced logs are produced for:  
+- Expiry transitions
+- Optimistic lock conflicts
+- Failed confirmations
+- Payment mismatches
+- Internal rollback scenarios  
+
+These logs support operational monitoring, fraud detection, reconciliation workflows, chargeback investigations, and regulatory compliance (tax/GST/reporting).
+</details>
+
+
+
+### 🛑 20. Cancel a Booking (Revert Payment & Release Seats)
+<details> 
+  <summary><strong>PATCH</strong> <code>/public/bookings/{id}/cancel</code></summary>
+
+#### 🛠 Endpoint Summary   
+**Method:** PATCH  
+**URL:** /public/bookings/{id}/cancel  
+**Authentication:** Not Required  
+**Authorized Roles:** PUBLIC(Both Registered & Non-Registered Users)  
+
+#### 📝 Description  
+
+The **Cancel Booking API** enables users to safely cancel a booking that has not yet been confirmed, ensuring transactional integrity and accurate seat management. This endpoint allows bookings in **PENDING** or **PROCESSING** status to be reverted, automatically releasing reserved seats, clearing transactional fields, and providing precise feedback to the user.  
+
+Key features:  
+- **Booking Validation:** Ensures the booking exists before proceeding.
+- **Eligibility Check:** Confirms that only bookings eligible for cancellation (not CONFIRMED, EXPIRED, or already CANCELLED) can be reverted.
+- **Concurrency Management:** Handles optimistic lock conflicts gracefully in case of simultaneous modifications.
+- **Atomic Updates:** Applies all booking and seat adjustments within a single transactional boundary to guarantee consistency.
+- **Logging & Auditing:** Captures detailed logs for booking ID, user actions, timestamps, and status changes to support traceability and regulatory compliance.  
+
+This design ensures that cancellations are **safe, consistent, and fully auditable**, preventing double cancellations, payment inconsistencies, and seat allocation errors, while maintaining a seamless user experience.   
+
+#### 📥 Request Parameter  
+| Parameter | Type | Description                                    | Required |
+| --------- | ---- | ---------------------------------------------- | -------- |
+| id        | Long | ID of the booking to cancel. Must be positive. | Yes      |
+> 💡 Notes:
+- Only bookings in **PENDING** or **PROCESSING** status are eligible for cancellation.
+- Once a booking is either **CONFIRMED**, **CANCELLED**, or **EXPIRED**, for those cancellation is forbidden.
+
+
+#### ⚙️ How the Backend Processes  
+
+**1. Booking ID Validation**  
+- Validates that the provided booking ID is **non-null and positive**.
+- Invalid IDs immediately return **400 BAD_REQUEST** with the message: "Invalid Booking ID. Please check and try again".
+
+**2. Booking Lookup & Eligibility Check**  
+
+Retrieves the booking from the repository using `bookingRepo.findById(bookingId)`. Eligibility rules are below:  
+
+| Booking Status | Payment Status | Outcome                                         |
+| -------------- | -------------- | ----------------------------------------------- |
+| PENDING        | UNPAID         | Eligible for cancellation                       |
+| PROCESSING     | PENDING        | Eligible for cancellation                       |
+| CONFIRMED      | PAID           | Forbidden; cannot cancel confirmed bookings     |
+| CANCELLED      | Any            | Forbidden; already cancelled                    |
+| EXPIRED        | Any            | Forbidden; expired bookings cannot be cancelled |
+
+Booking not found → **404 NOT_FOUND** & Ineligible booking → **403 FORBIDDEN** with contextual message: "You can only cancel bookings that haven’t been confirmed yet. Booking ID X is no longer eligible for cancellation."  
+
+**3. Cancellation & Transactional Updates**  
+
+For eligible bookings, the system performs atomic updates within a transactional boundary:  
+- **Booking fields updated:**
+    - `bookingStatus` → CANCELLED
+    - `paymentStatus` → UNPAID
+    - `paymentMethod` → NONE
+    - `busTicket` → null
+    - `transactionId` → null
+    - `canceledAt` → current timestamp   
+- **Bus seat release:** Increments `bus.availableSeats` by `booking.seatsBooked`.
+- **Transactional save:** Ensures **all updates succeed together** or none are applied.  
+
+**4. Concurrency & Optimistic Lock Handling**  
+- Parallel modifications or auto-expiry detection are safely managed via **optimistic locking**.
+- Conflicts trigger **408 REQUEST_TIMEOUT** with message: "This booking has expired and can no longer be cancelled."
+- All exceptions are logged with context for auditing.  
+
+**5. Logging & Audit**  
+- Every cancellation is logged for traceability including Booking ID, User ID, User Name, and timestamp: "CANCEL BOOKING: Booking ID X has been cancelled successfully for User Y-Z".
+- Optimistic lock warnings and internal errors are logged with timestamps and booking metadata.
+
+**6. Response Construction**  
+- On successful cancellation: **200 OK** with a user-friendly message confirming the cancellation.
+- On errors: Returns appropriate HTTP status (**400, 403, 404, 408, 500**) with **descriptive messages** for the client.  
+
+
+#### 📤 Success Response
+<details> 
+  <summary>View screenshot</summary>
+   ![Booking Cancel Success]()
+</details>
+
+#### ❗ Error Response 
+> Invaid booking id
+<details> 
+  <summary>View screenshot</summary>
+   ![Booking Cancel Error]()
+</details> 
+
+> No booking data found
+<details> 
+  <summary>View screenshot</summary>
+   ![Booking Cancel Error]()
+</details>  
+
+> Access denied for this stage
+<details> 
+  <summary>View screenshot</summary>
+   ![Booking Cancel Error]()
+</details> 
+
+> Request timeout
+<details> 
+  <summary>View screenshot</summary>
+   ![Booking Continue Error]()
+</details>   
+
+
+#### 📊 HTTP Status Code Table 
+| HTTP Code | Status                | When It Occurs                              | Message                                                                                                                |
+| --------- | --------------------- | ------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| 400       | BAD_REQUEST           | Invalid booking ID                          | `"Invalid Booking ID. Please check and try again"`                                                                     |
+| 403       | FORBIDDEN             | Booking not eligible for cancellation       | `"You can only cancel bookings that haven’t been confirmed yet. Booking ID X is no longer eligible for cancellation."` |
+| 404       | NOT_FOUND             | Booking not found                           | `"No booking data found for given Booking ID X"`                                                                       |
+| 408       | REQUEST_TIMEOUT       | Optimistic lock detected or booking expired | `"This booking has expired and can no longer be cancelled."`                                                           |
+| 500       | INTERNAL_SERVER_ERROR | Unexpected backend error                    | `"Booking failed to cancel due to internal server problem. Please try again later."`                                   |
+
+
+#### ⚠️ Edge Cases & Developer Notes  
+
+**1. Eligibility Constraints**  
+- Only bookings with status **PENDING** or **PROCESSING** are eligible for cancellation.
+- Immutable states (**CONFIRMED, CANCELLED, EXPIRED**) are strictly blocked to maintain **data integrity and payment consistency**.
+- Attempting to cancel ineligible bookings returns **403 FORBIDDEN** with a clear, contextual message.  
+
+**2. Transactional Safety**  
+- All updates—including **booking status, payment status, transactional fields, and bus seat adjustments**—are executed within a **single transactional boundary**.
+- Guarantees **atomicity**, preventing partial cancellations such as:
+    - Bookings marked cancelled while seats remain blocked.
+    - Duplicate or orphaned bus tickets or transaction IDs.
+    - Incorrect payment or seat reconciliation.  
+
+**3. Concurrency Control**  
+- **Optimistic locking** protects against simultaneous cancellations or modifications by multiple requests.
+- Race conditions or bookings nearing expiry trigger **408 REQUEST_TIMEOUT**, prompting users to retry safely.
+- Ensures no conflicting modifications corrupt booking data or seat availability.   
+
+**4. Seat Management**  
+- Upon cancellation, all booked seats are **immediately released** back to the bus inventory.
+- Ensures **real-time seat availability** for other users without manual intervention.
+- Guarantees accurate seat counts even under high concurrency scenarios.
+
+**5. Logging & Auditing**    
+- Detailed logs capture: `Booking ID, Management User ID and Username, Cancellation timestamp, Action type and metadata`.
+- Supports **monitoring, troubleshooting, and regulatory audits**, providing full visibility into the booking lifecycle.  
 </details>  
