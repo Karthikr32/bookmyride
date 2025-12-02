@@ -3893,3 +3893,232 @@ For eligible bookings, the system performs atomic updates within a transactional
 - Detailed logs capture: `Booking ID, Management User ID and Username, Cancellation timestamp, Action type and metadata`.
 - Supports **monitoring, troubleshooting, and regulatory audits**, providing full visibility into the booking lifecycle.  
 </details>  
+
+
+### 🧾 21. View Booking Records (Management View — Paginated & Filterable Search)  
+<details> 
+  <summary><strong>GET</strong> <code>/management/bookings</code></summary>
+
+
+#### 🛠 Endpoint Summary   
+**Method:** GET  
+**URL:** /management/bookings   
+**Authentication:** JWT Required   
+**Authorized Roles:** Management/ADMIN     
+
+#### 📝 Description  
+
+This endpoint serves as the **central access point for management-level users (Admin role)** to view, audit, analyze, and filter every booking in the system. It functions as the **primary operational dashboard API**, supporting large-scale administrative workflows with precision and reliability. Designed for **high-volume environments**, the endpoint ensures **predictable, safe execution** through strict validation and **deterministic request handling**. It allows admins to efficiently review daily transactions, conduct investigations, and perform business analytics without compromising data integrity or performance.  
+
+A key strength of this API is its **collision-free filter resolution strategy**, where the backend guarantees that **exactly one repository call** is executed per search pattern. This ensures **consistent query behavior and optimized performance**, even under heavy load. This endpoint enforces **strict role-based access control** — only administrative users can access it. **Passengers or regular users are completely restricted**, ensuring that sensitive operational data always remains secure.  
+
+Overall, the endpoint delivers **high integrity, high observability, and high performance**, making it essential for system-wide operational monitoring, auditing, and analytical workloads.  
+
+Key Features:  
+- Full pagination for efficient navigation of large booking datasets.
+- Role-secured visibility restricted to Admin-level users only.
+- Rich filtering and search patterns supporting a wide range of operational queries.
+- Multi-field sorting for flexible analysis workflows.
+- Prefix-based keyword search engine enabling fast, focused lookups.
+- Strict validation mechanisms ensuring predictable, safe execution.
+- Deterministic, collision-free filter resolution for consistent and optimized performance.
+- Optimized for daily transaction review, audits, customer support investigations, fraud detection, peak-travel monitoring, and revenue/cost analytics.  
+
+#### 🔍 Search & Filter Logic Summary  
+This API operates in two clear modes, ensuring efficient, predictable, and conflict-free search behavior:  
+- **1. Default Fetch (No Keyword Provided)**  When no keyword is supplied, the API returns **all bookings** in a **fully paginated, sorted**, and **structured format**. This is ideal for general browsing, auditing, and dashboard views.
+- **2. Keyword-Based Filtered Search** When a keyword is present, the API switches to a **prefix-driven filtering engine**. This system ensures **no ambiguity, no filter collisions**, and **no overlapping search paths**, producing clean and deterministic results every time.  
+
+**Supported Keyword Prefixes & Patterns**  
+| Prefix / Pattern      | Meaning                 | Example                    |
+| --------------------- | ----------------------- | -------------------------- |
+| **id_**               | Booking ID              | `id_120`                   |
+| **mobile_**           | User’s Mobile Number    | `mobile_9876543210`        |
+| **cost_**             | Booking Cost            | `cost_560.50`              |
+| **bus_**              | Bus Name                | `bus_VelExpress`           |
+| **user_**             | User Name               | `user_John Doe`            |
+| **location_**         | From & To Location      | `location_Chennai`         |
+| **Email Regex**       | User Email              | `john@mail.com`            |
+| **Bus Ticket Regex**  | Ticket ID               | `TK011b67c429`             |
+| **Transaction Regex** | Transaction ID          | `TNX01131916642ba9a6b`     |
+| **Bus Number Regex**  | Bus Registration Number | `TN10AB1234`               |
+| **Date Patterns**     | Travel or Booking Date  | `01-01-2024`, `2024-01-01` |
+
+
+**Validation & Safety**  
+
+All search inputs undergo strict, centralized regex validation. This ensures:
+- Stable and predictable filtering.
+- No malformed query execution.
+- Protection against query-level vulnerabilities.
+
+#### 📥 Query Parameters  
+| Parameter   | Type    | Default | Description                                                                                                                                                                                                  | Required |
+| ----------- | ------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------- |
+| **page**    | Integer | 1       | Page number (must be ≥1)                                                                                                                                                                                     | No       |
+| **size**    | Integer | 10      | Page size (must be ≥1)                                                                                                                                                                                       | No       |
+| **sortBy**  | String  | `id`  | Sorting field. Allowed: `id`, `fromLocation`, `toLocation`, `seatsBooked`, `bookedAt`, `travelAt`, `departureAt`, `arrivalAt`, `bookingExpiresAt`, `discountPct`, `totalCost`, `discountAmount`, `finalCost` | No       |
+| **sortDir** | String  | `ASC` | Sorting direction (`ASC`/`DESC`, case-insensitive)                                                                                                                                                           | No       |
+| **keyword** | String  | -    | Flexible, prefix-based search field                                                                                                                                                                          | No       |
+
+
+#### ⚙️ Backend Processing Flow   
+**1. Centralized Input Validation & Safety Gate**      
+
+All requests pass through a strict validation layer checking:
+- `page ≥ 1`, `size ≥ 1`
+- `sortBy` must match a controlled whitelist
+- `sortDir` must match **ASC/DESC**
+- Keyword must pass prefix/regex rules  
+
+This ensures:  
+- No invalid offsets
+- No negative pagination
+- No ORDER-BY or injection risks
+- No unindexed field queries  
+
+Invalid input returns **400 BAD_REQUEST** status code with message & timestrap immediately in a proper structure using `ApiResponse`.   
+
+
+**2. Default Retrieval Mode (No Keyword Provided)**  
+
+When keyword is absent:
+- Full booking list is fetched
+- Pagination + sorting applied
+- DTO mapping via `ManagementBookingDataDto`
+- Response wrapped in `ApiPageResponse`
+
+If the page is empty → **404 NOT_FOUND** with page-level detail.  
+
+**3. Deterministic Prefix-Based Search Engine**  
+
+The keyword search engine uses **rigid prefix isolation**:
+- Eliminates ambiguous routes
+- Ensures predictable execution
+- Avoids conflicts between email/name/ticket formats
+- Strengthens regex-driven validation
+- Avoids fuzzy search performance overhead
+
+Prefixes are evaluated in **strict sequence order**, ensuring stable behavior.  
+
+**4. Identity & User-Based Filters (ID, Mobile, User Name, Email)**  
+
+Grouped identity-oriented filters:
+- **Booking ID (id_)** filter extracts the numeric identifier, validates that it is greater than zero, and performs a direct `findById(...)` lookup. Invalid IDs result in a **400**, while non-existing records return **404**.
+- **Mobile Number (mobile_)** filter enforces a strict India-format regex (starting with 6/7/8/9) before executing `findByAppUser_Mobile(...)`.
+- **User Name (user_)** filter allows only alphabets and spaces, preventing numbers or symbols from affecting identity-based searches.
+- **Email** filter uses an RFC-compliant email regex and resolves queries via `findByAppUser_Email(...)`, ensuring accurate, standards-based email lookups.  
+
+**5. Cost & Financial Filters (Cost, Transaction IDs)**  
+- **Cost (cost_)** filter accepts both integer and decimal values, performs safe BigDecimal parsing, validates the format using financial regex rules, and queries via `findByBookingCost(...)`.
+- **Transaction ID** filter applies a strictly structured regex format to maintain financial identity integrity, ensuring clear separation from ticket numbers or bus registration formats.  
+
+**6. Transport Entity Filters (Bus Name, Bus Number, Ticket ID)**  
+- **Bus Name (bus_)** filter enforces a controlled naming pattern and resolves the booking list using `findByBus_BusName(...)`.
+- **Bus Number** filter follows the Tamil Nadu registration format (`TN10AB1234`) while remaining extensible for future state patterns.
+- **Ticket ID** filter validates against a pre-approved ticket structure, guaranteeing format correctness and preventing collisions with transaction or vehicle identifiers.  
+
+**7. Location-Based Filtering (location_)**    
+- Location filtering follows a structured multi-step pipeline. The input is first validated using a location-style regex, then cross-checked against the `MasterLocation` table. If the location is not found, the system returns **404**. 
+- Valid locations are used to fetch all bookings tied to the corresponding From/To routes, after which results are mapped into uniform DTO structures. This ensures strict route-level semantic accuracy.  
+
+**8. Date-Based Filtering (Travel or Booked Date)**  
+- Date-based queries support multiple formats (**dd-MM-yyyy, dd/MM/yyyy,** and **yyyy-MM-dd**).
+- The system automatically detects the provided format, parses it using `ResolverStyle.STRICT` to eliminate invalid or ambiguous dates, converts the input into a `LocalDate`, and finally retrieves matching bookings via `getBookingByDate(...)`.
+- This guarantees temporal precision and consistent date handling across all search paths.  
+
+**9. Fallback Keyword Search Layer**  
+- When a keyword does not match any known prefix or regex category, it is processed by the `getByAnyKeyword()` fallback mechanism.
+- This allows extended or non-standard search scenarios while keeping the deterministic prefix pipeline intact, ensuring flexibility without compromising architectural predictability.  
+
+**10. Response Structure**   
+
+On successful retrieval, the API returns an HTTP **200 OK** response using the `ManagementBookingDataDto`. The payload delivers a **complete administrative snapshot** of each booking, combining booking-level details, bus metadata, and passenger information into a single, dashboard-optimized structure. Pagination metadata is added through `ApiPageResponse`, supporting smooth table rendering and large-volume navigation.  
+
+**Response Includes (via `ManagementBookingDataDto`):**   
+- **BookingInfo**  Contains the full lifecycle and financial details of a booking. Fields include the booking ID, timestamps (booked, edited, expired, canceled), travel date, booking/payment statuses, payment method, ticket number, transaction ID, discount details, and cost breakdown (`discountAmount`, `totalCost`, `finalCost`). This ensures complete traceability for audits, financial checks, and booking-status investigations.
+- **BusInfo**  Provides essential metadata about the bus tied to the booking. Includes identifiers (id, busNumber, busName), classification (`busType`, `acType`, `seatType`), route information (fromLocation, toLocation), schedule timing (`departureAt`, `arrivalAt`), duration, and base fare. This allows administrators to correlate bookings with routes, schedules, and fare logic for operational reviews.
+- **PassengerInfo**  Represents the passenger linked to the booking, including ID, name, email, mobile, gender, role, and seats booked. These details support identity validation, customer support handling, and booking-pattern analysis.  
+
+**Design Intent**  
+- The DTO merges **booking, bus**, and **passenger** data to deliver a unified, management-friendly response suitable for dashboards, audits, revenue analytics, and operational monitoring.
+- Its layered design is fully extensible, allowing new attributes or metadata to be added in the future without breaking existing clients.
+  
+
+#### 📤 Success Response
+<details> 
+  <summary>View screenshot</summary>
+   ![Booking View Success]()
+</details>
+
+#### ❗ Error Response 
+> Invaid pagination input
+<details> 
+  <summary>View screenshot</summary>
+   ![Booking View Error]()
+</details> 
+
+> Invaid keyword input
+<details> 
+  <summary>View screenshot</summary>
+   ![Booking Cancel Error]()
+</details>  
+
+> Access denied for this stage
+<details> 
+  <summary>View screenshot</summary>
+   ![Booking Cancel Error]()
+</details> 
+
+#### 📊 HTTP Status Code Table  
+| HTTP Code | Status Name           | Meaning               | When It Occurs                                   |
+| --------- | --------------------- | --------------------- | ------------------------------------------------ |
+| 201       | OK                    | Success               | Valid query, data returned                       |
+| 400       | BAD_REQUEST           | Validation Failed     | Invalid input, regex fail, pagination error      |
+| 404       | NOT_FOUND             | No results            | Page empty / no data for filter                  |
+| 401       | UNAUTHORIZED          | Authentication Failed | Token invalid or expired                         |
+| 403       | FORBIDDEN             | Access Denied         | User lacks ADMIN role                            |
+
+
+#### ⚠️ Edge Cases & Developer Notes   
+
+**1. Deterministic Keyword Namespace & Collision-Free Search Model**  
+- The keyword system is built on **explicit prefix segmentation** (`id_`, `mobile_`, `bus_`, `user_`, `location_`, `cost_`, etc.), ensuring that each input lands in a uniquely defined namespace. Once a prefix is identified, **no additional interpretation layers** (email, ticket, bus number, etc.) are evaluated.
+- Regex-based namespace fencing guarantees that malformed postfixes (e.g., `mobile_123ABC``, bus_AB12`, partial IDs) fail early and never leak into unrelated domains. This design delivers **strict, non-overlapping search semantics**, eliminating ambiguity, multi-match failures, and unpredictable fall-through behavior even under complex input scenarios.  
+
+**2. Temporal, Numeric, and Format-Validation Integrity**  
+- Date values are parsed using **ResolverStyle.STRICT**, ensuring zero silent coercion and rejecting outputs such as 32/01/2024, 29/02/2023, or invalid month/day combinations. Supported formats (`dd-MM-yyyy`, `dd/MM/yyyy`, `yyyy-MM-dd`) are auto-detected and normalized into a canonical ISO representation to maintain consistent repository queries and prevent DST or timezone drift.
+- Cost inputs follow a **hardened monetary validation pipeline**, accepting only plain integer or fixed-decimal structures while rejecting scientific notation, comma-grouped numbers, and malformed hybrids. All values are promoted to deterministic `BigDecimal` representations, protecting the financial layer from precision inconsistencies and coercion-based attacks.
+
+**3. Deterministic Repository Resolution & Query Path Stability**  
+- The search engine uses a **one-condition → one-repository-method architecture**, explicitly avoiding dynamic predicates or runtime-generated specifications. Every normalized keyword can activate only one code path, guaranteeing stable, index-aligned queries and preventing unintended full-table scans.
+- Branch isolation ensures that once a prefix passes validation, no other path can override its semantics, providing a strictly acyclic, deterministic execution tree. Invalid formats fail before any query execution, maintaining consistent behavior under load and eliminating backend-side noise.  
+
+**4. Data Exposure Control, DTO Discipline & Privacy Guarantees**  
+The response DTO exposes only operationally relevant booking, bus, and passenger attributes, intentionally excluding internal audit fields, schema identifiers, authentication metadata, and internal relational structures.
+This achieves:
+ - **Privacy protection** (no passwords, auth states, or privileged user flags)
+ - **Schema abstraction** (no exposure of joins, table layouts, or FK design)
+ - **Contract stability**, ensuring future schema refinements will not break API consumers
+The DTO is optimized for administrative insight while preventing information leakage or backend-coupling risks.
+
+**5. Failure-Injection Safety & Defensive Message Boundaries**  
+
+Error responses are crafted with:
+- **Explicit cause identification**
+- **No internal exception leakage**
+- **Context-aware messages** (e.g., “page 5”, “Booking ID 40”, “given date”, etc.)  
+
+This ensures:  
+- Client applications receive actionable, domain-specific error feedback.
+- No exposure of repository method names, SQL patterns, or backend stack details.   
+
+**6. Scalability, Future Extension, and Maintenance Guarantees**  
+
+The entire design supports future extensions with minimal risk:  
+- Each new prefix-based or any keyword can be added as an isolated deterministic branch.
+- Repository paths remain explicitly bound → predictable code review and debugging.
+- DTOs can be extended without breaking backward compatibility.  
+
+This architecture is intentionally geared toward **enterprise-grade observability, testability, and long-term maintenance**.
+</details>  
