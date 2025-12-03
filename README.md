@@ -94,6 +94,40 @@
 ### 🔸 Authorization
  - Enforced via **@PreAuthorize** annotations at the class and method level based on roles, leveraging claims extracted from JWT.
 
+### 🔸 Authentication & JWT Token Usage  
+
+**_BookMyRide_** uses **JWT (JSON Web Token)** for authenticating users across all passengers and management endpoints. This centralized mechanism ensures secure, stateless authentication and consistent client integration.  
+
+#### 1. JWT Issuance  
+- Tokens are issued upon successful signup or login.
+- Returned in the custom response using `ApiResponse` as a string under the data field:
+
+##### Response Body  
+{  
+&nbsp;&nbsp;&nbsp; "status": 201,  
+&nbsp;&nbsp;&nbsp; "message": "<Custom_Message_According_To_Request>",  
+&nbsp;&nbsp;&nbsp; "data": "<JWT_TOKEN>"  
+}  
+> Frontend/client extracts the token from `data` for subsequent requests.   
+
+#### 2. Using the JWT Token  
+- Include the token in the Authorization header of all protected API requests:
+> **`Authorization: Bearer <JWT_TOKEN>`**.
+- **Scope:** Provides access to endpoints requiring authentication (profile, data creation/updation, higher authority actions, etc.).
+- **Validity:** Each token is valid for **6 hours**. Requests with expired tokens will return: **401 UNAUTHORIZED**.  
+
+#### 3. Best Practices  
+- **Store securely:** Use secure storage on mobile apps or HTTP-only cookies/localStorage for web apps.
+- **Always include in requests:** Any request that is misses or invalid tokens are rejected.
+- **Renewal:** After expiration, users must login again to obtain a new token.
+- **Consistency:** This mechanism is uniform for all passengers (USER/GUEST) and management APIs.  
+
+#### 4. Reference in API Documentation  
+
+All Signup/Login API endpoints (user or management) return JWT in the same format. Rather than repeating usage instructions, each API doc should reference this section:
+> “Upon successful signup/login, a JWT token is returned. Refer to Authentication & JWT Usage for details on how to use it.”
+
+
 ### 🔁 4. Transaction & Concurrency Management
 ### 🔸 @Transactional Usage
  - Critical modules like Booking and Location use Spring's **@Transactional** to ensure atomicity and rollback on exceptions including concurrency, internal, and network errors.
@@ -177,8 +211,9 @@ src/
 #### 🛠 Endpoint Summary  
 **Method:** POST  
 **URL:** /auth/bookmyride/management/login  
-**Authentication:** Not required (First step of admin login)  
 **Authorized Roles:** PUBLIC  
+**Authentication:** Not Required (First step of admin login)  
+(This endpoint issues a new JWT Token. For further details, See **Authentication & JWT Usage** inside Security Architecture under Technical Architecture.)  
 
 #### 📝 Description
 This API authenticates the **Management/Admin user** using the system-generated username and password.
@@ -198,9 +233,7 @@ Key highlights:
 &nbsp;&nbsp;&nbsp; "username": "adm_bookmyride_1234",  
 &nbsp;&nbsp;&nbsp; "password": "BookMyRideAdmin@2025"  
 } 
-> 💡 Dummy Credentials (as configured in application.properties)
-
-
+> 💡 Dummy Credentials (as configured in application.properties)  
 
 #### ⚙️ Backend Processing Workflow
 **1. DTO Validation**  
@@ -306,8 +339,8 @@ As a result:
 #### 🛠 Endpoint Summary  
 **Method:** PUT  
 **URL:** /management/profile  
-**Authentication:** Required (JWT token)  
 **Authorized Roles:** ADMIN  
+**Authentication:** JWT Required (See **“Authentication & JWT Usage”** in Technical Architecture)  
   
 #### 📝 Description
 Updating personal profile information is a critical aspect of maintaining accurate and secure management data within the system. This endpoint allows `ADMIN`  to modify key details such as full name, email, mobile number, and gender while enforcing strict validation and uniqueness constraints.  
@@ -452,8 +485,8 @@ Key highlights:
 #### 🛠 Endpoint Summary  
 **Method:** PATCH  
 **URL:** /auth/bookmyride/management/change-password   
-**Authentication:** Required (Admin JWT token)  
 **Authorized Roles:** ADMIN  
+**Authentication:** JWT Required (See **“Authentication & JWT Usage”** in Technical Architecture)  
 
 
 #### 📝 Description
@@ -579,8 +612,8 @@ Key highlights:
 #### 🛠 Endpoint Summary  
 **Method:** GET  
 **URL:** /management/profile  
-**Authentication:** Required (Admin JWT token)  
 **Authorized Roles:** ADMIN  
+**Authentication:** JWT Required (See **“Authentication & JWT Usage”** in Technical Architecture)  
 
   
 #### 📝 Description
@@ -663,8 +696,9 @@ Key highlights:
 #### 🛠 Endpoint Summary  
 **Method:** POST  
 **URL:** /bookmyride/management/locations  
-**Authentication:** Required (Admin JWT token)  
 **Authorized Roles:** ADMIN  
+**Authentication:** JWT Required (See **“Authentication & JWT Usage”** in Technical Architecture)  
+
 
 #### 📝 Description
 This API allows a **Management/Admin user** to create a new location by adding a **City**, **State**, and **Country** in a hierarchical manner. It ensures that duplicate or conflicting entries are prevented using **multi-level validation** and database constraints.
@@ -834,8 +868,9 @@ This combination of transaction safety + traceability + modular layering proves 
 #### 🛠 Endpoint Summary  
 **Method:** POST  
 **URL:** /bookmyride/management/locations/list  
-**Authentication:** Required (Admin JWT token)  
 **Authorized Roles:** ADMIN    
+**Authentication:** JWT Required (See **“Authentication & JWT Usage”** in Technical Architecture)  
+
 
 #### 📝 Description
 This API allows a Management/Admin user to **insert multiple locations** in bulk in a hierarchical manner: Country → State → City. It is designed to handle **hundreds of entries** efficiently, validating each entry independently while ensuring **data consistency, duplicate prevention, and transaction safety**.  
@@ -1012,8 +1047,8 @@ Key highlights:
 #### 🛠 Endpoint Summary
 **Method:** GET  
 **URL:** /bookmyride/management/locations  
-**Authentication:** Required (JWT)  
 **Roles Allowed:** ADMIN  
+**Authentication:** JWT Required (See **“Authentication & JWT Usage”** in Technical Architecture)  
 
 #### 📝 Description
 This API allows `Management users` to **fetch paginated, filtered, and sorted lists of location records** (City → State → Country). It supports **dynamic filtering** by `country`, `state`, `city`, and `role` of the creator. The service ensures **input validation, enum parsing, pagination safety, sorting correctness**, and **detailed feedback** for empty or invalid queries.  
@@ -1398,8 +1433,8 @@ This combination ensures a highly scalable, error-resistant update pipeline capa
 #### 🛠 Endpoint Summary
 **Method:** DELETE  
 **URL:** /bookmyride/management/locations/{id}  
-**Authentication:** Required (JWT)  
 **Roles Allowed:** ADMIN  
+**Authentication:** JWT Required (See **“Authentication & JWT Usage”** in Technical Architecture)  
 
 #### 📝 Description  
 This API allows an authenticated Management/Admin user to permanently delete a location entry from the **hierarchical structure (City → State → Country)**.
@@ -1556,8 +1591,8 @@ If older data becomes corrupted or out-of-sync:
 #### 🛠 Endpoint Summary  
 **Method:** DELETE  
 **URL:** /bookmyride/management/locations/all  
-**Authentication:** Required (JWT)  
 **Roles Allowed:** ADMIN  
+**Authentication:** JWT Required (See **“Authentication & JWT Usage”** in Technical Architecture)  
 
 #### 📝 Description
 This API performs a complete hierarchical wipe of all location data stored in the system. The deletion is fully transactional, ensuring that all records are removed atomically without leaving behind partial or inconsistent data. Optimistic locking protects against concurrent admin-triggered mass deletions. Detailed audit logs are captured for accountability.
@@ -1684,9 +1719,9 @@ This ensures that the transportation module is built on a fully validated and co
 
 #### 🛠 Endpoint Summary  
 **Method:** POST  
-**URL:** /management/buses  
-**Authentication:** Required (Admin JWT token)  
+**URL:** /management/buses   
 **Authorized Roles:** ADMIN  
+**Authentication:** JWT Required (See **“Authentication & JWT Usage”** in Technical Architecture)  
 
 #### 📝 Description
 This API allows an authorized **Management/Admin** user to add a **brand-new bus entry** into the enterprise bus registry. It serves as the core provisioning endpoint used to enrich the fleet with new travel buses, fully capable of:  
@@ -1902,8 +1937,8 @@ Prevents conflicted or duplicate entries in high-concurrency admin environments.
 #### 🛠 Endpoint Summary   
 **Method:** GET  
 **URL:** /management/buses  
-**Authentication:** Required (Admin JWT token)  
 **Authorized Roles:** ADMIN  
+**Authentication:** JWT Required (See **“Authentication & JWT Usage”** in Technical Architecture)  
 
 #### 📝 Description  
 This API endpoint facilitates paginated and filtered retrieval of bus records from the system, intended exclusively for administrative purposes. It supports operational tasks such as viewing, updating, or deleting bus entries within the management dashboard.  
@@ -2077,8 +2112,8 @@ This structure ensures that clients receive a **single, holistic view** of a bus
 #### 🛠 Endpoint Summary   
 **Method:** POST  
 **URL:** /management/buses  
-**Authentication:** Required (Admin JWT token)  
 **Authorized Roles:** ADMIN  
+**Authentication:** JWT Required (See **“Authentication & JWT Usage”** in Technical Architecture)  
 
 
 #### 📝 Description
@@ -2286,8 +2321,8 @@ Version-based optimistic locking detects concurrent admin updates, while audit f
 #### 🛠 Endpoint Summary   
 **Method:** POST  
 **URL:** /management/buses/{id}  
-**Authentication:** Required (Admin JWT token)  
 **Authorized Roles:** ADMIN  
+**Authentication:** JWT Required (See **“Authentication & JWT Usage”** in Technical Architecture)  
 
 
 #### 📝 Description
@@ -3902,9 +3937,9 @@ For eligible bookings, the system performs atomic updates within a transactional
 
 #### 🛠 Endpoint Summary   
 **Method:** GET  
-**URL:** /management/bookings   
-**Authentication:** JWT Required   
-**Authorized Roles:** Management/ADMIN     
+**URL:** /management/bookings    
+**Authorized Roles:** Management/ADMIN    
+**Authentication:** JWT Required (See **“Authentication & JWT Usage”** in Technical Architecture)  
 
 #### 📝 Description  
 
@@ -4073,11 +4108,11 @@ On successful retrieval, the API returns an HTTP **200 OK** response using the `
 #### 📊 HTTP Status Code Table  
 | HTTP Code | Status Name           | Meaning               | When It Occurs                                   |
 | --------- | --------------------- | --------------------- | ------------------------------------------------ |
-| 201       | OK                    | Success               | Valid query, data returned                       |
-| 400       | BAD_REQUEST           | Validation Failed     | Invalid input, regex fail, pagination error      |
-| 404       | NOT_FOUND             | No results            | Page empty / no data for filter                  |
-| 401       | UNAUTHORIZED          | Authentication Failed | Token invalid or expired                         |
-| 403       | FORBIDDEN             | Access Denied         | User lacks ADMIN role                            |
+| **200**   | OK                    | Success               | Valid query, data returned                       |
+| **400**   | BAD_REQUEST           | Validation Failed     | Invalid input, regex fail, pagination error      |
+| **404**   | NOT_FOUND             | No results            | Page empty / no data for filter                  |
+| **401**   | UNAUTHORIZED          | Authentication Failed | Token invalid or expired                         |
+| **403**   | FORBIDDEN             | Access Denied         | User lacks ADMIN role                            |
 
 
 #### ⚠️ Edge Cases & Developer Notes   
@@ -4122,3 +4157,399 @@ The entire design supports future extensions with minimal risk:
 
 This architecture is intentionally geared toward **enterprise-grade observability, testability, and long-term maintenance**.
 </details>  
+
+
+### ➕ 22. User Registration / Sign-Up (New User + Guest Upgrade Flow)  
+<details> 
+  <summary><strong>POST</strong> <code>/auth/bookmyride/public/signup</code></summary>
+
+
+#### 🛠 Endpoint Summary   
+**Method:** POST  
+**URL:** /auth/bookmyride/public/signup  
+**Authorized Roles:** Public (Anyone can access except management user)  
+**Authentication:** Not Required   
+(This endpoint issues a new JWT Token. For further details, See **Authentication & JWT Usage** inside Security Architecture under Technical Architecture.)   
+
+#### 📝 Description  
+
+The **User Registration / Sign-Up API** is responsible for creating new customer accounts and upgrading existing guest users to full registered users within the **_BookMyRide_** platform. This API plays a core role in user identity management, ensuring that every customer can transition smoothly from lightweight guest usage to a fully authenticated, privilege-enabled account. Designed with a premium experience in mind, this endpoint supports both first-time users and returning customers who previously used the system as guests.  
+
+BookMyRide implements a **tiered user architecture**, allowing different levels of access depending on each user’s account type. By default, new visitors enter the system as **Guest Users**, giving them the freedom to browse services and make bookings without upfront registration. However, their abilities remain restricted until they choose to sign up as **Registered Users**, unlocking essential features that enhance the long-term booking experience. This API is responsible for bridging this gap—converting temporary guest accounts into full-featured user profiles when needed.  
+
+**User Type Capabilities**  
+
+1️⃣ **Guest Users (Non-Registered Customers)**  
+- **Guest users** can make bookings without needing an account, enabling fast first-time usage.
+- However, they cannot:
+    - View profile
+    - Update profile
+    - Change password
+    - View booking history
+    - Receive loyalty or discount benefits  
+
+2️⃣ **Registered Users (USER Role)**  
+- After signing up, customers gain full access to premium features, including:
+ 
+    ✔ View & edit profile  
+    ✔ Change password   
+    ✔ View current & past bookings  
+    ✔ Receive **5% discount** on every booking (details in Booking API)   
+
+This API handles **all scenarios**:  
+
+**1. Brand new user signs up** → Creates a new USER  
+
+**2. Existing Guest User signs up** → Guest is upgraded to USER  
+
+**3. Existing registered User signs up** → Sign-up is blocked   
+
+💡 Note: Upon successful registration or guest upgrade, a JWT token is generated and returned in the data field of the response. Clients must use this token in the `Authorization: Bearer <JWT_TOKEN>` header for all subsequent protected API requests.   
+
+
+#### 📥 Request Body  
+{  
+&nbsp;&nbsp;&nbsp; "mobile": "9876543210",   
+&nbsp;&nbsp;&nbsp; "password": "MySecurePassword123"    
+}  
+> 💡 Tips: You can replace the above values with your own existing or new mobile number & password. My system will handle this gracefully.  
+> 💡 Note: If you give the mobile number that **already registered** as `Management` user account return **403** with message.     
+
+#### ⚙️ Backend Processing Flow  
+
+**1. Validate Incoming Request**  
+- The request body is mapped to `SignUpLoginDto`. Bean Validation annotations (`@Valid`) are applied, with `BindingResult` capturing validation errors.
+- If validation failed which returns HTTP Status: **400 BAD_REQUEST**, Response: List of validation errors extracted via `BindingResultUtils` custom utility class.  
+
+**2. Check Mobile Number in Management Layer**    
+- Before proceeding, the system verifies whether the mobile number is restricted at the management level using `managementService.ifMobileNumberExists(signUpDto.getMobile())`.
+- **If the number exists in the management layer** returns HTTP Status: **403 FORBIDDEN**, message as "Access denied for this role."
+- This ensures blacklisted or restricted numbers cannot register, maintaining system security.   
+
+**3. Check Existing AppUser Record (Most Important flow)**  
+- The system then checks if the mobile number already exists in the application’s user table using `Optional<AppUser> existedAppUser = appUserService.fetchByMobile(...)`. Based on the query result, the flow splits into three distinct scenarios:  
+
+**1. Existing USER**    
+- **Condition:** Mobile number exists and the account is already a fully registered `USER`.
+- **Action**: Reject the sign-up attempt.
+- **Response**: Returns **403 FORBIDDEN** with message.  
+
+This prevents duplicate accounts and ensures data integrity.  
+
+**2 Existing GUEST**  
+- **Condition:** Mobile number exists and the account is a `GUEST` (role = `GUEST`, `isUser = false`).
+- **Action:** Upgrade the guest account to a fully registered `USER`.
+- **Upgrade Steps:**
+  
+     1. Promote role → `USER`
+     2. Encode and set password
+     3. Mark profile as completed
+     4. Set `registeredAt` timestamp as current System dtate & time
+     5. Generate a new **JWT token** for fast & secure access  
+- **Response:** Returns **200 OK** with message + newly generted JWT token.
+- **Important to note:** Guest data, including booking history, saved trips, and personal information, is preserved during the upgrade.  
+
+**3 Completely New User**  
+- **Condition:** Mobile number does not exist in `AppUser` table/database.
+- **Action:** Create a new `AppUser` record.
+- **Initialization Steps:**  
+
+     1. Assign role → `USER`
+     2. Set `isUser = true` and `isProfileCompleted = false` because there are some more information is missing that can fill through making a booking or update profile API.
+     3. Generate placeholder name/email using `MockDataUtils` utils
+     4. Encrypt password for security reason
+     5. Save the user record in the database  
+- **Response:** Returns **201 CREATED** with message + newly generted JWT token.   
+
+**4. Generate JWT Token**  
+
+After a successful registration or guest upgrade, the system generates a **JWT token** to authenticate the user immediately using `jwtService.generateToken(mobile, role, true)`. Which results the token,
+- **Token Payload Includes:**
+    - `mobile` → Serves as the unique identifier for the user
+    - `role` → The user role (`USER`)
+    - `isAuthenticatedUser` → Flag indicating the user is fully authenticated
+- The newly registered or upgraded user is considered fully authenticated immediately.
+- The token can be used to access all customer-specific endpoints without requiring an additional login.  
+
+**Note:** Management users follow a separate authentication flow and are not handled by this endpoint. Their token creation logic is documented in the Admin Authentication API.    
+
+**5. Summary Of Logic Flow**  
+| Scenario          | Condition                  | Action             | Response        |
+| ----------------- | -------------------------- | ------------------ | --------------- |
+| New Mobile        | Not found in AppUser       | Create new USER    | 201 CREATED     |
+| Existing Guest    | Exists as GUEST            | Upgrade to USER    | 200 OK          |
+| Existing USER     | Exists as USER             | Block registration | 403 FORBIDDEN   |
+| Restricted Mobile | Exists in Management Layer | Block registration | 403 FORBIDDEN   |
+| Invalid Request   | Fails validation           | Return errors      | 400 BAD_REQUEST |
+
+
+#### 📤 Success Response  
+> New User register 
+<details> 
+  <summary>View screenshot</summary>
+   ![User Auth Success]()
+</details>  
+
+> Guest → User Upgrade
+<details> 
+  <summary>View screenshot</summary>
+   ![User Auth Success]()
+</details>  
+
+
+#### ❗ Error Response 
+> DTO Validation Failed
+<details> 
+  <summary>View screenshot</summary>
+   ![User Auth Error]()
+</details> 
+
+> Mobile Restricted by Management
+<details> 
+  <summary>View screenshot</summary>
+   ![User Auth Error]()
+</details>  
+
+> Already Registered User
+<details> 
+  <summary>View screenshot</summary>
+   ![User Auth Error]()
+</details>  
+
+#### 📊 HTTP Status Code Table
+| HTTP Code | Status Name           | Meaning               | When It Occurs                                   |
+| --------- | --------------------- | --------------------- | ------------------------------------------------ |
+| **201**   | CREATED               | New User Registered   | A completely new account is created              |
+| **400**   | BAD_REQUEST           | Validation Failed     | Missing required fields as per DTO               |
+| **403**   | FORBIDDEN             | Access Denied         | Management block / Duplicate signup              |  
+
+#### ⚠️ Edge Cases & Developer Notes  
+
+**1. Guest User Upgrade Instead of Duplicate Registration**  
+
+If a Guest User signs up:
+  - System **does NOT** create a new user
+  - Instead performs a seamless upgrade
+  - Maintains guest’s previous bookings & metadata
+  - Prevents duplicate data in AppUser table
+  - Keeps analytics/reporting consistent
+   
+This ensures BookMyRide maintains long-term user history integrity.  
+
+**2. Automatic Dummy Data for New Users**  
+
+For newly registered users:
+- **Dummy Name:** Generated using the `MockDataUtils` utility class. The format uses a `USER_` prefix followed by the last five digits of the user’s mobile number.
+- **Dummy Email:** Generated using the `MockDataUtils` utility class. The entire mobile number is used as the local part, with `@dummy.com` as the domain.
+- User can update these after signup. This avoids null values in BI reports, booking summaries, or notifications.
+ 
+> Users can update both name, email & other info after signup. This approach prevents null values in BI reports, booking summaries, and system notifications, ensuring data consistency across the platform. 
+
+**3. Secure Password & Consistent JWT Issuance**    
+- All passwords are encoded using **BCrypt**, ensuring they are never stored in plain text.
+- For guest upgrades, a new password is always required, as guest accounts initially have no password.
+- Password updates automatically record a timestamp for auditing and compliance.
+- Both new users and upgraded guests receive a **JWT token immediately** after signup.
+- Eliminates the need for a **separate login step**, simplifying client-side workflows for mobile and web apps.
+- Guarantees that the user is fully authenticated and ready to access customer-specific endpoints.  
+
+**4. Profile Initialization & Data Integrity**  
+- **Guest Upgrades:** Profile is marked as fully completed to preserve existing booking history and personal data.
+- **New Users:** Profile is initially incomplete (only mobile and password provided), enabling onboarding flows and prompting optional field completion. Can be done via making 1st booking or using update user profile API.
+- **Automatic Dummy Data:** Names and emails are generated via `MockDataUtils` to avoid null values in BI reports, booking summaries, or notifications.  
+
+**5. Mobile Uniqueness & State Consistency**     
+- Each mobile number maps to a **single user account** (guest or registered); duplicates are strictly prevented.
+- Restricted or blacklisted numbers are blocked at signup to prevent unauthorized or fraudulent registrations.
+- The flow ensures atomic upgrades:
+    - No partial upgrades
+    - No race conditions on the same mobile
+    - Correct role promotion
+    - Accurate registration timestamping
+- This guarantees data consistency, security, and reliable handling of edge cases across all user scenarios.
+</details>  
+
+### 🔐 23. User Login  
+<details> 
+  <summary><strong>POST</strong> <code>/auth/bookmyride/public/login</code></summary>
+
+#### 🛠 Endpoint Summary    
+**Method:** POST  
+**URL:** /auth/bookmyride/public/login  
+**Authorized Roles:** Public (Guest + Registered Users)  
+**Authentication:** Not Required   
+(This endpoint issues a new JWT Token. For further details, See **Authentication & JWT Usage** inside Security Architecture under Technical Architecture.) 
+
+#### 📝 Description  
+
+The **User Login API** allows users to sign in to **_BookMyRide_** using their mobile number and password. No authentication is required to call this endpoint, so it can be accessed by both unauthenticated users and users who already hold a JWT and want to obtain a fresh token. This ensures flexibility while maintaining secure access to protected resources. The request payload is strictly validated using Spring’s `@Valid` annotation combined with `BindingResult` to capture any errors. Utility classes are used to process and format validation messages, ensuring that clients receive clear, structured error responses for any missing or malformed fields.   
+
+Once validated, the system checks the user’s eligibility, blocking Guest or unregistered accounts and denying access to restricted users with appropriate HTTP status codes. Authentication is performed via Spring Security’s `AuthenticationManager`, which invokes the custom `MyUserDetailsService` to securely verify credentials and enforce role-based access control.  
+
+Upon successful login, a JWT token containing the user’s mobile number, role, and an isLoginFlow = true flag is returned in the data field, and this token must be included in the Authorization: Bearer <JWT_TOKEN> header for all subsequent protected API requests.  
+
+Key Features:  
+- **No Pre-Authentication Required:** Can be called by unauthenticated users or users requesting a fresh JWT token.
+- **DTO Validation:** Uses `@Valid` and `BindingResult` to ensure payload integrity.
+- **Structured Validation Messages:** Utility classes format errors clearly for client consumption.
+- **User Eligibility Checks:** Blocks Guest users and restricted accounts from logging in.
+- **Secure Password Authentication:** Handled through Spring Security and custom `MyUserDetailsService`.
+- **Layered Error Handling:** Returns appropriate HTTP responses for Unauthorized, Forbidden, and Validation errors.
+- **JWT Token Generation:** Returns a fresh token containing mobile number, role, and login flow flag.
+- **Seamless Client Integration:** Token returned in data field; to be used in `Authorization: Bearer <JWT_TOKEN>` header for protected endpoints.   
+
+#### 📥 Request Body  
+{  
+&nbsp;&nbsp;&nbsp; "mobile": "9876543210",  
+&nbsp;&nbsp;&nbsp; "password": "mypassword123"   
+}  
+> 💡 Tips: You can replace the above values with your sign-up mobile number & password. My system will handle this gracefully.    
+> 💡 Note: If you give the mobile number that **already registered** as `Management` user account return **403** with message.  
+
+#### ⚙️ How the Backend Processes  
+
+**1. DTO + Input Validation**  
+
+The request payload is validated using Spring’s `@Valid` annotation combined with `BindingResult`. If validation errors are detected, the system immediately responds with:  
+  - HTTP 400 Bad Request
+  - Detailed validation messages highlighting the invalid or missing fields   
+
+This ensures that null, empty, or malformed mobile numbers and password fields are caught before reaching the authentication layer.  
+
+**2. Check if Mobile Number Exists in Management Table**  
+
+The system verifies whether the mobile number is restricted in the management layer via `managementService.ifMobileNumberExists(loginDto.getMobile())`. If the number exists then the system returns **403 Forbidden** with a message "Access denied for this role." & timestamp.  
+
+This step enforces strict role separation and prevents restricted management accounts from logging in via public endpoints.  
+
+**3. Fetch User by Mobile Number & Role Blocking**  
+- The system checks the `AppUser` table to determine if the mobile number is registered via `appUserService.fetchByMobile(loginDto.getMobile())`.
+- If no match found then the system returns **401 Unauthorized** with timestamp & message "Invalid mobile number or password." This prevents user enumeration by avoiding explicit messages indicating whether the user exists.
+- If the retrieved user has a `GUEST` role then the system returns **403 Forbidden** with timestamp & message "Access denied. Please complete registration before logging in."
+ 
+This ensures that guest accounts cannot access protected endpoints without completing registration.   
+
+**4. Authenticate Using Spring Security**  
+
+The controller prepares the user credentials and passes them to Spring Security’s `AuthenticationManager` for authentication. Internally, Spring Security:
+- Loads user details using the custom class `MyUserDetailsService`.
+- Verifies the password against the stored encrypted hash.
+- Checks account status (active/inactive)  
+
+Error handling is standardized:  
+| Exception                   | HTTP Response      | Meaning                                |
+| --------------------------- | ------------------ | -------------------------------------- |
+| `BadCredentialsException`   | 401 Unauthorized   | Incorrect password                     |
+| `UsernameNotFoundException` | 404 Not Found      | User not found in authentication phase |
+| Generic Exception           | 500 Internal Error | Unexpected authentication failure      |  
+
+All errors are returned in a consistent JSON structure (ApiResponse) for clear client understanding.  
+
+**5. On Successful Authentication → Generate JWT Token**  
+- After successful login, the system generates a **JWT token** using the user’s mobile number and role, along with a **login-flow** flag to indicate this token originated from a login request.
+- The token is returned in the response along with **HTTP 200 OK**, message in a proper structure through `ApiResponse`.
+- This ensures the client has a fully authenticated token for all protected API operations.    
+
+
+#### 📤 Success Response  
+<details> 
+  <summary>View screenshot</summary>
+   ![User Auth Login Success]()
+</details>  
+
+
+#### ❗ Error Response 
+> DTO Validation Failed
+<details> 
+  <summary>View screenshot</summary>
+   ![User Auth Login Error]()
+</details> 
+
+> Mobile belongs to management user
+<details> 
+  <summary>View screenshot</summary>
+   ![User Auth Login Error]()
+</details>  
+
+> User not registered
+<details> 
+  <summary>View screenshot</summary>
+   ![User Auth Login Error]()
+</details>  
+
+> Guest role attempting login
+<details> 
+  <summary>View screenshot</summary>
+   ![User Auth Login Error]()
+</details>  
+
+> Wrong password
+<details> 
+  <summary>View screenshot</summary>
+   ![User Auth Login Error]()
+</details>  
+
+#### 📊 HTTP Status Code Table
+| HTTP Code | Status Name           | Meaning                      | When It Occurs                 |
+| --------- | --------------------- | ---------------------------- | ------------------------------ |
+| **200**   | OK                    | Login successful             | Valid credentials              |
+| **400**   | Bad Request           | DTO / input validation error | Missing fields, invalid format |
+| **401**   | Unauthorized          | Authentication failed        | Invalid mobile or password     |
+| **403**   | Forbidden             | Role not allowed             | Guest user, management user    |
+| **404**   | Not Found             | User not found               | Username missing in auth phase |
+| **500**   | Internal Server Error | Unexpected backend error     | Any unhandled exception        |
+
+
+#### ⚠️ Edge Cases & Developer Notes  
+
+**1. Guest Account Enforcement**   
+
+The system strictly blocks `GUEST` users from logging in until they complete registration.
+- Ensures partial account usage is prevented.
+- Forces users to upgrade to a fully registered profile before accessing protected endpoints.
+- Response: **403 Forbidden** with clear guidance message.  
+
+**2. Custom UserDetailsService for Flexible Authentication**  
+
+Authentication leverages a custom `MyUserDetailsService`, allowing:
+- Loading users from **both `AppUser` and `Management` tables** based on login identifier.
+- Password comparison using **BCrypt** for strong security.
+- Role and mobile injection into `UserPrincipal` for downstream access control.  
+
+This ensures a clean separation between public users and management accounts while maintaining a single authentication entry point.  
+
+**3. Mobile Number as Primary Login Identifier**  
+- The login system uses **mobile numbers exclusively** as the username for users.
+- Simplifies onboarding and login flows.
+- Avoids confusion or duplication that could occur with email/username-based authentication.
+- Mobile number serves as a **unique key** for user identity across the system.   
+
+**4. Standardized Error Handling & API Response Structure**
+
+All login-related exceptions are mapped into a **consistent JSON structure** via `ApiResponse`:  
+- Validation errors → **400 Bad Request**
+- Unauthorized credentials → **401 Unauthorized**
+- Blocked access → **403 Forbidden**
+- User not found → **404 Not Found**
+- Unexpected errors → **500 Internal Server Error**   
+
+This makes debugging and client-side error handling predictable and developer-friendly.  
+
+**5. JWT Structure Supports Role-Based Access Control**  
+
+The generated JWT token includes:  
+- `username` (mobile number)
+- `role` (USER, GUEST, ADMIN)
+- `isLoginFlow` flag
+
+**Benefits:**  
+- Downstream APIs can reliably enforce **role-based access control**.
+- Clients immediately receive a token ready for all protected requests.
+- Login flow flag differentiates token issuance origin (login vs signup).
+- Token standardization ensures seamless integration across mobile and web clients.
+</details>  
+
+
+
+
+
