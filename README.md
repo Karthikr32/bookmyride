@@ -1,4 +1,4 @@
-# BookMyRide 🚌 - *A Full-Featured Bus Booking System*
+# BookMyRide 🚍 v1 - *A Full-Featured Bus Booking System*
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; BookMyRide is a robust bus booking system built with Java 21 and Spring Boot, following industry-standard clean MVC architecture to ensure modularity and maintainability. It leverages Java core OOP principles for clear separation of concerns across well-defined modules such as user authentication, booking, bus, and location management. The system implements secure, role-based access control, optimistic locking for concurrency, and comprehensive logging for critical actions. It supports guest and registered user bookings with pagination, sorting, and validation utilities, prioritizing data integrity and scalability. This design approach delivers a clean, scalable backend with reusable components, aligned to enterprise-grade development best practices.
 
 ## Tech Used
@@ -2150,7 +2150,7 @@ Key Functionalities:
 &nbsp;&nbsp;&nbsp; "fare": 650.00  
 }  
 > 💡 Departure time must strictly follow HH:mm:ss format.  
-> 💡 Tip: Substitute placeholders with your preferred values. But remember, My system will block entries that do not match its rules.  
+> 💡 Tip: Substitute these values with your preferred values. But remember, My system will block entries that do not match its rules.  
 > 💡 Tip: For more info please refer the **BusDto class** under **dto package** in the application folder.  
 
 
@@ -3992,7 +3992,7 @@ All search inputs undergo strict, centralized regex validation. This ensures:
 | ----------- | ------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------- |
 | **page**    | Integer | 1       | Page number (must be ≥1)                                                                                                                                                                                     | No       |
 | **size**    | Integer | 10      | Page size (must be ≥1)                                                                                                                                                                                       | No       |
-| **sortBy**  | String  | `id`  | Sorting field. Allowed: `id`, `fromLocation`, `toLocation`, `seatsBooked`, `bookedAt`, `travelAt`, `departureAt`, `arrivalAt`, `bookingExpiresAt`, `discountPct`, `totalCost`, `discountAmount`, `finalCost` | No       |
+| **sortBy**  | String  | `id`  | Field by which to sort the results—options include: `id`, `fromLocation`, `toLocation`, `seatsBooked`, `bookedAt`, `travelAt`, `departureAt`, `arrivalAt`, `bookingExpiresAt`, `discountPct`, `totalCost`, `discountAmount`, `finalCost` | No       |
 | **sortDir** | String  | `ASC` | Sorting direction (`ASC`/`DESC`, case-insensitive)                                                                                                                                                           | No       |
 | **keyword** | String  | -    | Flexible, prefix-based search field                                                                                                                                                                          | No       |
 
@@ -4209,7 +4209,7 @@ This API handles **all scenarios**:
 
 #### 📥 Request Body  
 {  
-&nbsp;&nbsp;&nbsp; "mobile": "9876543210",   
+&nbsp;&nbsp;&nbsp; "mobile": "Your Mobile Number",   
 &nbsp;&nbsp;&nbsp; "password": "MySecurePassword123"    
 }  
 > 💡 Tips: You can replace the above values with your own existing or new mobile number & password. My system will handle this gracefully.  
@@ -4547,6 +4547,674 @@ The generated JWT token includes:
 - Clients immediately receive a token ready for all protected requests.
 - Login flow flag differentiates token issuance origin (login vs signup).
 - Token standardization ensures seamless integration across mobile and web clients.
+</details>  
+
+### 👤 24. View User Profile
+<details> 
+  <summary><strong>GET</strong> <code>/users/profile</code></summary>  
+
+#### 🛠 Endpoint Summary   
+**Method:** GET  
+**URL:** /users/profile       
+**Authorized Roles:** USER    
+**Authentication:** JWT Required (See **“Authentication & JWT Usage”** in Technical Architecture)    
+
+#### 📝 Description  
+
+The View **User Profile API** allows a fully authenticated user to retrieve their personal profile information after logging into the system. This endpoint is designed to serve as the central reference point for user-specific details and is typically called immediately after login, after profile update, or during user dashboard initialization.  
+
+From a business standpoint, this API ensures users have full visibility of their account details, such as:  
+- Personal identification information (Name, Gender)
+- Contact information (Email, Mobile)
+- Account metadata (Role, Profile Status)
+- Security metadata (Password last updated timestamp)
+- Engagement metrics (Total booking count)   
+
+The `UserProfileDto` intentionally includes only safe-to-expose fields, excluding:   
+- Password hashes
+- Account flags
+- Audit logs
+- System metadata
+- Internal relations  
+
+This protects sensitive DB structure and ensures the API contract remains stable and front-end-friendly. And allows to build a personalized experience, validate user identity, show profile progress bars, and enable conditional UI logic (e.g., disabling booking features until the profile is completed).  
+
+#### ⚙️ Backend Processing Workflow  
+
+**1. Authenticate and Validate UserPrincipal**  
+- Extracts `UserPrincipal` from `@AuthenticationPrincipal`.
+- Validates the **JWT token** and ensures the user exists and has the `USER` role via `UserPrincipalValidationUtils.validateUserPrincipal()`.
+- Possible validation failures:  
+    - **401 Unauthorized** → Missing/Expired JWT
+    - **403 Forbidden** → Role mismatch or invalid access
+    - **404 Not Found** → User not found in DB  
+
+Only after passing this validation is the authenticated `AppUser` entity retrieved.   
+
+**2. Fetch User Profile**  
+- The service layer executes `appUserService.fetchUserProfile(user)` JPA method using `AppUser` repository. This includes:
+    - Checking if the user’s profile is **completed**.
+    - If yes → Convert entity to DTO using appropriate mapper method: `AppUserMapper.appUserToUserProfileDto(appUser)`
+    - If not → Return **FORBIDDEN** with proper message: "Your profile is not completed yet. Please complete your profile by using update profile API in order to view."
+ 
+**3. Return Standard API Response**  
+- The controller formats the final response using: `ApiResponse.successStatusMsgData()`. This ensures:
+     - Uniform API response structure
+     - Predictable fields for the frontend
+     - Consistent semantics across the entire system  
+- On failure, the controller returns standardized error models:
+     - `ApiResponse.profileStatus(...)` for profile-related restrictions
+     - Structured forbidden messages for business-rule violations
+     - Unified error codes (e.g., Code.ACCESS_DENIED)   
+
+
+#### 📤 Success Response  
+<details> 
+  <summary>View screenshot</summary>
+   ![User Profile View Success]()
+</details>  
+
+
+#### ❗ Error Response 
+> Missing/Invalid/Expired JWT token.
+<details> 
+  <summary>View screenshot</summary>
+   ![User Profile View Error]()
+</details>  
+
+> Profile not completed Or invalid role trying to access this endpoint.  
+<details> 
+  <summary>View screenshot</summary>
+   ![User Profile View Error]()
+</details>  
+
+> User does not exist in DB
+<details> 
+  <summary>View screenshot</summary>
+   ![User Profile View Error]()
+</details>    
+
+#### 📊 HTTP Status Code Table  
+| HTTP Code | Status Name           | Meaning               | When It Occurs                     |
+| --------- | --------------------- | --------------------- | ---------------------------------- |
+| **200**   | SUCCESS               | Request succeeded     | Profile loaded successfully        |
+| **401**   | UNAUTHORIZED          | Authentication failed | JWT missing/expired                |
+| **403**   | FORBIDDEN             | Access denied         | Profile incomplete or invalid role |
+| **404**   | NOT_FOUND             | Resource missing      | User entity not found              |
+| **500**   | INTERNAL_SERVER_ERROR | Unexpected crash      | Server/logic error                 |
+
+
+#### ⚠️ Edge Cases & Developer Notes (Must Read)  
+
+**1. UserPrincipal Validation**  
+
+The system performs multi-layer validation to ensure only authenticated, valid, and active users can access this endpoint:  
+- JWT token must be valid and unexpired.
+- The user must exist in the database.
+- The account must be active.
+- Deleted or disabled accounts cannot access the API.
+- Role mismatch results in access denial.    
+
+This protects against stale, compromised, or unauthorized sessions and guarantees robust authorization security.  
+
+**2. Role-Based Access Control (RBAC)**  
+
+This endpoint is **strictly for authenticated USER-role accounts**.  
+- `ADMIN`, or other `Management` roles have their **own dedicated profile endpoints**.  
+- Even if a token structurally contains a USER role, the role is verified against the **actual DB role**, preventing forged tokens or escalated privileges.  
+
+**3. Scalability & Maintainability**  
+- Validation logic is centralized in `UserPrincipalValidationUtils`, avoiding duplicated checks across controllers.
+- The mapper stays focused on transforming entities → DTO safely.
+- Service-level profile checks make it easy to extend future features like:  
+    - Additional profile fields
+    - Booking-based badges
+    - Account completion trackers
+    - MFA enrollment states   
+
+The architecture is clean, modular, and easy to scale.      
+
+**4. Why Profile Completion Is Strictly Enforced Before Returning Profile Data**   
+
+In service layer, I placed the “profile completed” condition check before converting entity → DTO is not just technical — it’s strong business logic.  
+
+**Because of My Smart Signup Feature**  
+
+This system integrates signup flow is purposely designed to **minimize friction** and **maximize conversion**, similar to modern apps like Swiggy, Zomato, Ola, Uber, etc. Here’s how the logic works:   
+  1. A new user can **register instantly** with only: **Mobile number & Password**
+  2. The system auto-generates dummy placeholder values for:
+       - Name
+       - Gender
+       - Email
+       - Other profile fields
+  3. This allows users to enter the system quickly and frictionlessly, without forcing them to fill tedious forms during signup.  
+
+**When does the system collect real data?**   
+
+I intentionally designed two gentle touchpoints:  
+ - **Update Profile API** — user updates details when they choose.
+ - **First booking flow** — users naturally enter details while making their first booking.     
+
+> This mirrors real-world UX patterns: `“Let the user start using the app, and collect useful data organically along the way.”`  
+
+**5. Why Users Must Not See Dummy/Placeholder Data**  
+
+Because new accounts contain **auto-generated placeholder data**, showing this to the user would be confusing and unprofessional. In my case, How I handle:  
+- Name: "USER_<Registered_Mobile_Number>"  
+- Email: "<Registered_Mobile_Number>@dummy.com"  
+- Gender: "Not Specified"   
+
+This is backend precision data, not user-facing identity data. Therefore:   
+
+**The API blocks access until profile is completed**    
+- Users do not see meaningless placeholder values.
+- UI always displays real personal information.
+- Business processes downstream (bookings, communication, billing) always have validated identity info.  
+
+**This is common in real-world apps**  
+- My architecture is aligned with: IRCTC, Ola/Uber, Swiggy/Zomato, Amazon, Flipkart
+- These apps allow account creation → then collect full profile details only when required.
+- So, My implementation follows this proven **low-friction** onboarding strategy.  
+
+
+**6. Developer Insight: Why this decision matters long-term**  
+
+Future developers need to understand that:  
+ - The “profile completeness” gate is not a random rule.
+ - It is the backbone of your **frictionless onboarding strategy**.
+ - It prevents exposure of placeholder data to users.
+ - It ensures all meaningful profile views always return fully validated identity.  
+
+Failing to enforce this could lead to:   
+ - Incorrect user identity representation in UI.
+ - Broken booking flows & Incorrect analytics.
+ - Risk of incomplete records affecting business logic.   
+
+ Hence, keeping this logic in the service layer is the correct and most scalable place.   
+</details>   
+
+### 🖋️ 25. Update User Profile (User Account Personalization)   
+<details> 
+  <summary><strong>PUT</strong> <code>/users/profile</code></summary>
+
+#### 🛠 Endpoint Summary    
+**Method:** PUT  
+**URL:** /users/profile    
+**Authorized Roles:** USER   
+**Authentication:** JWT Required (See **“Authentication & JWT Usage”** in Technical Architecture)    
+
+#### 📝 Description  
+
+The **Update User Profile API** allows authenticated users to update their personal information.
+This endpoint supports **_BookMyRide_**’s Smart Signup Architecture, where users initially register only with a mobile number and password. Because of this, newly registered users begin with placeholder profile data (name, gender, email) until they complete their profile for the first time. The API handles profile updates for two user types:  
+
+**1️⃣ New User Updating Profile for the First Time** (These users only signed up with mobile + password)    
+- Profile is incomplete (`isProfileCompleted` = false)
+- Have placeholder name, gender, and email
+- Email uniqueness is checked globally (no previous email exists for this user)  
+- On successful update:
+     - Profile fields are validated
+     - Updates are applied atomically
+     - `isProfileCompleted` is set to `true`
+     - A clean `UserProfileDto` is returned   
+
+**2️⃣ Existing User Updating an Already Completed Profile** (These users have real data already)  
+- Profile is already completed. Since can update thier profile for some reasons.
+- Email may be changed, but only if new email is unique.
+- Mobile number cannot be changed. Because mobile is the primary unique identity in **_BookMyRide_**.
+- Apply updates using shared method, then save and return updated profile DTO.  
+
+Key highligths:  
+- Consistent validation
+- Email uniqueness handling for both new and existing users
+- Atomic update operations
+- Proper marking of completed profiles
+- Clean mapping to DTOs for frontend use  
+
+#### 📥 Request Body  
+{  
+&nbsp;&nbsp;&nbsp; "name": "Your Updated Name",   
+&nbsp;&nbsp;&nbsp; "gender": "Your Updated Gender",   
+&nbsp;&nbsp;&nbsp; "email": "Your Updated Email"      
+}    
+> 💡 Tip: Substitute these placeholders with your own values. But ensure by using unique values.
+
+
+#### ⚙️ Backend Processing Flow   
+
+**1. Authentication & User Validation**  
+- Spring Security handles token validation, constructs a `UserPrincipal`, and injects it into the controller via `@AuthenticationPrincipal`. The system then validates the principal using: `UserPrincipalValidationUtils.validateUserPrincipal()`. Checks performed:
+  
+   - **Token validity** – verifies signature, expiration, and structure
+   - **User existence** – ensures the account exists in the database
+   - **Role validation** – ensures requester is a standard `USER`
+   - **Account active check** – blocks disabled or revoked accounts
+- If any failure occurs, then system returns error **401, 403, 404** accordingly. Only a validated AppUser proceeds to the profile update logic.  
+
+**2. Input Validation (DTO Validation)**  
+- The incoming request is bound to `UpdateUserProfileDto` and validated using standard bean validation `@Valid` along with `BindingResult`.
+- If any validation constraints fail, the controller wrap the response into `ApiResponse` and that contains: **400 BAD_REQUEST** with a structured list of errors, extracted using `BindingResultUtils.getListOfStr()`.  
+- This ensures that frontend clients receive clear, actionable feedback on invalid inputs before any processing occurs.   
+
+
+**3. Email Uniqueness & Scenario-Based Handling**   
+
+The system enforces email uniqueness before applying updates via JPA method `appUserRepo.existsByEmail()`. Behavior differs depending on the user state:  
+
+**New Users (isProfileCompleted = false)**  
+- Placeholder profile values exist (name, email, gender)
+- Email must be unique globally → otherwise **409 CONFLICT**
+- On successful update:
+    - `isProfileCompleted` is set to true
+    - Placeholders are replaced with actual user data  
+
+**Existing Users (Profile Completed)**  
+- Email changes are allowed only if unique or same as the current email (case-insensitive)
+- Conflicting emails → **409 CONFLICT**
+- Mobile number is immutable to preserve system integrity  
+
+This ensures system-wide uniqueness while supporting legitimate updates.   
+
+**4. Applying Profile Updates (Centralized Logic)**  
+- All updates are processed through custom `applyProfileUpdates()` by passing existed `AppUser` entity & DTO. Which would proccess:
+   - Parse and validate enums (e.g., gender) using `ParsingEnumUtils.getParsedEnumType`
+   - Update name, email, gender
+   - Update `profileUpdatedAt` timestamp  
+- Atomic updates prevent inconsistent states. Enum parsing failures return **400 BAD_REQUEST** with a descriptive message.  
+
+**5. Persisting Updates & Returning Response**  
+- After update completion & saved the updated entity successfully. Then the data is transformed into a DTO by safely exclude the credentials info by using a mapper:  `AppUserMapper.appUserToUserProfileDto(updatedUser)` & controller retuns: **200 OK** with a success message & Updated profile data (`UserProfileDto`).    
+- This approach ensures consistent, safe, and developer-friendly profile updates for both new and existing users.  
+
+
+ #### 📤 Success Response  
+<details> 
+  <summary>View screenshot</summary>
+   ![User Profile Update Success]()
+</details>  
+
+
+#### ❗ Error Response 
+> From DTO validation or enum parsing.
+<details> 
+  <summary>View screenshot</summary>
+   ![User Profile Update Error]()
+</details>  
+
+> Email already exists for another user.  
+<details> 
+  <summary>View screenshot</summary>
+   ![User Profile Update Error]()
+</details>  
+
+> Access denied by role (if tampered JWT)
+<details> 
+  <summary>View screenshot</summary>
+   ![User Profile Update Error]()
+</details> 
+
+> User account missing in DB (stale token)  
+<details> 
+  <summary>View screenshot</summary>
+   ![User Profile Update Error]()
+</details>  
+
+
+#### 📊 HTTP Status Code Table  
+| Code    | Status      | Meaning                    | When Triggered                        |
+| ------- | ----------- | -------------------------- | ------------------------------------- |
+| **200** | SUCCESS     | Profile updated            | Valid update, email uniqueness passed |
+| **400** | BAD_REQUEST | DTO/enum validation failed | Missing or invalid fields             |
+| **403** | FORBIDDEN   | Role mismatch              | Admin/Management attempting access    |
+| **404** | NOT_FOUND   | User missing               | Token tied to nonexistent account     |
+| **409** | CONFLICT    | Duplicate email            | Another user already uses email       |
+
+
+#### ⚠️ Edge Cases & Developer Notes  
+
+**1. Strict Email Uniqueness Rules**  
+
+My system uses case-insensitive comparison for both cases: 
+ - **New user** → simple global email uniqueness check
+ - **Existing user** → unique check unless the user is reusing their own email   
+
+This avoids false conflicts when users re-save their current email.  
+
+**2. Why Mobile Number Cannot Be Updated**  
+
+This API **intentionally NEVER** updates mobile number because:  
+- Mobile is the **primary unique identifier** in **_BookMyRide_**
+- Booking logic depends on mobile
+- Bookings are linked to users by mobile
+- Changing mobile would break historic bookings & relations  
+
+This design is absolutely correct for India, where mobile numbers are widely treated as unique identifiers. Future versions may include OTP-based mobile update flows.  
+
+**3. Smart Signup Architecture (Why this API is Important)**   
+
+My signup system is intentionally frictionless:  
+ - **New users register with only:** Mobile number & Password, The other field values are placed with **System auto-generates placeholder** values. Why because:
+     - Prevent nulls in DB
+     - Prevent breaks in bookings, invoices, analytics
+     - Faster onboarding
+     - Modern user experience (used by Ola, Zomato, Swiggy)   
+    
+ - **Users then update profile:** Using this API or also can making thier 1st booking. This is a brilliant real-world UX technique — reduce friction, then progressively collect data.  
+
+
+**4. Why Profile Completion Check at Service Layer Is Crucial**  
+
+My intention enforces: `if (!appUser.getIsProfileCompleted()) {}`, That ensures:
+  - Users must update real details before seeing or editing full profile.
+  - Dummy placeholder fields are never shown to end-users.
+  - System always maintains correct identity information.  
+
+**5. Centralized Update & Persistence Logic**   
+
+Profile updates are applied through a centralized method (`applyProfileUpdates`) and persisted atomically. This approach provides several key benefits:  
+ - **Consistency & Reusability:** All update logic is centralized, avoiding duplication and ensuring uniform validation across fields.
+ - **Atomicity & Transaction Safety:** Updates, persistence, and DTO transformation happen in a single, atomic operation, preventing partial updates or inconsistent states.
+ - **Clean Controller Design:** The controller focuses solely on request handling and response formatting, keeping business logic encapsulated.
+ - **Future-Proof & Extensible:** New profile fields (e.g., DOB, address, city) can be added easily without altering controller or endpoint structure.
+</details>    
+
+### 🔑 26. Change Password (Authenticated USER)   
+<details> 
+  <summary><strong>PATCH</strong> <code>/users/change-password</code></summary>
+
+#### 🛠 Endpoint Summary    
+**Method:** PATCH    
+**URL:** /users/change-password      
+**Authorized Roles:** USER   
+**Authentication:** JWT Required (See **“Authentication & JWT Usage”** in Technical Architecture)    
+
+#### 📝 Description   
+
+The **Change Password API** enables authenticated users to securely update their account credentials, combining strong verification, modern hashing techniques, and audit-ready tracking to protect against unauthorized access and maintain system integrity. This endpoint ensures that password changes are safe, verifiable, and aligned with production-grade security standards.  
+
+Key Features:  
+- **Two-step verification:** Requires the current password for proof-of-ownership, even for authenticated sessions.
+- **Secure hashing:** New passwords are hashed using BCrypt before storage.
+- **Audit-ready tracking:** Updates `passwordLastUpdatedAt` timestamp for compliance and monitoring.
+- **Zero-trust design:** Protects against token-only attacks, mitigating risks from stolen or compromised sessions.
+- **Production-ready security:** Follows industry-standard best practices for secure password management.   
+
+#### 📥 Request Body    
+{  
+&nbsp;&nbsp;&nbsp; "oldPassword": "Your_Current_Password",  
+&nbsp;&nbsp;&nbsp; "newPassword": "Your_New_Password"  
+}  
+> 💡 Notes:
+- `oldPassword` must match the current password stored in the system.
+- `newPassword` must comply with centralized password rules (length, character variety).  
+
+
+#### ⚙️ Backend Processing Flow  
+
+**1. Authenticate & Validate UserPrincipal**  
+- Spring Security extracts the JWT token and injects `UserPrincipal` via: `@AuthenticationPrincipal`. Then validation occurs using: `UserPrincipalValidationUtils.validateUserPrincipal()` utils, Which performes checks:
+  
+  **1. JWT token validity** – signature, expiry  
+  **2. User existence** – blocks deleted or inactive users  
+  **3. Role verification** – ensures only USERs can proceed  
+  **4. Account active check** – prevents blocked or compromised accounts   
+
+- If validation fails → early return:
+  - **401 Unauthorized** (token expired/invalid)
+  - **403 Forbidden** (wrong role)
+  - **404 Not Found** (deleted user)  
+- Validated `AppUser` is then used for password verification.  
+
+**2. DTO Validation**  
+
+`ChangeUserPasswordDto` is validated with `@Valid` and `BindingResult`:
+- Checks for non-empty `oldPassword` and `newPassword`  
+- Centralized password policy enforcement (length, complexity)  
+
+If validation fails → **400 BAD_REQUEST** with detailed error list that get through `BindingResultUtils.getListOfStr(bindingResult)`.  
+
+**3. Old Password Verification (Critical Security Layer)**    
+
+Before updating a password, the system verifies that the user knows their current password. This ensures that even if a JWT token is stolen or compromised, unauthorized actors cannot change account credentials.  
+
+**Security outcomes:**  
+- Invalid old password could cause `BadCredentialsException`: Returns **401 Unauthorized** with a clear message.
+- User not found could cause `UsernameNotFoundException`: Returns **404 Not Found** if the account does not exist.
+- Other errors: Returns **500 Internal Server Error** for unexpected issues.  
+
+**Importance**
+  
+  This step enforces a **defense-in-depth strategy** and aligns with industry-standard security practices, safeguarding accounts against token-only attacks and unauthorized access.   
+ 
+**4. Secure Password Update**  
+
+After old-password verification succeeds:  
+1. Hash the new password using **BCrypt**
+2. Update `passwordLastUpdatedAt = LocalDateTime.now()`
+3. Save the AppUser entity: `appUserRepo.save()`  
+
+This make ensures:
+ - Only valid passwords are stored.
+ - Audit timestamp is recorded.
+ - The system remains fully secure even under multi-session conditions.    
+
+
+ #### 📤 Success Response  
+<details> 
+  <summary>View screenshot</summary>
+   ![User Password Update Success]()
+</details>  
+
+
+#### ❗ Error Response 
+> DTO constraints or weak password
+<details> 
+  <summary>View screenshot</summary>
+   ![User Password Update Error]()
+</details>  
+
+> Old password incorrect  
+<details> 
+  <summary>View screenshot</summary>
+   ![User Password Update Error]()
+</details>  
+
+> User not found
+<details> 
+  <summary>View screenshot</summary>
+   ![User Password Update Error]()
+</details> 
+
+
+#### 📊 HTTP Status Code Table  
+|   Code   | Status                | Meaning               | When Triggered                            |
+| -------- | --------------------- | --------------------- | ----------------------------------------- |
+| **200**  | SUCCESS               | Password updated      | Old password verified, new password valid |
+| **400**  | BAD_REQUEST           | Validation failed     | DTO constraints or weak password          |
+| **401**  | UNAUTHORIZED          | Authentication failed | Old password incorrect                    |
+| **403**  | FORBIDDEN             | Access denied         | JWT valid, but wrong role                 |
+| **404**  | NOT_FOUND             | User missing          | Token tied to deleted/stale account       |
+| **500**  | INTERNAL_SERVER_ERROR | Unexpected error      | Any other system failure                  |
+
+
+#### ⚠️ Edge Cases & Developer Notes  
+
+**1. Old Password Verification – Critical Layer**  
+- Even with a valid JWT, the API requires users to provide their current password to authorize a password change.
+- This adds a critical protection layer against stolen-token scenarios, where attackers could misuse a compromised session.
+- Verifying the old password through Spring Security ensures consistent, standardized authentication across the platform.  
+
+**2. Strong Validation & Password Policy Enforcement**  
+- Password rules are enforced at the DTO level using `@Valid`, ensuring uniform validation across controllers and services.
+- This design supports future enhancements such as regex complexity rules, breached-password screening, and password history checks.
+- Centralized & regex patterns & validation reduces duplication and makes the security posture easier to maintain long-term.  
+
+**3. UserPrincipal Validation & Access Control**  
+- `UserPrincipal` validation is executed before entering the business logic, rejecting invalid, expired, or unauthorized identities early in the flow.
+- The endpoint is strictly limited to authenticated users with the `USER` role, preventing admins or privileged accounts from unintentionally accessing the c**onsumer-facing password change** path. This supports a clean, role-scoped architecture.    
+
+**4. Security Auditing & Future-Ready Architecture**  
+- Every successful password update refreshes the `passwordLastUpdatedAt` timestamp, enabling audit trails, compliance reporting, and proactive security notifications.
+- The separation of **old-password verification** and hashing within the service layer allows the introduction of additional future security factors—such as **OTP, MFA**, or **step-up authentication**—without impacting the controller design.     
+</details>    
+
+
+### 📖 27. View Own Bookings (Passenger Dashboard – Paginated History)
+<details> 
+  <summary><strong>GET</strong> <code>/users/bookings</code></summary>
+
+#### 🛠 Endpoint Summary    
+**Method:** GET  
+**URL:** /users/bookings      
+**Authorized Roles:** USER   
+**Authentication:** JWT Required (See **“Authentication & JWT Usage”** in Technical Architecture)    
+
+#### 📝 Description  
+
+The **View Own Bookings API** enables authenticated passengers to securely access their complete booking history, including upcoming trips, past journeys, and cancelled records. Designed for real-world, high-traffic user dashboards, this endpoint provides a **structured, paginated**, and **privacy-focused** data flow that exposes only the passenger’s own records. Its response model cleanly separates booking details and bus information, ensuring predictable rendering across modern web and mobile UIs while maintaining strong access control and data-ownership guarantees.  
+
+Key Features:  
+- **Full booking visibility:** Access past bookings, upcoming trips, and cancelled journeys.
+- **Secure user-scoped data:** Strictly returns bookings belonging to the authenticated passenger (`USER` role).
+- **Structured DTO response:** Clear separation of `BookingInfo` and `BusInfo` for **frontend-friendly** rendering.
+- **Comprehensive details:** Includes payment status, ticket details, fare breakdown, route data, and schedule info.
+- **Stable pagination:** Optimized for dashboards where users frequently browse through large booking histories.
+- **Privacy-first design:** No management-level fields exposed; strictly **passenger-owned data only**.
+- **Scalable & mobile-ready:** Suitable for continuous review across mobile apps, web dashboards, and multi-device access.  
+
+#### 📥 Query Parameters  
+| Parameter | Type    | Default | Description                                 | Required |
+| --------- | ------- | ------- | ------------------------------------------- | -------- |
+| `page`    | Integer | 1       | Page number (must be ≥ 1)                   | No       |
+| `size`    | Integer | 10      | Page size (must be ≥ 1)                     | No       |
+| `sortBy`  | String  | `id`    | Field by which to sort the results—options include: `id`, `fromLocation`, `toLocation`, `seatsBooked`, `bookedAt`, `travelAt`, `departureAt`, `arrivalAt`, `bookingStatus`, `paymentStatus`, `paymentMethod`, `bookingExpiresAt`, `discountPct`, `totalCost`, `discountAmount`, `finalCost` | No       |
+| `sortDir` | String  | `ASC`   | Sorting direction (`ASC`/`DESC`)            | No       |
+
+
+#### ⚙️ Backend Processing Workflow  
+
+**1. Authentication & UserPrincipal Validation**  
+- The endpoint extracts the logged-in user via `@AuthenticationPrincipal UserPrincipal`.
+- If the token is invalid, expired, or malformed → **401 Unauthorized** is returned.
+- The system validates that the account still exists (not deleted or disabled).
+- The validated user ID becomes the key for fetching user-specific bookings.    
+
+**2. Pagination & Sorting Validation (Safety Layer)**  
+
+The following validations are enforced through `PaginationRequest.getRequestValidationForPagination(...)` a method from custom `PaginationRequest`. Which validates:
+  - `page` must be ≥ 1
+  - `size` must be ≥ 1
+  - `sortBy` must belong to bookingFields whitelist
+  - `sortDir` must be either `ASC` or `DESC`  
+
+If any input fails → **400 BAD_REQUEST** with structured error response via `ApiResponse.errorStatusMsgErrors`. This prevents negative offsets, invalid sorting, and dangerous unindexed queries that may degrade performance.   
+
+**3. Pageable Construction**  
+
+After validating the request parameters, pagination is constructed using the project’s standardized utility: `PaginationRequest.getPageable(request)`. This ensures that all listing endpoints follow a consistent, safe, and predictable pagination model. The underlying implementation provides:  
+ -  Deterministic ordering to avoid shifting items between pages.
+ -  Stable page boundaries that remain consistent across repeated calls.
+ -  Backend-aligned indexing optimized for database pagination and performance.  
+
+This guarantees reliable behavior for both UI scrolling and server-side data fetching.  
+
+**4. Fetching User-Specific Bookings**  
+
+The service layer retrieves the bookings using JPA method `bookingService.fetchUserBooking(userId, pageable)`. This operation is strictly scoped to the authenticated passenger, ensuring:
+- **Complete user isolation** — only bookings belonging to the logged-in user are ever returned.
+- **Zero leakage of other users data**, reinforcing privacy and data-ownership rules.
+- **Database-level pagination and sorting**, allowing efficient retrieval even for large booking histories
+
+This provides a secure and scalable approach suitable for high-volume dashboards.  
+
+**5. Handling Empty Results Gracefully**  
+
+If the authenticated user has no booking records, the service returns:  
+- **A NOT_FOUND status** with a clear, user-friendly message.
+- **An empty list** to maintain consistent response structure.
+- **Complete pagination metadata**, ensuring the frontend can still render pagination components safely.  
+
+This approach provides a welcoming, onboarding-style experience for first-time users while maintaining strict API contract consistency.  
+
+**6. Response Construction**    
+
+On successful retrieval, the API returns a standardized response: `ApiResponse.successStatusMsgData(200, message, ApiPageResponse<List<BookingListDto>)`. The payload contains both the paginated metadata and a list of `BookingListDto` entries. This follows a **nested DTO response pattern**, commonly used in modern large-scale applications (e.g., YouTube, Netflix, Uber) to provide highly structured, UI-optimized data in a single request.  
+
+**Nested DTO Structure (BookingListDto)**   
+
+The response uses a hierarchical DTO (`BookingListDto`) that groups related data into two logical sections:  
+- **BookingInfo** — Contains booking-specific details such as booking identifiers, timestamps, statuses, fares, and payment information.
+- **BusInfo** — Contains bus-level metadata like bus name, type, route information, and fare details.  
+
+This structure avoids flat, unorganized JSON blobs and instead delivers a **clean, component-ready object**, enabling frontends to directly map sections into UI cards, table rows, trip summaries, or schedule views with minimal transformation.
+
+**Pagination Metadata**  
+- Along with the nested list, the response includes a full pagination object (`ApiPageResponse`): total pages, total elements, current page number, page size, isFirstPage, isEmpty.
+- This ensures that the frontend receives a **complete paginated envelope**, allowing infinite-scroll, page-navigation, and timeline-style booking history experiences without additional API calls.
+ 
+
+ #### 📤 Success Response  
+<details> 
+  <summary>View screenshot</summary>
+   ![User Booking View Success]()
+</details>   
+
+> User has no bookings
+<details> 
+  <summary>View screenshot</summary>
+   ![User Booking View Success]()
+</details>  
+
+#### ❗ Error Response 
+> Invalid pagination inputs  
+<details> 
+  <summary>View screenshot</summary>
+   ![User Booking View Error]()
+</details>  
+
+> User token expired / invalid    
+<details> 
+  <summary>View screenshot</summary>
+   ![User Booking View Error]()
+</details>  
+
+
+#### 📊 HTTP Status Code Table  
+| **Code** | **Status**            | **Meaning**           | **When Triggered**                             |
+| -------- | --------------------- | --------------------- | ---------------------------------------------- |
+| **200**  | OK                    | Success               | Valid request; bookings returned successfully  |
+| **400**  | BAD_REQUEST           | Validation failed     | Invalid pagination, sorting, or request params |
+| **401**  | UNAUTHORIZED          | Authentication failed | Token missing, invalid, or expired             |
+| **404**  | NOT_FOUND             | No data               | User has no booking records                    |
+| **500**  | INTERNAL_SERVER_ERROR | Unexpected error      | Any unhandled exception in backend processing  |
+
+
+#### ⚠️ Edge Cases & Developer Notes  
+
+**1. Strict Data Ownership**  
+- Bookings are always fetched using the **authenticated user ID** extracted from the JWT.
+- The service layer ensures **complete isolation**, so no cross-user data leakage is possible.
+- This aligns with strict **privacy and compliance requirements**, preventing unauthorized access to other users’ bookings.  
+
+**2. Safe Pagination & Sorting**   
+- Sorting is restricted to a **whitelisted set of fields**, preventing SQL injection or invalid ordering errors.
+- Page numbers, sizes, and directions are validated at the controller layer before constructing the `Pageable` object.
+- This ensures **consistent pagination behavior** and avoids server-side errors or malformed requests.  
+
+**3. Nested, Frontend-Friendly DTOs**  
+- The API returns a **structured nested DTO** (`BookingListDto)`, separating `BookingInfo` and `BusInfo`.
+- This design reduces frontend transformation logic, allowing UI components to render booking and bus details directly.
+- Future additions (like seat layout or driver info) can be added to the DTO without breaking existing clients.  
+
+**4. Graceful Handling of Empty Results**  
+- If the user has no bookings, the system returns a **NOT_FOUND** response with an **empty list**.
+- Pagination metadata is still included, allowing frontend components to render consistent UI states.
+- A friendly, domain-aligned message encourages users to **start their first journey**, supporting a seamless onboarding experience.  
+
+**5. Consistent and Extensible Service Layer**  
+- Mapping from `Booking` entities to `BookingListDto` is centralized in the mapper, ensuring consistent data formatting.
+- All business logic (fetching, pagination, mapping) resides in the service layer, making future features like **filtering, additional fields, or reporting** easier to implement.
+- Controllers remain clean, focusing solely on request validation and response construction.
 </details>  
 
 
