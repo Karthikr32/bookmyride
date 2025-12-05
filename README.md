@@ -3961,7 +3961,7 @@ Key Features:
 
 #### 🔍 Search & Filter Logic Summary  
 This API operates in two clear modes, ensuring efficient, predictable, and conflict-free search behavior:  
-- **1. Default Fetch (No Keyword Provided)**  When no keyword is supplied, the API returns **all bookings** in a **fully paginated, sorted**, and **structured format**. This is ideal for general browsing, auditing, and dashboard views.
+- **1. Default Fetch (No Keyword Provided)** When no keyword is supplied, the API returns **all bookings** in a **fully paginated, sorted**, and **structured format**. This is ideal for general browsing, auditing, and dashboard views.
 - **2. Keyword-Based Filtered Search** When a keyword is present, the API switches to a **prefix-driven filtering engine**. This system ensures **no ambiguity, no filter collisions**, and **no overlapping search paths**, producing clean and deterministic results every time.  
 
 **Supported Keyword Prefixes & Patterns**  
@@ -4000,11 +4000,11 @@ All search inputs undergo strict, centralized regex validation. This ensures:
 #### ⚙️ Backend Processing Flow   
 **1. Centralized Input Validation & Safety Gate**      
 
-All requests pass through a strict validation layer checking:
+All requests pass through a strict validation layer `PaginationRequest.getRequestValidationForPagination()`, checking:  
 - `page ≥ 1`, `size ≥ 1`
 - `sortBy` must match a controlled whitelist
 - `sortDir` must match **ASC/DESC**
-- Keyword must pass prefix/regex rules  
+-   keyword` must pass **prefix/regex rules**    
 
 This ensures:  
 - No invalid offsets
@@ -4017,13 +4017,13 @@ Invalid input returns **400 BAD_REQUEST** status code with message & timestrap i
 
 **2. Default Retrieval Mode (No Keyword Provided)**  
 
-When keyword is absent:
-- Full booking list is fetched
-- Pagination + sorting applied
-- DTO mapping via `ManagementBookingDataDto`
-- Response wrapped in `ApiPageResponse`
+When no keyword is provided:  
+- The full booking list is fetched.
+- Pagination and sorting are applied.
+- Results are mapped using `ManagementBookingDataDto`.
+- The page is wrapped in an `ApiPageResponse`, which is then wrapped in an `ApiResponse` and returned by the controller.  
 
-If the page is empty → **404 NOT_FOUND** with page-level detail.  
+If the resulting page is empty, return **404 NOT_FOUND** with an empty list and page-level metadata.  
 
 **3. Deterministic Prefix-Based Search Engine**  
 
@@ -4130,6 +4130,7 @@ On successful retrieval, the API returns an HTTP **200 OK** response using the `
 - Branch isolation ensures that once a prefix passes validation, no other path can override its semantics, providing a strictly acyclic, deterministic execution tree. Invalid formats fail before any query execution, maintaining consistent behavior under load and eliminating backend-side noise.  
 
 **4. Data Exposure Control, DTO Discipline & Privacy Guarantees**  
+
 The response DTO exposes only operationally relevant booking, bus, and passenger attributes, intentionally excluding internal audit fields, schema identifiers, authentication metadata, and internal relational structures.
 This achieves:
  - **Privacy protection** (no passwords, auth states, or privileged user flags)
@@ -4151,9 +4152,10 @@ This ensures:
 **6. Scalability, Future Extension, and Maintenance Guarantees**  
 
 The entire design supports future extensions with minimal risk:  
+- Adding a new search capability requires **one prefix, one validation rule, one isolated branch**, and **one repository method**.
 - Each new prefix-based or any keyword can be added as an isolated deterministic branch.
 - Repository paths remain explicitly bound → predictable code review and debugging.
-- DTOs can be extended without breaking backward compatibility.  
+- DTO expansion is forward-compatible, allowing additional fields or nested metadata without breaking current consumers.  
 
 This architecture is intentionally geared toward **enterprise-grade observability, testability, and long-term maintenance**.
 </details>  
@@ -5215,9 +5217,605 @@ This structure avoids flat, unorganized JSON blobs and instead delivers a **clea
 - Mapping from `Booking` entities to `BookingListDto` is centralized in the mapper, ensuring consistent data formatting.
 - All business logic (fetching, pagination, mapping) resides in the service layer, making future features like **filtering, additional fields, or reporting** easier to implement.
 - Controllers remain clean, focusing solely on request validation and response construction.
+</details>   
+
+### 🧾 28. View Passengers (Management View — Paginated & Filterable Search)  
+
+<details> 
+  <summary><strong>GET</strong> <code>/management/passengers</code></summary>
+
+#### 🛠 Endpoint Summary   
+**Method:** GET  
+**URL:** /management/passengers    
+**Authorized Roles:** Management/ADMIN    
+**Authentication:** JWT Required (See **“Authentication & JWT Usage”** in Technical Architecture)  
+
+#### 📝 Description  
+
+This API functions as the centralized passenger directory for the system’s management layer, providing authorized Admin-level users with full visibility into all registered and guest passengers. It is purpose-built for operational dashboards, administrative audits, user-behavior analysis, fraud detection, and large-scale data intelligence workflows. Designed for high-volume environments, the API ensures predictable and secure execution through strict validation, typed parsing, and deterministic request handling.  
+
+The endpoint supports rich passenger inspection with optional booking activity, backed by stable pagination, multi-field sorting, and a precise prefix-based search engine. Its structured DTO responses prevent overexposure of internal models while maintaining clarity and performance for high-volume environments. A major strength of this API is its collision-free filtering engine, which guarantees that every request resolves to exactly one definitive query path. This ensures consistent performance, avoids ambiguity, and maintains predictable runtime behavior even under heavy administrative workloads. Access is strictly restricted — only Management level authorities are permitted; passenger-level users are fully blocked to protect sensitive operational data.  
+
+Overall, the API delivers high integrity, strong observability, and operational efficiency, making it an essential component for system-wide monitoring, audits, and intelligence-driven workflows.    
+
+Key Features:
+- **Full pagination** structure using `ApiPageResponse` for scalable navigation across large passenger datasets.
+- Deterministic filter resolution (one code path, one repo call)
+- Precise **prefix-based search engine** enabling fast, unambiguous lookups.
+- Multi-field sorting for flexible administrative analysis.
+- **Collision-free filtering engine** ensuring deterministic backend behavior.
+- Strong validation rules including regex, prefix enforcement, and typed parsing.
+- **Rich nested DTO** responses that protect internal models while presenting clean, structured data.
+- Optimized for audits, behavior monitoring, fraud detection, support operations, and system intelligence initiatives.  
+
+#### 🔍 Search & Filter Logic Summary  
+
+This endpoint supports **two execution modes**, each deterministic and conflict-free:  
+
+**1. Default Mode — No Keyword**  
+
+If `keyword` is absent, the API returns all passengers:   
+- Sorted by the chosen sort field
+- Paginated according to `page` and `size`
+- Cleanly shaped response using `ManagementAppUserDataDto`
+- If the page has no results, returns **404 NOT_FOUND**  
+
+**2. Keyword-driven Mode — Prefix-based Search Engine**   
+
+**Supported Prefixes & Regex Patterns**   
+| Pattern / Prefix | Meaning         | Example                    |
+| ---------------- | --------------- | -------------------------- |
+|  **id_**         | Passenger ID    | `id_42`                    |
+|  **mobile_**     | Mobile number   | `mobile_9876543210`        |
+| **user_**        | Passenger Name  | `user_John Doe`            |
+| **Email Regex**  | Passenger Email | `john@demo.com`            |
+| **Gender Regex** | Passenger Gender| `MALE`, `FEMALE`           |
+| **Role Regex**   | Passenger Role  | `USER`, `GUEST`            |
+
+**Why Prefix Search?**  
+
+Prefixes eliminate:    
+- Collisions between plural search types.
+- Fuzzy interpretations.
+- Cross-branch conflicts (e.g., mobile vs. ID)
+- Unpredictable repository call chains  
+- Only **one** branch is ever chosen — guaranteeing deterministic execution.  
+
+#### 📥 Query Parameters  
+| Parameter   | Type    | Default | Description                                                            | Required |
+| ----------- | ------- | ------- | ---------------------------------------------------------------------- | -------- |
+| **page**    | Integer | 1       | Page index (must be ≥ 1).                                              | No       |
+| **size**    | Integer | 10      | Page size (must be ≥ 1).                                               | No       |
+| **sortBy**  | String  | `id`    | Sort field. Allowed: `id`, `name`, `mobile`, `gender`, `email`, `role` | No       |
+| **sortDir** | String  | `ASC`   | Sorting direction (`ASC` / `DESC`).                                    | No       |
+| **keyword** | String  | –       | Prefix or regex-based search input.                                    | No       |
+
+
+#### ⚙️ Backend Processing Flow  
+
+**1. Centralized Input Validation & Safety Gate**  
+
+All requests pass through a strict validation layer `PaginationRequest.getRequestValidationForPagination()`, checking:  
+- `page` ≥ 1, size ≥ 1
+- `sortBy` must match a controlled whitelist
+- `sortDir` must match `ASC/DESC`
+- `Keyword` must pass **prefix/regex rules**  
+ 
+This ensures:   
+- No invalid offsets
+- No negative pagination
+- No ORDER-BY or injection risks
+- No unindexed field queries   
+ 
+Invalid input returns **400 BAD_REQUEST** status code with message & timestrap immediately in a proper structure using `ApiResponse`.   
+
+**2. Default Retrieval (No Keyword Supplied)**  
+
+When no keyword is provided:  
+- The full booking list is fetched.
+- Pagination and sorting are applied.
+- Results are mapped using `ManagementAppUserDataDto`.
+- The page is wrapped in an `ApiPageResponse`, which is then wrapped in an `ApiResponse` and returned by the controller.  
+
+If the resulting page is empty, return **404 NOT_FOUND** with an empty list and page-level metadata.  
+
+**3. Identity Filters (ID, Mobile, Email, User Name)**    
+
+These filters target unique or identity-bearing attributes of a passenger:  
+- **Passenger ID (id_)** — Extracts the numeric identifier, validates it as a positive integer, and retrieves the user via `findById(...)`. Invalid IDs return **400**, and non-existent entries return **404**.
+- **Mobile Number (mobile_)** — Enforces a strict India-format regex (starting with 6/7/8/9). Once validated, the system resolves the user through `findByMobile(...)`.
+- **User Name (user_)** — Accepts only alphabetic characters and spaces, ensuring clean, human-readable identity resolution. Fetches records via `findByName(...)`.
+- **Email (Regex)** — Uses an RFC-compliant email pattern to ensure **standards-based email validation**.
+Queries resolve via `findByEmail(...)`.  
+
+**4. Classification Filters (Gender, Role)**   
+
+These filters operate on controlled enumerations and structured domain characteristics:  
+- **Gender (MALE / FEMALE / OTHERS)** — Parsed and validated through ParsingEnumUtils.getParsedEnumType, ensuring type-safe input. Results are fetched using `findByGender(...)`.
+- **Role (GUESR / USER)** — Follows the same enum-validation pipeline before querying backend data via `findByRole(...)`.    
+
+**5. Response Structure**  
+
+Upon successful processing, the API returns an HTTP **200 OK** response using the `ManagementAppUserDataDto`. This DTO provides a consolidated administrative view of each passenger, enriched with their booking activity to support audits, behavioral analysis, and system-wide monitoring. The payload is encapsulated within `ApiPageResponse` to include pagination metadata, ensuring smooth table rendering and scalable navigation across large passenger datasets.  
+
+**Response Includes (via `ManagementAppUserDataDto`):**  
+- **PassengerInfo**  Delivers the complete administrative identity profile of the passenger. It includes core user attributes such as ID, name, email, mobile number, gender, and role, along with operational metadata like profile status (Completed / Pending), account creation timestamp, and the last profile update. Additionally, the DTO exposes `totalBookingsCount`, enabling administrators to quickly assess engagement levels, behavioral patterns, and historical activity.
+- **BookingInfo (List)**  Provides an optional, flattened view of the passenger’s booking history. Each entry contains essential booking attributes, including: ID, bus info, seat count, ticket & transaction identifiers, booking & payment statuses and finalCost. This offers administrators full traceability of a passenger’s travel activity, allowing them to analyze travel behavior, resolve disputes, verify payments, and perform fraud checks.  
+
+**Design Intent**  
+- The DTO is engineered to merge passenger identity data with booking-level insights, creating a **single, management-optimized response model** suitable for dashboards, audits, analytics, and support operations.
+- Its layered, modular design ensures clarity, extensibility, and forward compatibility — enabling future fields or metadata to be introduced with zero impact to existing consumers & avoid overexposure of internal booking models while still providing a complete operational snapshot.   
+
+
+#### 📤 Success Response  
+<details> 
+  <summary>View screenshot</summary>
+   ![Management Passenger's info View Success]()
+</details>   
+
+#### ❗ Error Response 
+> Invalid pagination inputs  
+<details> 
+  <summary>View screenshot</summary>
+   ![Management Passenger's info View Error]()
 </details>  
 
+> Invalid Keyword Format    
+<details> 
+  <summary>View screenshot</summary>
+   ![Management Passenger's info View Error]()
+</details> 
+
+> Unauthorized Access     
+<details> 
+  <summary>View screenshot</summary>
+   ![Management Passenger's info View Error]()
+</details>  
+
+#### 📊 HTTP Status Code Table  
+| Code    | Status       | Meaning           | When Triggered             |
+| ------- | ------------ | ----------------- | -------------------------- |
+| **200** | OK           | Success           | Valid query, data returned |
+| **400** | BAD_REQUEST  | Validation failed | Invalid pagination/keyword |
+| **404** | NOT_FOUND    | No results        | Page empty / no matches    |
+| **401** | UNAUTHORIZED | Auth failure      | Token missing/invalid      |
+| **403** | FORBIDDEN    | Access denied     | Non-admin access           |
+
+#### ⚠️ Edge Cases & Developer Notes  
+
+**1. Deterministic Prefix Architecture & Collision-Free Identity Namespace**    
+- The passenger search engine employs an explicitly segmented, prefix-governed namespace (id_, mobile_, email_, user_, gender, role). Each prefix corresponds to a uniquely isolated execution branch, guaranteeing that a keyword is never reinterpreted across multiple domains.
+- Regex-bound namespace validation ensures malformed postfixes (e.g., id_xyz, mobile_12345abc, user_John#, invalid enum names) are rejected before routing, preventing accidental overlap between search channels.
+- This deterministic design eliminates **multi-branch collisions**, ambiguous parsing, and fall-through logic. Even under complex or near-collision input patterns, the engine consistently resolves **exactly one search path**, ensuring predictable behavior for audits, dashboards, and operational analytics.  
+
+**2. Numeric, Textual & Semantic Validation Integrity**  
+
+All identity fields undergo strict validation to protect repository layers and preserve input correctness:  
+- **ID values** must be strictly positive integers; zero, negatives, or alphanumeric hybrids are rejected.
+- **Mobile numbers** are validated against a hardened India-format regex (starts with 6/7/8/9, fixed 10 digits), eliminating partial numbers and carrier-invalid sequences.
+- **Email addresses** are enforced through RFC-compliant patterns to prevent syntactic drift and ensure canonical match behavior.
+- **User names** follow a controlled character policy (alphabets + spaces), avoiding injection vectors, numeric contamination, and symbolic noise.
+- **Enum-based fields** (gender, role) undergo typed parsing to ensure semantic correctness and case-normalized consistency.  
+
+Invalid inputs trigger immediate **400 BAD_REQUEST**, guaranteeing that malformed data never reaches repository execution or indexing layers.   
+
+**3. Deterministic Repository Resolution & Query-Path Stability**  
+
+The entire filtering engine follows a **one-prefix → one-branch → one-repository-method** execution model. There are no dynamic predicates, reflection-based resolvers, or runtime-generated specifications. This ensures:  
+- Strictly stable repository invocation
+- Index-aligned lookups
+- No accidental full-table scans
+- Fully traceable query paths for audits  
+
+Branch isolation guarantees that once a prefix validates, no secondary rule can override, reinterpret, or mutate the selected query semantics. Invalid formats fail during preprocessing, before any database interaction, protecting both performance and backend observability.   
 
 
+**4. DTO Data Exposure Boundaries, Privacy Discipline & Schema Abstraction**  
+
+`ManagementAppUserDataDto` is intentionally hardened to expose only high-level administrative attributes:  
+- No passwords
+- No token metadata
+- No internal audit columns
+- No database identifiers or relational wiring
+- No persistence-layer structures  
+
+The DTO provides only what administrators require: passenger identity, profile metadata, booking summaries, and operationally relevant fields. This prevents schema leakage, protects sensitive identity information, and maintains a stable contract even as internal entity structures evolve.  
+
+**5. Defensive Error Modeling & Safe Failure Boundaries**  
+
+All failure responses are designed to be:  
+- Explicit about the user-facing cause.
+- Free from internal stack traces
+- Context-aware (e.g., invalid page index, missing passenger ID, malformed email)
+- Aligned with REST semantics (400 vs 404 vs 200)  
+
+This ensures clients receive actionable feedback without revealing backend method names, SQL constructs, or exception internals. Such guards prevent debugging noise, reduce support overhead, and maintain strong operational safety under erroneous inputs.  
+
+
+**6. Extensible, Modular & Future-Proof Filter Architecture**  
+
+The filtering design is intentionally modular:  
+- Adding a new search capability requires **one prefix, one validation rule, one isolated branch**, and **one repository method**.
+- No existing logic is affected, because namespace boundaries are **collision-free and deterministic**.
+- DTO expansion is forward-compatible, allowing additional fields or **nested metadata** without breaking current consumers.   
+
+This architecture supports long-term scalability, predictable maintenance, and enterprise-level observability—ensuring the system remains resilient as new search patterns, roles, or administrative insights evolve.   
+</details>    
+
+
+### 🧾 29. View Bus Statistics (Management View — Paginated, Filterable & Bus Performance Report)  
+
+<details>  
+  <summary><strong>GET</strong> <code>/management/stats/buses</code></summary>
+
+#### 🛠 Endpoint Summary   
+**Method:** GET  
+**URL:** /management/stats/buses    
+**Authorized Roles:** Management/ADMIN    
+**Authentication:** JWT Required (See **“Authentication & JWT Usage”** in Technical Architecture)   
+
+#### 📝 Description  
+
+This API is the authoritative management-level reporting endpoint for the Bus module. It provides comprehensive statistical insights for all buses within a given date range, including operational usage and financial metrics. Specifically, it aggregates:  
+ - Total bookings per bus
+ - Total revenue per bus
+ - Occupancy percentage (% of seats booked)
+ - Availability percentage (% of seats unbooked)   
+
+ Designed for management dashboards, financial audits, and operational analysis, this API serves as the **single source of truth** for Bus module performance. The API leverages a **JOIN query on the Bus and Booking entities** in the repository layer to efficiently compute aggregated statistics directly in the database. This ensures high performance even for large datasets and eliminates the need for costly in-memory calculations at the service layer.   
+
+The design intentionally calculates percentages, counts, and sums **at the repository/JPQL level**, because the Booking entity contains transactional data (`finalCost`, `bookedAt`), whereas the Bus entity contains static metadata (`capacity`, `availableSeats`). This approach allows precise, atomic aggregation and avoids DTO mapping inconsistencies. By returning a structured `BookedBusReportDto`, the API exposes exactly the fields management needs, without overexposing internal entities, maintaining both performance and security.  
+
+Key Features:  
+ - **Date-based filtering:** Fetch statistics within a `startDate` and `endDate` window.
+ - **Category filtering (AC / Non AC):** Allows segmentation of buses by AC type for operational analysis.
+ - **Full pagination support** using `PaginationRequest` and `ApiPageResponse` utility classes.
+ - **Multi-field sorting** (`totalBookings`, `totalRevenue`, `occupancy`, `availability`).
+ - **Repository-level aggregation:** `COUNT`, `SUM`, and `FLOOR` computations are executed in **JPQL queries** for deterministic performance.
+ - **Typed DTO mapping:** Manual constructor ensures computed fields (percentages, sums) are correctly set.
+ - **Strict validation:** Dates, pagination, sorting, and category inputs are validated for correctness.    
+
+#### 🔍 Query & Filter Logic Summary   
+
+**1. Default Mode — No Category Specified**   
+
+When no `category` is provided, the API retrieves all buses with bookings made between `startDate` and `endDate`.
+- Pagination and sorting are applied via PaginationRequest.
+- Repository method executed: `findByBookedBusData(startDate, endDate, pageable)`
+- The query performs JOIN operations between **Bus** and **Booking**, computing aggregated metrics such as:
+    - `totalBookings` → `COUNT(bk.id)`
+    - `totalRevenue` → `SUM(bk.finalCost)`
+    - `occupancy`% and `availability`% derived from bus capacity and booked seats
+- Results are projected directly into `BookedBusReportDto` for a lightweight, structured response.
+- If the result page has no entries → **404 NOT_FOUND**.  
+
+**2. Category-Driven Mode — AC / Non-AC Filtering**  
+
+When a `category` is absent, the value is strictly validated against the `AcType` enum using `ParsingEnumUtils.getParsedEnumType`. if any Invalid values → **400 BAD_REQUEST**.  
+
+Upon successful validation:
+- Repository method executed: `findBookedBusReportByAcType(startDate, endDate, acType, pageable)`.
+- Aggregation logic remains identical to Default Mode, but restricted to the specified AC type.
+- If the filtered page has no data → **404 NOT_FOUND** with clear category context.  
+
+This guarantees predictable, partitioned query paths without dynamic branching or ambiguous routing.  
+
+**Supported Keyword & Patterns**  
+|    Pattern          | Meaning                      | Example                                    |
+| ------------------- | ---------------------------- | ------------------------------------------ |
+| **startDate RegEx** | Valid date formats only      | `2024-11-10` / `10-11-2024` / `10/11/2024` |
+| **endDate RegEx**   | Valid date formats only      | `2024-12-01` / `10-11-2024` / `10/11/2024` |
+| **AC_Type RegEx**   | AC type domain (AC / NON_AC) | `AC`, `NON_AC`                             |  
+
+
+
+#### 📥 Query Parameters  
+|   Parameter   | Type    | Default       | Description                                                                  | Required |
+| ------------- | ------- | ------------- | ---------------------------------------------------------------------------- | -------- |
+| **page**      | Integer | 1             | Page index (must be ≥ 1)                                                     | No       |
+| **size**      | Integer | 10            | Page size (must be ≥ 1)                                                      | No       |
+| **sortBy**    | String  | `totalBookings` | Sorting field. Allowed: `totalBookings`, `totalRevenue`, `occupancy, `availability` | No |
+| **sortDir**   | String  | `DESC`          | Sorting direction: `ASC` or `DESC`                                               | No |
+| **startDate** | String  | –             | Start date of booking window (05-12-2025 or 05/12/2025 or 2025-12-05)        | No       |
+| **endDate**   | String  | –             | End date of booking window (05-12-2025 or 05/12/2025 or 2025-12-05)          | No       |
+| **category**  | String  | –             | Bus AC type filter case-insensitive (`AC` or `Non AC`)                       | No       |
+
+
+#### ⚙️ Backend Processing Flow  
+
+**1. Centralized Input & Pagination Validation**  
+
+All request-driven structural inputs—`page`, `size`, `sortBy`, `sortDir`—are validated through `PaginationRequest.getRequestValidationForPagination()`, which performs:
+ - Boundary validation on `page`/`size`.
+ - Whitelisting of allowed sorting fields (`totalBookings`, `totalRevenue`, `occupancy`, `availability`).
+ - Strict direction enforcement (`ASC`/`DESC`).
+ - Prevention of illegal or injection-prone sort values.
+
+Any violation triggers **400 BAD_REQUEST**, before the system ever reaches service or repository layers.
+This ensures both safety and deterministic pagination behaviour.   
+
+**2. Temporal Input Integrity & Strict Date Normalization**  
+
+Date inputs (`startDate`, `endDate`) undergo a two-stage validation pipeline:  
+
+**A. Syntactic & Format Screening**  
+
+`RequestParamValidationUtils.listOfErrors()` validates both date strings from the request. It detects:
+- Missing start or end date
+- Both dates missing
+- Malformed formats using centralized regex pattern.
+- Non-parseable date strings (not matching the allowed patterns)
+
+This method returns a list of descriptive error messages based on the issues found.  
+
+**B. Logical Parsing and Canonicalization**  
+
+`DateParser.getBothDateTime()` converts raw strings into normalized LocalDateTime objects, internally handling:
+- Strict parsing against supported patterns.
+- Validation of chronological boundaries.
+- Rejection of ambiguous or invalid date combinations.  
+
+Any parsing deviation yields **400 BAD_REQUEST** with precise diagnostic messaging. Only canonicalized dates progress to the service layer.  
+
+**3. Optional Category (AC / NON_AC) Validation**  
+If a category filter is provided:
+- It is first matched against `RegExPatterns.AC_TYPE_REGEX`.  
+- Then mapped into the typed `AcType` enum using `ParsingEnumUtils.getParsedEnumType()`  
+
+Invalid semantic or syntactic values fail early with 400 BAD_REQUEST, guaranteeing that only valid AC types reach repository query generation. This prevents malformed predicates and ensures stable query selection.    
+
+**4. Deterministic Repository Execution & Inline Aggregation**   
+
+Once validation succeeds, the service resolves a **single deterministic repository path** based on the presence of the category filter:  
+- **Default Execution Path — No Category** — `findByBookedBusData(startDate, endDate, pageable)` This method retrieves all buses with bookings inside the provided date range and computes their aggregated statistics.
+- **Category-Specific Execution Path** — `findBookedBusReportByAcType(startDate, endDate, acType, pageable)` This variant applies an additional predicate on b.acType, ensuring the results are segmented by the requested bus category.  
+
+**Database-Level Aggregation & JOIN Strategy**  
+Both repository methods share the same analytical structure:   
+- **Explicit JOINs** between `Bus` and its associated `Booking` records.
+- **Inline computation** of statistical metrics:
+   - `COUNT(bk.id)` → total bookings
+   - `SUM(bk.finalCost)` → total revenue
+   - occupancy percentage based on `(capacity - availableSeats)`
+   - availability percentage based on `availableSeats`  
+- **GROUP BY** applied at the bus level to ensure accurate roll-ups.
+- **Constructor-based projection** into `BookedBusReportDto` for immediate shaping of the response payload.  
+
+This design ensures that all heavy computation occurs directly inside the database, producing:
+- Minimal memory usage in the service layer.
+- Stable performance even under high data volumes.
+- Predictable query execution paths without runtime dynamic filtering.    
+
+As a result, the service receives a **fully aggregated, analytics-ready dataset** that requires no further transformation.   
+
+**5. Service-Layer Result Construction & Page-Oriented Semantics**  
+The service transforms the query results into an `ApiPageResponse`, encapsulating: aggregated DTO results (by using mapper), total pages, total elements, current page index, page size, first-page / empty-state flags.   
+
+A page with no content results in a **404 NOT_FOUND**, with contextual messaging (e.g., “page 3”, “given category”). This ensures precise feedback for UI analytics dashboards and pagination-driven clients.  
+
+**6. Controller-Level Response Orchestration**  
+The controller consolidates all upstream validations and service results into consistent HTTP outputs:  
+- **200 OK** for successful analytics retrieval.
+- **400 BAD_REQUEST** for validation or semantic failures.
+- **404 NOT_FOUND** for valid requests that contain no data.  
+
+Responses are delivered via the unified `ApiResponse` format, ensuring consistent structure across the system's management endpoints.   
+
+
+#### 📤 Success Response  
+<details> 
+  <summary>View screenshot</summary>
+   ![Management Bus Stats info View Success]()
+</details>   
+
+#### ❗ Error Response 
+> Invalid pagination inputs  
+<details> 
+  <summary>View screenshot</summary>
+   ![Management Bus Stats info View Error]()
+</details>  
+
+> Invalid/Malformed Date Format
+<details> 
+  <summary>View screenshot</summary>
+   ![Management Bus Stats info View Error]()
+</details> 
+
+> Invalid Category (not AC/NON_AC)     
+<details> 
+  <summary>View screenshot</summary>
+   ![Management Bus Stats info View Error]()
+</details>  
+
+> Unauthorized Access     
+<details> 
+  <summary>View screenshot</summary>
+   ![Management Bus Stats info View Error]()
+</details>  
+
+> Non-admin Access     
+<details> 
+  <summary>View screenshot</summary>
+   ![Management Bus Stats info View Error]()
+</details>  
+
+#### 📊 HTTP Status Code Table  
+|   Code   | Status       | Meaning                     | When Triggered                                 |
+| -------- | ------------ | --------------------------- | ---------------------------------------------- |
+| **200**  | OK           | Data successfully retrieved | Valid request, non-empty page                  |
+| **400**  | BAD_REQUEST  | Validation failed           | Invalid page, sortBy, sortDir, category, date  |
+| **404**  | NOT_FOUND    | No data found               | Empty page / no buses in date range / category |
+| **401**  | UNAUTHORIZED | JWT token missing/invalid   | Authentication failure                         |
+| **403**  | FORBIDDEN    | Access denied               | Non-admin access                               |
+
+
+#### ⚠️ Edge Cases & Developer Notes  
+
+**1. Strict Pagination, Sorting, and Metric-Safety Enforcement**  
+
+This API uses `PaginationRequest.getRequestValidationForPagination(...)` to validate page, size, sort field, and sort direction before any query is executed. Key protections include:
+- `sortBy` restricted to **metrics only** (`totalBookings`, `totalRevenue`, `occupancy`, `availability`).
+- Prevents sorting on non-aggregated columns, which would otherwise break **JPQL constructor** queries.
+- Rejects invalid sorting direction (only `ASC`/`DESC`).
+- Avoids malformed page/size values that could trigger large-offset scans.
+
+ These checks eliminate accidental high-cost queries and maintain deterministic repository behavior.  
+
+ **2. Hardened Date Validation & Range Normalization**  
+ 
+ Requested date inputs (`startDate`, `endDate`) pass through two independent validation layers:  
+ 1. **Syntactic checks** via `RequestParamValidationUtils.listOfErrors()` to perform basic validation for the requested input String.
+ 2. **Semantic parsing** via `DateParser.getBothDateTime()` → validate & parse the requested String date to precise `LocalDateTime`.   
+
+This prevents:   
+- Invalid date formats.
+- Logically reversed date ranges.
+- Missing/partial dates.
+- Database full-scan scenarios caused by NULL or malformed parameters.  
+
+Errors are returned with **exact cause messages**, ensuring clarity during client-side debugging.   
+
+**3. Controlled Category Filtering & Enum Parsing Fail-Safe**  
+
+If a category (Ac / Non Ac) is provided, the system applies:
+- Centralized regex pattern `AC_TYPE_REGEX` for structural validation.
+- Then using enum parsing utils `ParsingEnumUtils.getParsedEnumType()` for enum-level safety.
+- This prevents:
+    - Case mismatches
+    - Invalid AC categories
+    - String injection attempts
+    - Query corruption from uncontrolled predicates   
+
+Any deviation results in an immediate **400 BAD_REQUEST**, before repository execution.   
+
+**4. Deterministic Repository Resolution — Zero Ambiguity**  
+
+The service enforces a **single, unambiguous execution path:**  
+- Without category → `findByBookedBusData(...)`
+- With valid category → `findBookedBusReportByAcType(...)`  
+
+This guarantees: 
+ - No fallback logic.
+ - No multi-branch evaluation.
+ - No dynamic query building.   
+
+**5. Database-Driven Aggregation & High-Volume Performance Stability**    
+
+Both repository queries:  
+- Used JOIN `Bus` ↔ `Booking` to perform at DB level.
+- Compute **COUNT, SUM**, and percentage math inside the DB.
+- Use **constructor-based projection** to return `BookedBusReportDto` directly.
+ 
+This design prevents:
+    - High-memory dataset processing in the service layer.
+    - Repeated hydration of full entity graphs.
+    - Unnecessary streaming or filtering in Java.   
+
+The DB returns a **fully aggregated, lightweight dataset**, optimized for dashboard-scale analytics.
+
+**6. DTO Privacy & Controlled Exposure**    
+
+I designed this DTO: `BookedBusReportDto` that exposes only computed operational metrics:
+- No entity identifiers beyond what is required.
+- No internal audit fields.
+- No relationships or sensitive attributes.
+- No raw capacity or available seat counts.  
+
+All percentages are formatted (`"75%"`), ensuring a **clean, management-ready response** without leaking structural or relational metadata.     
+
+**7. Predictable Error Modeling & Zero Internal Leakage**   
+
+Every failure—pagination, date parsing, category validation, repository NOT_FOUND—returns:
+- Structured `ApiResponse`
+- Domain-readable messages
+- **No stack traces**
+- **No repository or SQL hints**   
+
+This keeps operational logs clean and prevents accidental exposure of internal behavior to API consumers.  
+</details>   
+
+### 🧾 30. View Passengers Statistics (Management View — Paginated, Filterable & Passenger Report)  
+
+<details> 
+  <summary><strong>GET</strong> <code>/management/stats/passengers</code></summary>  
+
+#### 🛠 Endpoint Summary   
+**Method:** GET  
+**URL:** /management/stats/passengers      
+**Authorized Roles:** Management/ADMIN    
+**Authentication:** JWT Required (See **“Authentication & JWT Usage”** in Technical Architecture)   
+
+#### 📝 Description  
+
+This API serves as the definitive management-level reporting endpoint for the **Passenger / AppUser module**. It provides a comprehensive, per-user statistical view of booking activity within a specified date range, aggregating:  
+- Total bookings (`totalBookings`)
+- Total revenue generated (`totalRevenue`)
+- Most recent booking timestamp (`recentBookedAt`)
+
+Additionally, the API supports optional **gender** and **role** filters, allowing management to segment users by demographic or user type (e.g., Guest vs User, Male vs Female).    
+
+Designed for dashboards, operational audits, and executive oversight, the API ensures a **single source of truth** for passenger-level booking analytics. Data aggregation occurs directly in the repository via **JPQL constructor projections** (`BookedAppUserReportDto`) on the `AppUser` and `Booking` entities, providing:   
+- **Deterministic, high-performance aggregation** without memory-intensive service-layer processing.
+- **Accurate computation** of total bookings, revenue, and latest booking timestamp.
+- **Separation of entity internals** from API-facing DTOs.
+- **Safe, strict filtering** by gender and role through enum validation.  
+
+The API fully supports **pagination** and **multi-field sorting**, ensuring scalable, real-time analytics across thousands of passengers while maintaining consistent UI behavior.  
+
+Key Features:  
+- **Date-based filtering:** Retrieve statistics within `startDate` and `endDate`
+- **Optional demographic filters:** Filter by `gender` and/or `role`.
+- **Full pagination & sorting:** Powered by `PaginationRequest` and `ApiPageResponse`
+- **Repository-level aggregation:** `COUNT`, `SUM`, `MAX` executed via **JPQL for deterministic performance**.
+- **Sorting fields:** Includes `totalBookings`, `totalRevenue`, `recentBookedAt`.
+- **DTO mapping:** `BookedAppUserReportDto` provides formatted, lightweight output.
+- **Strict validation:** Enforces correct dates, pagination, sorting, gender, and role inputs.
+- **Robust error handling:** Clear messaging for empty results or invalid input.    
+
+#### 🔍 Search & Filter Logic Summary  
+
+**1. Default Mode — No Gender / Role Provided**  
+
+When no other filters were provided, the API retrieves all passengers with bookings made between `startDate` and `endDate`.
+- Pagination and sorting are applied via `PaginationRequest`.
+- Repository method executed: `findByBookedAppUserData(startDateTime, endDateTime, pageable)`
+- The query performs JOIN operations between `AppUser` and `Booking`, computing aggregated metrics such as:
+    - `totalBookings → COUNT(bk.id)`
+    - `totalRevenue → SUM(bk.finalCost)`
+    - `recentBookedAt → MAX(bk.bookedAt)`
+- Results are projected directly into `BookedAppUserReportDto` for a lightweight, structured response.
+- If the result page has no entries → **404 NOT_FOUND**.  
+
+**2. Category-driven Mode — Gender & Role-based Search Engine**   
+
+**Supported Prefixes & Regex Patterns**   
+| Pattern / Prefix | Meaning         | Example                    |
+| ---------------- | --------------- | -------------------------- |
+| **Gender Regex** | Passenger Gender| `MALE`, `FEMALE`           |
+| **Role Regex**   | Passenger Role  | `USER`, `GUEST`            |  
+
+#### 📥 Query Parameters  
+|   Parameter   | Type    | Default       | Description                                                           | Required |
+| ------------- | ------- | ------------- | --------------------------------------------------------------------- | -------- |
+| **page**      | Integer | 1             | Page index (must be ≥ 1)                                              | No       |
+| **size**      | Integer | 10            | Page size (must be ≥ 1)                                               | No       |
+| **sortBy**    | String  | `totalBookings` | Sorting field. Allowed: `totalBookings`, `totalRevenue`, `recentBookedAt`   | No       |
+| **sortDir**   | String  | `DESC`          | Sorting direction: `ASC` or `DESC`                                        | No       |
+| **startDate** | String  | –             | Start date of booking window (05-12-2025 or 05/12/2025 or 2025-12-05) | No       |
+| **endDate**   | String  | –             | End date of booking window (05-12-2025 or 05/12/2025 or 2025-12-05)   | No       |
+| **gender**    | String  | –             | Optional gender filter: `male` / `female`                                 | No       |
+| **role**      | String  | –             | Optional role filter: `USER` / `GUEST`                                    | No       |
+
+
+
+
+
+
+
+
+
+
+  
+</details> 
 
 
