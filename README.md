@@ -5557,7 +5557,8 @@ This method returns a list of descriptive error messages based on the issues fou
 
 Any parsing deviation yields **400 BAD_REQUEST** with precise diagnostic messaging. Only canonicalized dates progress to the service layer.  
 
-**3. Optional Category (AC / NON_AC) Validation**  
+**3. Optional Category (AC / NON_AC) Validation**   
+
 If a category filter is provided:
 - It is first matched against `RegExPatterns.AC_TYPE_REGEX`.  
 - Then mapped into the typed `AcType` enum using `ParsingEnumUtils.getParsedEnumType()`  
@@ -5571,6 +5572,7 @@ Once validation succeeds, the service resolves a **single deterministic reposito
 - **Category-Specific Execution Path** — `findBookedBusReportByAcType(startDate, endDate, acType, pageable)` This variant applies an additional predicate on b.acType, ensuring the results are segmented by the requested bus category.  
 
 **Database-Level Aggregation & JOIN Strategy**  
+
 Both repository methods share the same analytical structure:   
 - **Explicit JOINs** between `Bus` and its associated `Booking` records.
 - **Inline computation** of statistical metrics:
@@ -5589,6 +5591,7 @@ This design ensures that all heavy computation occurs directly inside the databa
 As a result, the service receives a **fully aggregated, analytics-ready dataset** that requires no further transformation.   
 
 **5. Service-Layer Result Construction & Page-Oriented Semantics**  
+
 The service transforms the query results into an `ApiPageResponse`, encapsulating: aggregated DTO results (by using mapper), total pages, total elements, current page index, page size, first-page / empty-state flags.   
 
 A page with no content results in a **404 NOT_FOUND**, with contextual messaging (e.g., “page 3”, “given category”). This ensures precise feedback for UI analytics dashboards and pagination-driven clients.  
@@ -5799,23 +5802,225 @@ When no other filters were provided, the API retrieves all passengers with booki
 | ------------- | ------- | ------------- | --------------------------------------------------------------------- | -------- |
 | **page**      | Integer | 1             | Page index (must be ≥ 1)                                              | No       |
 | **size**      | Integer | 10            | Page size (must be ≥ 1)                                               | No       |
-| **sortBy**    | String  | `totalBookings` | Sorting field. Allowed: `totalBookings`, `totalRevenue`, `recentBookedAt`   | No       |
-| **sortDir**   | String  | `DESC`          | Sorting direction: `ASC` or `DESC`                                        | No       |
+| **sortBy**    | String  | `totalBookings` | Sorting field. Allowed: `totalBookings`, `totalRevenue`, `recentBookedAt`| No |
+| **sortDir**   | String  | `DESC`          | Sorting direction: `ASC` or `DESC`                                  | No |
 | **startDate** | String  | –             | Start date of booking window (05-12-2025 or 05/12/2025 or 2025-12-05) | No       |
 | **endDate**   | String  | –             | End date of booking window (05-12-2025 or 05/12/2025 or 2025-12-05)   | No       |
-| **gender**    | String  | –             | Optional gender filter: `male` / `female`                                 | No       |
-| **role**      | String  | –             | Optional role filter: `USER` / `GUEST`                                    | No       |
+| **gender**    | String  | –             | Optional gender filter: `male` / `female`                                 | No   |
+| **role**      | String  | –             | Optional role filter: `USER` / `GUEST`                                    | No   |  
+
+#### ⚙️ Backend Processing Workflow    
+
+**1. Centralized Pagination & Structural Input Validation**  
+
+All pagination-related request parameters—**page, size, sortBy, sortDir**—are validated upfront using `PaginationRequest.getRequestValidationForPagination()`. This validation enforces:   
+ - Lower-bound rules for `page ≥ 1` and `size ≥ 1`.
+ - Whitelisted sortable fields: `totalBookings`, `totalRevenue`, `recentBookedAt`.  
+ - Strict sorting direction: `ASC` / `DESC` only.
+ - Rejection of malformed, non-whitelisted, or injection-prone sort inputs.    
+
+Any violation results in an immediate **400 BAD_REQUEST**, ensuring:  
+- Predictable and safe query generation.
+- Protection from invalid sorting fields.
+- Guaranteed structural integrity before reaching service/repository layers.   
+
+**2. Date Input Integrity & Strict Two-Phase Validation**  
+
+Date parameters (`startDate`, `endDate`) undergo a dual-stage verification pipeline.  
+
+**A. Syntactic Date Screening (Format Layer)**  
+
+`RequestParamValidationUtils.listOfErrors(startDate, endDate)` utiliy performs:
+- Check for missing start or end dates.
+- Detection of both dates missing.
+- Regex-based validation of allowed formats.
+- Identification of malformed or unparsable date strings.  
+
+If any issues are found, a descriptive list of error messages is returned with **400 BAD_REQUEST**.  
+
+**B. Semantic Parsing & Canonical Normalization (Logic Layer)**  
+
+`DateParser.getBothDateTime()` utiliy converts accepted date strings into strict `LocalDateTime` objects by:  
+- Parsing using supported patterns (DD-MM-YYYY / DD/MM/YYYY / YYYY-MM-DD)
+- Validating chronological correctness  
+- Producing canonical timestamps:  
+    - `startDateTime → 00:00:00`
+    - `endDateTime → 23:59:59`  
+- Rejecting ambiguous, invalid, or semantically incorrect combinations.  
+ 
+Any failure triggers **400 BAD_REQUEST** with precise diagnostic details.
+Only fully normalized timestamps proceed to the service layer.   
+
+**3. Optional Gender / Role Input Validation**  
+
+If filters such as` gender` or `role` are provided, they are validated through:  
+1. Regex-based structural check
+2. Enum parsing via `ParsingEnumUtils.getParsedEnumType()`  
+
+Invalid values—whether syntactic or semantic—produce a **400 BAD_REQUEST**, preventing:    
+- Case inconsistencies
+- Unexpected literals
+- Injection or malformed predicate generation  
+
+This guarantees only valid domain-enforced filter values participate in query construction.  
+
+**4. Deterministic Repository Method Resolution & Inline Aggregation**  
+
+Based on the presence of gender and role, the service selects a single deterministic query path:  
+| Provided Filters | Repository Method                          |
+| ---------------- | ------------------------------------------ |
+| none             | `findByBookedAppUserData()`                |
+| gender only      | `findByBookedAppUserDataByGender()`        |
+| role only        | `findByBookedAppUserDataByRole()`          |
+| gender + role    | `findByBookedAppUserDataByGenderAndRole()` |  
+
+**Database-Level Aggregation (JPQL)**  
+
+All analytical computations are executed inside the database using optimized JPQL:  
+- `COUNT(bk.id)` → total bookings
+- `SUM(bk.finalCost)` → total revenue
+- `MAX(bk.bookedAt)` → most recent booking timestamp  
+
+These are applied using:  
+- Explicit `JOIN`s
+- `GROUP BY` at the user level
+- Constructor projections into `BookedAppUserReportDto`  
+
+Advantages of this implementation:  
+- Zero heavy lifting in Java.
+- No large in-memory operations.
+- No accidental N+1 issues.
+- High performance even at scale.
+- Fully analytics-ready dataset delivered to the service layer.   
+
+**5. Pagination-Aware DTO Assembly at the Service Layer**  
+- The service constructs an `ApiPageResponse<List<BookedAppUserReportDto>>` containing: Aggregated analytics DTO list, Total pages, Total elements, Current page index, Page size, First/empty page flags.
+- If the requested page contains no content, the service returns **404 NOT_FOUND** with contextual information (requested page number, applied filters).  
+
+**6. Unified Controller-Level Response Handling**  
+
+The controller standardizes all outgoing responses via `ApiResponse`, ensuring consistency across endpoints:
+- **200 OK** — Successful analytics retrieval
+- **400 BAD_REQUEST** — Validation or semantic errors
+- **404 NOT_FOUND** — Valid request but no matching records
+- **401 / 403** — Authentication or authorization failures  
+
+This guarantees predictable, uniform, and client-friendly response structures across all analytics and reporting endpoints.  
 
 
+#### 📤 Success Response  
+<details> 
+  <summary>View screenshot</summary>
+   ![Management Passenger Stats info View Success]()
+</details>   
 
+#### ❗ Error Response 
+> Invalid pagination inputs  
+<details> 
+  <summary>View screenshot</summary>
+   ![Management Passenger Stats info View Error]()
+</details>  
 
+> Invalid/Malformed Date Format
+<details> 
+  <summary>View screenshot</summary>
+   ![Management Passenger Stats info View Error]()
+</details> 
 
+> Invalid `gender` or `role` input     
+<details> 
+  <summary>View screenshot</summary>
+   ![Management Passenger Stats info View Error]()
+</details>  
 
+> Unauthorized Access     
+<details> 
+  <summary>View screenshot</summary>
+   ![Management Passenger Stats info View Error]()
+</details>  
 
+#### 📊 HTTP Status Code Table  
+|   Code   | Status       | Meaning                     | When Triggered                                 |
+| -------- | ------------ | --------------------------- | ---------------------------------------------- |
+| **200**  | OK           | Data successfully retrieved | Valid request, non-empty page                  |
+| **400**  | BAD_REQUEST  | Validation failed           | Invalid page, sortBy, sortDir, category, date  |
+| **404**  | NOT_FOUND    | No data found               | Empty page / no buses in date range / categories |
+| **401**  | UNAUTHORIZED | JWT token missing/invalid   | Authentication failure                         |
+| **403**  | FORBIDDEN    | Access denied               | Non-admin access                               |  
 
+#### Edge Cases & Developer Notes  
 
+**1. Booking Absence Does Not Prevent User Inclusion Before Aggregation**  
 
-  
+When the query window is extremely narrow or the system contains users with intermittent booking activity, the JPQL join returns only users who have at least one booking in the given date range. Users with:  
+- No bookings
+- Cancelled-only bookings
+- Bookings outside the date range   
+
+are **automatically excluded** by the database `JOIN`. This is an intentional design choice but must be considered when modifying the query structure in future versions.  
+
+**2. SUM and MAX Aggregation Null Behavior**  
+
+The following DB rules apply:   
+- `COUNT()` never returns null
+- `SUM()` returns null if all booking rows are null (rare, but possible in legacy datasets)
+- `MAX()` on an empty set would normally be null, but empty sets are filtered out by virtue of the join  
+
+In the event metadata changes or future developers modify the query structure (e.g., LEFT JOIN), these null propagation rules become critical and can break the DTO constructor.  
+
+**3. Enum Regex and Enum Parsing Must Remain Synchronized**  
+
+`GENDER_REGEX` and `ROLE_REGEX` must always reflect the actual enum values. If future developers add enum constants such as:
+ - **Gender** → `OTHER`
+ - **Role** → `SUPER_ADMIN`, SYSTEM_ADMIN, etc...
+
+When fail to update the regex patterns:
+- valid enum values will be rejected.
+- service will throw BAD_REQUEST for correct input.
+- query methods may become unreachable.   
+
+This is a high-risk maintenance point. This is where I built centralized utils for regEx, **One place update -> reflect overall**.    
+
+**4. Ambiguous Date Boundaries Around Midnight Transitions**     
+
+`startDate` is locked to **00:00:00**  
+`endDate` is locked to **23:59:59**  
+
+Edge-case implications:  
+- If bookings occur exactly at midnight (00:00), inclusive boundaries work correctly.
+- If bookings occur a few milliseconds after the window (e.g., 00:00:00.500), precision may vary depending on DB rounding.
+- Systems using timestamps with higher granularity (microseconds) may technically include or exclude boundary rows unpredictably if the DB stores micro/milli precision.   
+
+Developers modifying timestamp resolution must verify DB precision consistency.   
+
+**5. High-Load / Large Range Query Considerations**  
+
+When date ranges are extremely large (multiple years), the resulting `JOIN` can sweep millions of rows. Even though pagination limits returned results, the DB workload may grow significantly.  
+
+Developers should avoid:
+- Removing the date boundaries
+- Allowing null/missing dates in future versions
+- Converting `JOIN` to `LEFT JOIN` (will explode result size)   
+
+These changes can create performance regressions that are not immediately obvious.  
+
+**6. Repository Method Selection Must Not Overlap**  
+
+The four repository paths are mutually exclusive. If future developers introduce optional filters (age, state, city, etc.), they must avoid:  
+- Intersecting combinations
+- Ambiguous evaluation order
+- Fallback logic that bypasses proper filtering
+
+The current logic is deterministic by design and must remain so.     
+
+**7. User Deletion or Booking Soft-Delete Impact**    
+
+If soft-delete or hard-delete is added in the future:
+- Missing booking rows will cause downward revenue/bookings drift.
+- Soft-deleted users may produce inconsistent aggregated metrics.
+- Cascading deletes may reduce GROUP BY results in unpredictable ways  
+
+Deletion logic must explicitly account for analytics consistency.  
 </details> 
 
 
