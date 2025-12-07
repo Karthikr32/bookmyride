@@ -233,7 +233,7 @@ Key highlights:
 &nbsp;&nbsp;&nbsp; "username": "adm_bookmyride_1234",  
 &nbsp;&nbsp;&nbsp; "password": "BookMyRideAdmin@2025"  
 } 
-> 💡 Dummy Credentials (as configured in application.properties)  
+> 💡 Must Use This Dummy Credentials (as configured in application.properties) for Safe & Secure Login. 
 
 #### ⚙️ Backend Processing Workflow
 **1. DTO Validation**  
@@ -298,7 +298,7 @@ The API returns a **200 OK** response containing:
    ![Management Login Error]()
 </details>
 
-#### HTTP Status Code Table  
+#### 📊 HTTP Status Code Table  
 
 | HTTP Code | Status Name       | Meaning               | When It Occurs                                |
 | --------- | ----------------- | --------------------- | --------------------------------------------- |
@@ -434,7 +434,7 @@ Key highlights:
 </details>  
 
 
-#### HTTP Status Code Table
+#### 📊 HTTP Status Code Table
 | HTTP Code | Status Name           | Meaning               | When It Occurs                                    |
 | --------- | --------------------- | --------------------- | ------------------------------------------------- |
 | 200       | SUCCESS               | Request succeeded     | Profile updated successfully                      |
@@ -570,7 +570,7 @@ Key highlights:
 </details>  
 
 
-#### HTTP Status Code Table
+#### 📊 HTTP Status Code Table
 | HTTP Code | Status Name           | Meaning               | When It Occurs                       |
 | --------- | --------------------- | --------------------- | ------------------------------------ |
 | 200       | SUCCESS               | Request succeeded     | Password updated successfully        |
@@ -658,7 +658,7 @@ Key highlights:
   ![Management Profile view Error]()
 </details>  
 
-#### HTTP Status Code Table
+#### 📊 HTTP Status Code Table
 | HTTP Code | Status Name           | Meaning               | When It Occurs                       |
 | --------- | --------------------- | --------------------- | ------------------------------------ |
 | 200       | SUCCESS               | Request succeeded     | Profile loaded successfully          |
@@ -795,7 +795,7 @@ Key highlights:
 </details>
 
 
-#### HTTP Status Code Table
+#### 📊 HTTP Status Code Table
 | HTTP Code | Status Name           | Meaning               | When It Occurs                                        |
 | --------- | --------------------- | --------------------- | ----------------------------------------------------- |
 | 201       | CREATED               | Location created      | Successfully added new city/state/country combination |
@@ -988,7 +988,7 @@ Key highlights:
 </details>  
 
 
-#### HTTP Status Code Table  
+#### 📊 HTTP Status Code Table  
 | HTTP Code | Status Name           | Meaning               | When It Occurs                                   |
 | --------- | --------------------- | --------------------- | ------------------------------------------------ |
 | 201       | CREATED               | Locations created     | All entries successfully added                   |
@@ -1040,7 +1040,7 @@ Key highlights:
 </details>  
 
 
-### 🔍 7. View Location Records (Filter + Sorting + Pagination)
+### 🧾 7. View Location Records (Filter + Sorting + Pagination)
 <details> 
   <summary><strong>GET</strong> <code>/bookmyride/management/locations</code></summary>
   
@@ -1136,7 +1136,7 @@ This design delivers a **consistent, audit-ready, and future-proof response** th
    ![Location View Success]()
 </details>
 
-#### HTTP Status Code Table
+#### 📊 HTTP Status Code Table
 | HTTP Code | Status Name       | Meaning               | When It Occurs                                |
 | --------- | ----------------- | --------------------- | --------------------------------------------- |
 | 200       | SUCCESS           | Request succeeded     | Data found and returned successfully          |
@@ -1326,7 +1326,7 @@ If any other admin modified the location during update:
 </details>  
 
 
-#### HTTP Status Code Table
+#### 📊 HTTP Status Code Table
 | HTTP Code | Status Name       | Meaning               | When It Occurs                                |
 | --------- | ----------------- | --------------------- | --------------------------------------------- |
 | 200       | OK                | Request succeeded     | Data found and returned successfully          |
@@ -1763,7 +1763,7 @@ Key highlights:
 &nbsp;&nbsp;&nbsp; "fare": 650.00  
 }  
 > 💡 Departure time must strictly follow HH:mm:ss format.  
-> 💡 Tip: Substitute placeholders with your preferred values. But remember, My system will block entries that do not match its rules.  
+> 💡 Tip: Substitute placeholders with your preferred values. But remember, _**BookMyRide**_ will block entries that do not match its rules.  
 > 💡 Tip: For more info please refer the **BusDto class** under **dto package** in the application folder.  
 
 #### ⚙️ How the Backend Processes This  
@@ -6021,6 +6021,305 @@ If soft-delete or hard-delete is added in the future:
 - Cascading deletes may reduce GROUP BY results in unpredictable ways  
 
 Deletion logic must explicitly account for analytics consistency.  
+</details>   
+
+
+### ➕ 31. Management User Registration / Account Creation  
+<details> 
+  <summary><strong>POST</strong> <code>/auth/bookmyride/management/signup</code></summary>
+
+#### 🛠 Endpoint Summary   
+**Method:** POST    
+**URL:** /auth/bookmyride/management/signup      
+**Authorized Roles:** Management/ADMIN (Existing management-level authority only)   
+**Authentication:** JWT Required (See **“Authentication & JWT Usage”** in Technical Architecture)     
+
+#### 📝 Description  
+
+The **Management User Registration API** provides a controlled and secure mechanism for creating new **Management-level accounts (ADMIN role)** within the_ **BookMyRide**_ platform. This endpoint is restricted exclusively to existing `ADMIN` users, ensuring that only authorized personnel can provision additional management accounts. The design enforcing strict privilege boundaries and maintaining the security integrity of the management layer.   
+
+Unlike public signup flows, this endpoint:  
+- **Does NOT allow self-registration** by external users.
+- **It does not permit passengers either(USER or GUEST) users** to elevate themselves to management roles.
+- It enforces complete **credential segregation, preventing duplicate** identifiers across customer and management domains.
+- It automatically generates a **unique, system-assigned username** for every new management account.
+- It returns a **signed JWT token** upon successful creation, **granting immediate administrative access** to the newly onboarded management user.   
+
+To maintain operational security and guarantee administrative integrity, the endpoint incorporates several defensive security controls, including:   
+- UserPrincipal validation through `UserPrincipalValidationUtils`.
+- Cross-domain credential conflict detection to prevent namespace collisions with passenger accounts.
+- Enforcement of management-domain uniqueness and role constraints.
+- Strict validation of inbound request payloads.
+- Prevention of unauthorized privilege escalation attempts.  
+
+This ensures that only trusted administrators can bootstrap new management accounts and maintain the platform’s operational integrity.  
+
+Key Highlights:  
+ Management accounts in _**BookMyRide**_ represent **high-privilege system operators** responsible for overseeing:  
+ - Oversight of fleet operations.
+ - Maintain proper route system using `MasterLocation`.
+ - Management of the booking lifecycle.
+ - Handling of passenger escalations and support workflows.
+ - Adjustments to pricing, availability, and operational parameters.
+ - Onboarding and provisioning of additional management personnel.
+ - Routine system and platform maintenance.  
+
+This tightly controlled registration workflow ensures that administrative access remains secure, auditable, and reserved exclusively for trusted system operators, thereby safeguarding the operational integrity of the _**BookMyRide**_ ecosystem.    
+
+#### 📥 Request Body    
+{   
+&nbsp;&nbsp;&nbsp; "fullName": "Enter Management User Full Name",  
+&nbsp;&nbsp;&nbsp; "gender": "Enter Specified Gender",   
+&nbsp;&nbsp;&nbsp; "email": "Enter Email ID",  
+&nbsp;&nbsp;&nbsp; "mobile": "Enter Mobile Number",   
+&nbsp;&nbsp;&nbsp; "password": "StrongSecurePassword@123"  
+}   
+> 💡 Notes:  
+- Substitute placeholders with your preferred values. But remember, _**BookMyRide**_ will block entries that do not match its rules.
+- The `username` is **system-generated internally** using `UniqueGenerationUtils.getUsername(fullName)`.
+- Both email and mobile must be unique across both Management and AppUser layers.
+
+#### ⚙️ Backend Processing Flow  
+
+**1. Validate UserPrincipal (Security Enforcement Layer)**  
+
+The request must be made by an authenticated management user. An utility class `UserPrincipalValidationUtils.validateUserPrincipal(...)` performs some validation checks like:
+-  Token validation
+-  Existence check of the admin in DB
+-  Role enforcement (must be ADMIN)
+
+If any failures or any invalid then, immediately reject by returns **401, 404, or 403** with proper structure using `ApiResponse`.  
+
+**2. DTO Validation (Bean Validation Layer)**  
+
+Before processing a management account creation request, the incoming `ManagementSignUpDto` is validated against all active Bean Validation constraints. If the DTO fails any of these checks, the API responds with:  
+- **400 BAD_REQUEST**, and
+- A structured list of validation errors generated through `BindingResultUtils`.  
+
+The Bean Validation layer ensures that all input data adheres to the required format and semantic rules, including:  
+- **Mandatory field enforcement** to prevent incomplete or malformed requests.
+- **Email format validation** to guarantee syntactically correct and deliverable email addresses.
+- **Mobile number pattern** checks to enforce consistent and region-appropriate numbering structures.
+- **Gender field validation** to restrict the value to allowed domain-specific options.
+- **Password policy enforcement** (if defined in the DTO), ensuring compliance with minimum strength, length, or complexity rules.  
+
+This validation step provides an early-security and data-integrity boundary, ensuring that only fully compliant and sanitized data reaches the business logic layer.   
+
+**3. Cross-Domain Credential Conflict Check (AppUser Layer Validation)**  
+
+Before provisioning a new management-level account, the system performs a cross-domain credential validation to ensure that the email or mobile number provided in the request is not already associated with a passenger-facing `AppUser` account. This check enforces a strict separation between passenger credentials and management credentials.   
+
+If either the email or mobile number is found in the AppUser domain:
+- **403 FORBIDDEN**, and
+- An error message is returned  
+
+This validation is essential for maintaining clear security boundaries and preventing:   
+- **Privilege leakage**, where customer credentials could be reused for elevated access.
+- **Cross-domain security violations**, ensuring that passenger identities cannot be repurposed for administrative roles.
+- **Unauthorized administrative access**, whether accidental or intentional.
+- **Identity and credential collisions** between operational users and regular platform users.   
+
+By enforcing unique credentials across both domains, the platform preserves a clean, auditable separation between customer accounts and high-privilege management accounts.   
+
+**4. Management-Domain Uniqueness Check (Email and Mobile)**    
+
+At the management layer, the system verifies that the email and mobile number provided for the new ADMIN account do not already exist within the management user domain. This check is performed through: `managementService.existsByEmailOrMobile(...)`.   
+
+If either the email or mobile number matches an existing management account:   
+- **409 CONFLICT**, and
+- The request is rejected to prevent duplication of administrative identities.  
+
+This constraint ensures that every management user is uniquely identifiable and avoids issues such as overlapping credentials, ambiguous account ownership, or fragmented administrative profiles. Ensuring strict uniqueness at the management level is critical for maintaining operational clarity, security accountability, and integrity of administrative workflows.   
+
+
+**5. Exact Credential Match Check (Email & Mobile)**  
+
+To prevent duplicate management accounts, the system performs an another check for exact credential match validation using: `managementService.existsByEmailAndMobile(...)`. If both the **email and mobile number** in the request match an existing management account:  
+- **403 FORBIDDEN**, and
+- A descriptive message is returned indicating that the account already exists.   
+
+This validation protects against:   
+- Duplicate account creation, whether due to replay attacks, misconfigured requests, or accidental resubmissions.
+- Credential collisions, ensuring that each `ADMIN` account is uniquely provisioned and traceable.  
+
+By enforcing this exact-match check, the platform maintains the integrity of the management user domain and prevents redundant administrative identities.  
+
+**6. Create New Management User (Core Logic)**  
+
+The creation of a new management account is handled by: `managementService.addNewManagementUser(...)`. This core logic performs the following operations:  
+- **Enum Parsing:** Validates and converts fields such as gender to their corresponding enumerated types.
+- **Username Generation:** Automatically generates a unique, system-assigned username for the new account.
+- **Password Encryption:** Secures the password using **BCrypt hashing** before persistence.
+- **Metadata Stamping:** Records immutable creation details, including timestamps (`createdAt`) and creator identity.
+- **Role Assignment:** Sets the role to `ADMIN` by **default**.
+- **Persistence:** Saves the new management entity using `managementRepo.save(...)`.  
+
+If any enum parsing or data conversion errors occur during this process, the API responds with: 
+- **400 BAD_REQUEST**, and
+- A descriptive message is returned indicating that input is invalid.   
+
+This process ensures that every new management user is created in a secure, consistent, and fully validated state, maintaining the integrity and operational safety of the management domain.  
+
+**7. Token Generation and Success Response**   
+
+Upon successful creation of a new management account, the system generates a secure JWT token using: `jwtService.generateToken(username, role, true)`. The generated token encapsulates:  
+- `username` and `role` retrieved from the saved `Management` entity.
+- `isAuthenticatedUser` flag set to true, confirming immediate authentication status.  
+
+Following token generation, the API responds with:   
+- **201 CREATED**, indicating successful account provisioning.
+- A structured payload containing:  
+  - A **success message** confirming account creation.
+  - The **system-generated username** of the newly created management user.
+  - The freshly issued **JWT token** for immediate, secure access.   
+
+This combined workflow ensures that new administrators can be provisioned and granted operational access instantly, while maintaining the security and integrity of the management domain.   
+
+#### 📌 System Initialization Logic (Important Operational Note)  
+
+_**BookMyRide**_ incorporates a critical system-initialization mechanism to guarantee that at least **one ADMIN account exists** in the platform at all times.   
+
+**ManagementBootstrap (`CommandLineRunner` Initialization)**     
+
+During application startup, the `ManagementBootstrap` component runs automatically and:   
+1. Checks if the management table is empty
+2. If empty, **creates the very first ADMIN user**
+3. Uses secure environment-driven values (via `application.properties`)
+4. Encodes the password using **BCrypt**
+5. Saves the admin without requiring API calls
+6. Logs the creation event   
+
+**Professional Purpose of `ManagementBootstrap`**  
+
+This mechanism:  
+- Prevents dangerous practices like disabling security to create an admin manually.
+- Ensures there is always at least one privileged administrator.
+- Establishes a secure root identity for platform operations.
+- Allows controlled onboarding of additional management accounts.
+- Plays a foundational role in Bootstrap Security Architecture.   
+
+This feature is **non-negotiable** in production systems, as it ensures:  
+- High availability of admin access
+- Avoidance of privilege deadlocks
+- Consistent system ownership
+- Prevention of attack vectors via forced admin creation   
+
+The **first ADMIN** must always be **created automatically**, not through this API. This endpoint is only for adding additional `ADMIN` / `Management` users securely.   
+
+
+#### 📤 Success Response  
+<details> 
+  <summary>View screenshot</summary>
+   ![Management Signup Success]()
+</details>   
+
+#### ❗ Error Response 
+> DTO Validation Failed — 400 BAD_REQUEST   
+<details> 
+  <summary>View screenshot</summary>
+   ![Management Signup Error]()
+</details>  
+
+> Cross-Domain Credential Conflict (AppUser Layer) — 403 FORBIDDEN
+<details> 
+  <summary>View screenshot</summary>
+   ![Management Signup Error]()
 </details> 
+
+> Uniqueness Constraint Failure — 409 CONFLICT     
+<details> 
+  <summary>View screenshot</summary>
+   ![Management Signup Error]()
+</details>  
+
+> Exact Credential Match — 403 FORBIDDEN     
+<details> 
+  <summary>View screenshot</summary>
+   ![Management Signup Error]()
+</details>    
+
+#### 📊 HTTP Status Code Table  
+| HTTP Code | Status Name | Meaning                     | When It Occurs                                                        |
+| --------- | ----------- | --------------------------- | --------------------------------------------------------------------- |
+| **201**   | CREATED     | New management user created | Valid request with unique credentials                                 |
+| **400**   | BAD_REQUEST | Validation failed           | DTO errors or invalid gender enum                                     |
+| **403**   | FORBIDDEN   | Access denied               | Token invalid role, AppUser conflict, Full match, or unauthorized use |
+| **409**   | CONFLICT    | Duplicate entry             | Email/mobile already used by another admin                            |
+
+
+#### ⚠️ Edge Cases & Developer Notes   
+
+**1. System-Wide Credential Uniqueness Enforcement**  
+- Any attempt to create a management account must ensure that the provided email and mobile number are **globally unique** across the entire system — including both passenger (`AppUser`) and `Management` entites.
+ 
+- It handles in the following:
+ - The system first checks the `AppUser` layer to prevent creating a management account with credentials already used by a customer. Conflicts return **403 FORBIDDEN**.
+ - Then, the `Management` layer checks for partial matches (`email` OR `mobile`). Conflicts return **409 CONFLICT**.
+ - Finally, if both `email` and `mobile` fully match an existing management account, the request is rejected with **403 FORBIDDEN**.
+ - All checks include descriptive messages to clarify the exact reason for rejection.     
+
+- And its importance:
+  - Guarantees **global uniqueness of credentials**, preventing identity overlap and potential privilege escalation.
+  - Maintains **strict separation** between customer and management domains, protecting system security.
+  - Ensures **atomicity and consistency**, avoiding duplicate admin creation, username conflicts, or JWT collisions.
+  - Provides **clear audit trails** and maintains integrity for authentication, authorization, and logging across the platform.   
+
+**2. DTO Validation & Enum Parsing**  
+- Incoming request contains invalid, missing, or improperly formatted data, such as invalid gender string, empty email, or weak password.
+- Thiose are handled through Spring Bean Validation annotations (`@Valid`) and `BindingResult` detect errors. Enum parsing failures are explicitly captured. Returns **400 BAD_REQUEST** with detailed error messages.
+- This Prevents invalid data from entering the system.
+- Protects downstream logic, including username generation, JWT creation, and database integrity.
+- Ensures consistency and reliability of management user metadata across the platform.   
+
+
+**3. Race Condition & Atomic Creation — Current Limitation**   
+- If two admins attempting to create a management account with the same email or mobile at the same time could potentially cause a race condition.
+- Currently, the service checks for existing email or mobile using `existsByEmailOrMobile` and `existsByEmailAndMobile` before saving, and then calls `managementRepo.save(...)`.
+- However, the implementation does not use `@Version` for **optimistic locking**, nor does it have try/catch blocks to handle database uniqueness exceptions.
+- As a result, atomic creation is not fully guaranteed under concurrent requests. While database-level unique constraints (if configured) may prevent actual duplicates, any violation could result in an unhandled error rather than a clean response.
+- To ensure safe and predictable account creation, it is recommended to enforce uniqueness at the database level, handle exceptions properly, or consider using optimistic or pessimistic locking mechanisms for high-concurrency scenarios.   
+
+**4. First Admin Account Bootstrapping (ManagementBootstrap)**  
+- At system startup, if no management account exists, the `ManagementBootstrap` class (implemented via `CommandLineRunner`) automatically provisions the **first ADMIN account** using secure, environment-driven credentials.
+- This mechanism ensures that the platform always has at least one root administrator, eliminating the need for manual account creation that could compromise security. By automating the bootstrap process, the system maintains operational readiness, continuity, and adherence to security best practices.
+- It is important to note that this API endpoint is intended exclusively for creating additional management users and should never be used for bootstrapping the first administrative account.   
+</details>   
+
+
+## Installation & Setup  
+
+### 1. Introduction  
+
+This section provides a step-by-step guide to set up the BookMyRide project in a local development environment. Following these instructions will allow developers, testers, system administrators, and other technical professionals to:
+ - Clone the project repository.
+ - Configure database and application properties.
+ - Build and run the application using Maven or IntelliJ IDEA.
+ - Verify that the first system-generated Management (ADMIN) account is created via the `ManagementBootstrap` logic.
+
+  By carefully following these steps, even professionals who are new to the project or platform can successfully set up the system. Upon completion, the application will be fully functional locally, and all APIs, including Management, User and Booking flows, can be tested seamlessly.   
+
+### 2. Prerequisites  
+
+Ensure your environment has the following installed and configured:  
+- **Java JDK:** 17+
+- **Maven:** 3.8+
+- **Database:** MySQL (or PostgreSQL if configured differently)
+- **IDE:** IntelliJ IDEA (recommended) / VS Code
+- **Git:** For cloning the repository
+- **API Testing Tool:** Postman or Insomnia (optional, for testing endpoints)  
+ 
+**Note:** Verify that the database service is running before starting the application.   
+
+
+### 3. Cloning the Repository
+
+
+
+
+
+
+
+
+
 
 
