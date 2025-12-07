@@ -6290,13 +6290,13 @@ The **first ADMIN** must always be **created automatically**, not through this A
 
 ### 1. Introduction  
 
-This section provides a step-by-step guide to set up the BookMyRide project in a local development environment. Following these instructions will allow developers, testers, system administrators, and other technical professionals to:
+This section provides a step-by-step guide to set up the _**BookMyRide**_ project in a local development environment. Following these instructions will allow developers, testers, system administrators, and other technical professionals to:
  - Clone the project repository.
  - Configure database and application properties.
  - Build and run the application using Maven or IntelliJ IDEA.
  - Verify that the first system-generated Management (ADMIN) account is created via the `ManagementBootstrap` logic.
 
-  By carefully following these steps, even professionals who are new to the project or platform can successfully set up the system. Upon completion, the application will be fully functional locally, and all APIs, including Management, User and Booking flows, can be tested seamlessly.   
+  By carefully following these steps, even professionals who are new to the project or platform can successfully set up the system. Upon completion, the application will be fully functional locally, and all APIs, including **Management, User** and **Booking flows**, can be tested seamlessly.   
 
 ### 2. Prerequisites  
 
@@ -6311,15 +6311,187 @@ Ensure your environment has the following installed and configured:
 **Note:** Verify that the database service is running before starting the application.   
 
 
-### 3. Cloning the Repository
+### 3. Cloning the Repository   
+
+Clone the _**BookMyRide**_ repository to your local environment using the HTTPS URL provided below:   
+
+> Clone the repository (HTTPS)
+ 
+`git clone https://github.com/Karthikr32/BookMyRide.git`   
+
+> Navigate into the project directory
+ 
+`cd BookMyRide`   
+
+**Note:**  
+- Ensure that Git is installed on your system and that your network permits access to GitHub.
+- If you prefer using SSH and have your SSH keys configured, you may clone via the SSH URL available under the **Code dropdown** on the repository page.  
+
+### 4. Configuration  
+
+_**BookMyRide**_ uses application-level properties to configure database connectivity and the initial management bootstrap account. Update only the database configuration section based on your local environment:   
+
+#### Core Application Properties  
+
+> Database Configuration
+ 
+`spring.datasource.url=jdbc:mysql://YOUR_HOST:YOUR_PORT/YOUR_DB_NAME`  
+`spring.datasource.username=YOUR_DB_USERNAME`   
+`spring.datasource.password=YOUR_DB_PASSWORD`    
+
+> Server Configuration
+ 
+`server.port=YOUR_SERVER_PORT       #Example: 8080 (default), 7000, 9090`     
+
+#### Notes:  
+ - `server.port` is optional. If not specified, Spring Boot defaults to **8080**.
+ - Database credentials must be replaced with valid local values.
+ - Never commit real credentials to the repository.   
+
+#### First Admin Account (Management Bootstrap)   
+
+The following properties define the **initial, system-generated root ADMIN account**. These values are intentionally preconfigured and **must not be modified** during setup:  
+
+`bookmyride.security.fullname=Administrator`    
+`bookmyride.security.email=admin@yourdomain.com`   
+`bookmyride.security.mobile=0000000000`   
+`bookmyride.security.username=adm_bookmyride_1234`   
+`bookmyride.security.password=BookMyRideAdmin@2025`   
+
+These credentials are used **only once**—during the first application startup—to automatically create the initial `ADMIN` user through the `ManagementBootstrap` component. After logging in, An authorized `ADMIN` can update all account details using the dedicated Management APIs.  
+
+**Do not modify or remove these properties**, as they ensure a consistent and secure initial login experience for all users installing the project locally.  
+
+**Best Practices**  
+- Never commit real database credentials to version control.
+- Use only local or test database credentials during development.
+- The `ManagementBootstrap` class must remain untouched, as it guarantees that the platform always has a valid root administrator on first startup.
+
+#### JWT Configuration (Mandatory)   
+
+The application requires a valid **JWT secret key** to securely sign and verify authentication tokens. This key **must be generated** and configured **before** running the application.   
+
+Then add the generated key to your configuration inside the `application.properties`:  
+
+> `jwt.secret.key=YOUR_GENERATED_SECRET_KEY`   
+
+**How to generate the JWT Secret Key**  
+
+A utility class is provided within the project to generate a secure, random secret:  
+
+> `src/main/java/.../debug/GenerateSecretKey.java`  
+
+Follow these steps:  
+1. Open the GenerateSecretKey class in your IDE.
+2. Run the class as a standard Java application.
+3. The console output will display a newly generated, cryptographically strong secret key.
+4. Copy the key and place it into your `application.properties`:
+ 
+> `jwt.secret.key=PASTE_KEY_HERE`   
+
+**Important Notes**  
+- The application cannot start or authenticate users without a valid JWT secret.
+- Each developer or environment should generate its own unique secret key.
+- Never commit real or environment-specific JWT secrets to version control.  
+
+**Example (Dummy Values)**  
+
+_The following example demonstrates how your `application.properties` may look after completing the setup steps. Replace all placeholder values with your own local environment settings. Do not use these credentials in production._   
+
+`server.port=8080`  
+
+`spring.datasource.url=jdbc:mysql://localhost:3306/bookmyride`  
+`spring.datasource.username=root`  
+`spring.datasource.password=root12345`  
+
+`bookmyride.security.fullname=Administrator`  
+`bookmyride.security.email=admin@yourdomain.com`  
+`bookmyride.security.mobile=0000000000`  
+`bookmyride.security.username=adm_bookmyride_1234`  
+`bookmyride.security.password=BookMyRideAdmin@2025`  
+
+`jwt.secret.key=GENERATED_KEY_HERE`    
+
+**Note:**  
+ - The `root` database user shown here is intended only for local development.
+ - For production or shared environments, create a dedicated database user with limited privileges and avoid using root.
+ - The database name (`bookmyride`) shown here is an example. You may use any name of your choice, but ensure it matches the `spring.datasource.url` property in your configuration.
+
+### 5. Database Setup  
+
+Begin by creating the required database in your MySQL instance using your preferred database client or the command-line interface:  
+
+> `CREATE DATABASE bookmyride;`  
+
+_**BookMyRide**_ utilizes **Spring Data JPA**, and all necessary tables will be created automatically at application startup, provided that the following property is enabled:  
+
+> `spring.jpa.hibernate.ddl-auto=update`    
+
+For a complete overview of all entities, relationships, and structural considerations, refer to the **Database Design / ER Diagram** section in this documentation.   
+
+**Note:**   
+- The database name `bookmyride` used here is an example. You may choose any name as DB name, but ensure it matches the `spring.datasource.url` property in your configuration.  
+- Ensure that the database user configured in application.properties has adequate permissions, including CREATE, SELECT, INSERT, UPDATE, and DELETE. Insufficient privileges may prevent schema generation or normal application operations.    
+
+### 6. Building & Running the Application  
+
+_**BookMyRide**_ is a **Maven-based Spring Boot project**. You can run the application either via the **command-line interface (CLI)** or using an **IDE** such as IntelliJ IDEA.   
+
+#### Option 1: Using Maven CLI  
+
+**1. Clean, compile, and install dependencies**   
+
+> `mvn clean install`
+
+This step ensures that:  
+- Any previous build artifacts are removed (`clean`).
+- The project is compiled and packaged correctly (`install`).
+- All Maven dependencies are downloaded and up-to-date.   
+
+**2. Run the application**  
+
+> `mvn spring-boot:run`   
+
+#### Option 2: Using IntelliJ IDEA   
+1. Open the _**BookMyRide**_ project in IntelliJ IDEA.  
+2. Navigate to the `BookMyRideApplication.java` class.  
+3. Click the Run button to start the application.   
+
+**Note:**  
+
+Unlike Maven CLI, the IDE automatically handles compilation and dependency resolution. You only need to perform a manual clean or install if you:  
+- Modify `pom.xml` dependencies, or
+- Want to ensure a completely fresh build by removing old compiled classes.   
+
+**Validation**  
+
+Upon the first execution, if the Management table is empty, the console will log a confirmation similar to:  
+
+> `System generated & added a new Management user successfully. Ready to log in.`  
+
+This indicates that the **initial ADMIN account** has been created automatically by the `ManagementBootstrap` component, and the application is ready for use.   
+
+### 7. Testing the Setup   
+
+Once the application is running, verify that the initial setup works correctly:   
+1. Open a REST client such as **Postman** or **Insomnia**.
+2. Test core functionality using the following example flows:  
+   -  **Admin Login API** – use the first admin credentials from `application.properties`.
+   -  **Management Sign-Up API** – ensure additional admin accounts can be created.  
+
+3. Confirm that:  
+   - JWT tokens are issued correctly.
+   - Endpoints respond according to the expected behavior documented.   
+
+For a complete list of working APIs, request/response structures, and detailed testing instructions, refer to the above **Comprehensive API Reference (31 APIs)**. This section provides a full workflow reflecting the _**BookMyRide**_ architecture, allowing you to explore and test all endpoints systematically.    
 
 
-
-
-
-
-
-
-
-
-
+### Troubleshooting   
+| Issue                                          | Possible Cause                                                             | Recommended Solution                                                                                                                                |
+| ---------------------------------------------- | -------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Port 8080 already in use                       | Another application is occupying the default port                          | Update the `server.port` property in `application.properties` to an available port and restart the application                                      |
+| Database connection failure                    | Incorrect database URL, username, password, or network restrictions        | Verify that `spring.datasource.url`, username, and password are correct. Ensure the database server is running and accessible from your environment |
+| Initial ADMIN account not created              | Database already contains Management users or the bootstrap process failed | Confirm the Management table is empty, then restart the application to trigger the `ManagementBootstrap` logic                                      |
+| API responses 401 Unauthorized / 403 Forbidden | Missing, expired, or invalid JWT token                                     | Ensure you include a valid JWT token in the `Authorization` header for secured endpoints. Generate a new token via login if needed                  |
+| Maven build failures                           | Missing dependencies or outdated Maven version                             | Run `mvn clean install` to refresh dependencies. Ensure Maven version meets project requirements                                                    |
+| Application fails to start                     | Misconfigured properties or missing JWT secret                             | Verify that `application.properties` contains valid placeholders, especially `jwt.secret.key`, and that required services (DB, etc.) are running    |
