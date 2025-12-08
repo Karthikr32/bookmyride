@@ -6494,4 +6494,49 @@ For a complete list of working APIs, request/response structures, and detailed t
 | Initial ADMIN account not created              | Database already contains Management users or the bootstrap process failed | Confirm the Management table is empty, then restart the application to trigger the `ManagementBootstrap` logic                                      |
 | API responses 401 Unauthorized / 403 Forbidden | Missing, expired, or invalid JWT token                                     | Ensure you include a valid JWT token in the `Authorization` header for secured endpoints. Generate a new token via login if needed                  |
 | Maven build failures                           | Missing dependencies or outdated Maven version                             | Run `mvn clean install` to refresh dependencies. Ensure Maven version meets project requirements                                                    |
-| Application fails to start                     | Misconfigured properties or missing JWT secret                             | Verify that `application.properties` contains valid placeholders, especially `jwt.secret.key`, and that required services (DB, etc.) are running    |
+| Application fails to start                     | Misconfigured properties or missing JWT secret                             | Verify that `application.properties` contains valid placeholders, especially `jwt.secret.key`, and that required services (DB, etc.) are running    |    
+
+
+
+## My Engineering Journey Through _BookMyRide_   
+
+### A. Introduction   
+
+The journey behind this project didn’t begin with a grand vision or the desire to impress others. It began during one of the most difficult phases of my career. After completing my frontend learning path — HTML, CSS, JavaScript, React, and with multiple UI clones like YouTube, Amazon, and even my own fully functional mini e-commerce app “Shop.in” — I believed I was ready to step into the industry. I applied everywhere: Naukri, LinkedIn, referrals, institutes… but nothing worked. Not a single call.   
+
+That silence broke me. I felt unmotivated, confused, and honestly, close to burnout.  
+
+Still, instead of giving up, I pushed myself into backend development. Within just 2.5 months, I learned Java, Spring Boot, Spring Security, and MySQL, and upgraded my old “Shop.in” project with a complete backend. I improved my resume, added proper keywords, matched job descriptions — but again, no response. Being a 2021 graduate while most postings targeted 2024–2025 batches hit me even harder. It felt unfair… but it also revealed a truth.   
+
+**IT doesn’t want degrees. They want real skills — and undeniable proof.** So I stopped blaming the system and started improving myself.   
+
+To rebuild my confidence and prove my abilities, I decided to create a complete Spring Boot project from scratch — something structured, scalable, and industry-ready. That’s when the idea of a **Bus Booking System** was born. It began simple, but as my mindset shifted from “getting a job” to “becoming an engineer,” the project evolved. I studied **real-world platforms like RedBus and MakeMyTrip**, transformed my system step-by-step, and built it using proper architecture, design patterns, and product-thinking.  
+
+This wasn’t just a project anymore — it became a real-world solution, thoughtfully crafted and named _**BookMyRide**_, with future expansion in mind. Now, it stands proudly in the real world — open for anyone to explore, learn from, or get inspired by.
+And like every real product, this one also came with failures, challenges, breakthroughs, and small sparks of innovation that shaped it into what it is today.   
+
+**My Personal Motto:**    
+
+> _“BookMyRide wasn’t born from a motive to impress…
+It was born from a decision to rise.”_   
+
+In this section, I’ll share the journey behind _**BookMyRide**_: how I designed it, the obstacles I faced, the ideas that shaped it, and the resources that guided me along the way.     
+
+### B. The Beginning — Understanding the Problem   
+
+When I began this project, I didn’t start with a grand blueprint or a complex architecture. I simply wanted to build something meaningful — something that could prove my growth as a developer and help me rise from a difficult phase. A Bus Booking System felt like the right starting point: familiar, practical, and challenging enough to test both my logic and creativity.   
+
+**My initial goal was small and simple:** create a few core entities, design a basic booking flow, and make the system functional end to end. Nothing advanced — just a foundation I could stand on.    
+
+But as I worked through the basics, my mindset began to shift. Thought that I wasn’t just writing code anymore — So starts **thinking like an engineer**.
+I started analyzing how real platforms like RedBus and MakeMyTrip approached routes, schedules, seat mapping, cancellations, and data integrity. That curiosity slowly pushed me to restructure my ideas with proper architecture, design patterns, and scalability in mind.   
+
+This was the true beginning of _**BookMyRide**_: A moment where a simple idea evolved into a real product, and where my engineering journey genuinely took shape.    
+
+
+
+
+
+
+
+
