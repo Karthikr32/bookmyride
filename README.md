@@ -6517,7 +6517,7 @@ And like every real product, this one also came with failures, challenges, break
 
 **My Personal Motto:**    
 
-> _“BookMyRide wasn’t born from a motive to impress…
+> _“**BookMyRide** wasn’t born from a motive to impress…
 It was born from a decision to rise.”_   
 
 In this section, I’ll share the journey behind _**BookMyRide**_: how I designed it, the obstacles I faced, the ideas that shaped it, and the resources that guided me along the way.     
@@ -6535,13 +6535,13 @@ This was the true beginning of _**BookMyRide**_: A moment where a simple idea ev
 
 
 ### C. Engineering Challenges Along the Way — Structure Layout   
-#### System Design Decisions   
+### 1. System Design Decisions   
 
 Designing _**BookMyRide**_ was not just about implementing features — it was about shaping a system that behaves like a real, scalable, industry-ready backend. Every module, every entity, every flow, and every API was the result of deliberate engineering choices. What started simple grew into a structured product with well-thought-out architecture, clean separation, and strong modularity.  
 
 Below is the real engineering story behind those design decisions.   
 
-**📌 Structuring the Core Domain — Building a Real Travel System**  
+**📌 Structuring the Core Domain — Building a Real Travel System**    
 
 One of my earliest and most important architectural decisions was defining the domain model. Bus booking systems are inherently multi-layered — involving transportation, passengers, authorities, geographical metadata, and real-time availability. To handle this complexity cleanly, I built a set of dedicated entities:   
 
@@ -6730,17 +6730,372 @@ As a result, I:
 - Ensured **nested DTO structures** were clear and easy to consume, without unnecessary complexity.
 - Improved the **booking flow steps** so that UI state transitions would be smooth and consistent.   
 
-By taking this frontend-first approach, I was able to make all **31 APIs clean, modular, and easy to integrate**, bridging the gap between backend complexity and frontend usability. This experience reinforced my philosophy: building great APIs isn’t just about the backend—it’s about **enabling the frontend to deliver a seamless user experience**.   
+By taking this frontend-first approach, I was able to make all **31 APIs clean, modular, and easy to integrate**, bridging the gap between backend complexity and frontend usability. This experience reinforced my philosophy: building great APIs isn’t just about the backend—it’s about **enabling the frontend to deliver a seamless user experience**.    
 
-### Final Reflections   
+
+### 2. Unexpected Technical Roadblocks    
+
+In this part, I want to share the unexpected, twisted, and sometimes mind-bending challenges I faced during the development of _**BookMyRide**_. These are the true pillars that shaped my backend knowledge and even led me to optimize and refine parts of the system architecture. There were countless moments where I would clear all database records, recreate them through Spring JPA, run tests, tweak fields, and repeat the cycle — all to ensure the system was robust and production-ready.   
+
+What makes _**BookMyRide**_ special is that it wasn’t built by a team of 5-10 developers or even 2-3 engineers. It was built entirely by **one software developer** — me — a fresher, a job seeker, with no prior work experience but armed with **strong fundamentals, consistent practice, and a deep passion for software development**. In this section, I’ll share the moments that truly challenged me, how I overcame them independently, and the lessons I learned. The order is not strictly sequential; I’ve organized them in a way that conveys the flow of learning and growth.   
+
+
+**📌 Issue 1: Infinite Recursion from Bi-Directional JPA Relationships**   
+
+In my system, the entities `Bus`, `Booking`, and `AppUser` were connected through **bi-directional JPA relationships**. `Booking` was the owning side referencing `Bus` and User, while Bus and User held lists of bookings. When calling `GET .../bus`, the `findAll()` method returned each Bus along with its list of Bookings. However, each Booking again contained references back to Bus and User, which in turn contained their own Booking lists. This created a circular chain, causing **Jackson** to enter infinite recursion and eventually throw a **StackOverflowError**.    
+
+Initially, these endpoints were created for internal testing, but exposing bi-directional relationships directly in REST responses caused this issue. I solved this by:   
+- Using **pagination** to limit response sizes.
+- Creating **nested DTOs** that expose only necessary fields.
+- Also you can solve this by include `@JsonIgnore` annotation on the top of the respective fields inside an appropriate entities.
+
+This prevented recursion, protected sensitive data, and improved response performance.     
+
+**📌 Issue 2: Enum Types Are Trickier Than They Look**   
+
+At first, I assumed Enums would behave like strings and tried using partial searches with `LIKE` queries. Unsurprisingly, it didn’t work. To figure it out, I dug into StackOverflow, Spring Boot docs, and ran experiments in a local test repo. That’s when I realized two important things:   
+
+**1.** Enums require exact matches — unlike strings, you can’t just do a LIKE.     
+**2.** Input normalization is essential — user input can have spaces, underscores, or different casing.   
+
+So I implemented a small but effective normalization step before mapping input to Enum:   
+
+> `input = input.replaceAll("[_ ]", "_");`
+
+This ensured that inputs like `"in put"`, `"in_put"`, or `"INPUT"` all mapped correctly, enabling case-insensitive and consistent Enum handling.   
+
+**Lesson learned:** small technical details like Enum handling can cause unexpectedly big surprises in backend logic, so always handle them carefully.  
+
+**📌 Issue 3: Misuse of Optional**
+
+When I first encountered `Optional`, I treated it as just a wrapper and often used `.orElse(null)` indiscriminately. I even tried wrapping List results in `Optional`, which led to subtle bugs and broken program flow. To get it right, I revisited the **Java 8 Optional documentation** and ran experiments with dummy test cases to see how Optional behaves with single-entity results versus collections.  
+
+What I learned:   
+- **Optional is meant for single-entity results**, like `findById()`. It’s a clear signal that a value may or may not exist.
+- Wrapping a List in Optional is unnecessary. JPA returns empty lists naturally, which are safe to use and don’t require extra handling.  
+
+Final approach:  
+- Use `Optional` only for single objects.
+- Let repositories return lists directly.
+- Utilize modern Optional methods like `.isPresent(), .ifPresent(), .orElseGet()`, and `.ifPresentOrElse()` for clean, expressive code.   
+
+**Result:** cleaner, safer code, fewer bugs, and easier-to-read logic.   
+
+**📌 Issue 4: Concurrency and Optimistic Locking**   
+
+During the booking flow (Start → Edit → Cancel → Confirm), I stumbled upon a critical concurrency bug. When the auto-expiry logic and the cancel operation ran simultaneously, it caused **double seat updates** in the Bus entity — a classic example of **concurrent modifications** in real-world applications.  
+
+How I approached it:    
+**1.** **Reproduced the bug** reliably in test cases to understand the exact scenario.   
+**2.** **Researched extensively** — consulted **Spring JPA docs**, Medium tutorials, and even AI explanations — to understand the difference between **Pessimistic** and **Optimistic Locking**.   
+**3.** **Analyzed the trade-offs** — for my booking system, I wanted high concurrency without heavy locking overhead, so **Optimistic Locking** was ideal.  
+My Implementation:  
+- Added an `@Version` field to both `Booking` and `Bus` entities to track entity versions.
+- Wrapped updates in `try-catch` blocks to handle `OptimisticLockException` or `ObjectOptimisticLockingFailureException`.
+- Annotated the service methods with `@Transactional` to ensure **all booking logic executed atomically**.
+- Ensured retrieval, processing, and saving happened within the **same transaction** for consistency and safe rollback.       
+
+The results amazed me:   
+- The booking system became stable and safe under concurrent operations.  
+- This taught me **how to handle real-world concurrency issues** with a careful balance of performance and data integrity.   
+
+**📌 Issue 5: Poor Handling of @Version Field**    
+
+After enabling **optimistic locking** in my booking system, I made a rookie mistake: I manually initialized the `@Version` field in the entity mappers.  
+
+Problem encountered:  
+- Spring JPA started rejecting update operations silently.
+- Any insert/update/delete on the entities using @Version would fail unexpectedly, blocking normal operations.
+- At first, it was confusing because the rest of the logic seemed correct — but the manual version initialization was interfering with JPA’s internal version tracking.    
+
+Lesson learned & solution:    
+- Do not touch the @Version field manually. Let Spring JPA manage it internally.
+- Spring automatically increments the version on every update, ensuring optimistic locking works correctly.
+- This subtle detail is critical: even small mistakes in version handling can break data integrity across concurrent operations.   
+
+This impact:   
+- Once removed, all operations (insert/update/delete) resumed normally.
+- Reinforced a deeper understanding of JPA optimistic locking mechanics and safe handling of concurrent updates.   
+
+**📌 Issue 6: Numeric Keyword Search Conflicts**   
+
+While building the **keyword search feature**, I ran into a tricky problem: numeric fields like **ID, fare, or mobile** often caused ambiguous results. For example, the search term 1200 could be interpreted as either a fare or an ID, leading to incorrect matches.   
+
+How I approached it:   
+**1. Initial attempt:** Used a chain of `if-else` conditions to detect which field the number belongs to. But this was brittle, hard to maintain, and sometimes produced wrong matches.   
+**2. Exploration:** Referred to production-grade search patterns on **blogs, StackOverflow**, and even consulted **ChatGPT** for guidance.     
+
+Solution: Where I found **Prefix-Based Search**, Since used across most systems.
+- Add explicit prefixes to distinguish the fields:
+   - id_1200 → treated as ID
+   - cost_1200 → treated as fare
+   - mobile_0000000000 → treated as mobile
+
+- Similarly, for string fields like bus name, location, or passenger name, I used prefixes like `bus_`, `user_`, `location_`.   
+
+Outcome:   
+- The search became unambiguous, extensible, and predictable.
+- Future additions of numeric or string fields can follow the same prefix strategy without breaking existing logic.   
+
+Lesson learned: small tweaks in input design can prevent major bugs in backend search logic.     
+
+**📌 Issue 7: Hidden Security Vulnerability from Transitive Dependencies**   
+
+While adding **Spring Security** (along with jjwt-api, jjwt-impl, jjwt-jackson), I unexpectedly got a **CVE warning**. Surprisingly, the warning wasn’t from the new security dependencies, but from a transitive dependency: **Logback + Janino + Spring Framework**.   
+
+Investigation steps:    
+**1.** Ran mvn dependency:tree to trace where Janino was being pulled in.    
+**2.** Checked the CVE database and Spring Boot docs to understand the risk.   
+**3.** Realized the project’s structure used Logback, and the combination with Janino triggered the CVE.   
+
+Solution:  
+- Explicitly added the latest **Logback** versions in `pom.xml`.
+- Excluded **Janino** wherever it appeared transitively.
+- Verified the fix using dependency tree and local vulnerability scanners.   
+
+Lesson learned:   
+Even if you don’t directly include a library, **transitive dependencies can introduce vulnerabilities**. Always check the dependency tree and CVE reports when adding major frameworks.
+
+Tip for other developers exploring this project: if a similar CVE warning appears, you can quickly check the tree or consult AI tools / official CVE docs to resolve it.   
+
+**📌 Issue 8: Logical Bugs in If-Else Chains**    
+
+While implementing bus search filters, I noticed some filter combinations weren’t working as expected. The logic itself was correct, but the **order of if-else conditions** caused certain cases to be skipped.   
+
+Investigation & Solution:  
+- Reordered the conditions to check most specific combinations first, then less specific ones. Let me my case of use:   
+   1. busType + seatType + timeRange  
+   2. busType + seatType   
+   3. busType + timeRange  
+   4. seatType + timeRange  
+   5. busType   
+   6. seatType  
+   7. timeRange   
+- Verified correctness through unit tests and manual runs.   
+  
+Lesson learned: Even logically correct conditions can fail if the **evaluation sequence** is wrong. Always start with the most specific cases when branching.      
+
+**📌 Issue 9: Ensuring Unique Users by Mobile & Email**   
+
+While handling new bookings, I realized that using only mobile to identify users caused conflicts—if the mobile was already registered to another user, the booking would incorrectly link to the existing user.   
+
+Investigation & Solution:   
+1. First, check if the mobile number exists in the database.
+2. Then, verify that the email is unique.
+3. If either check fails, return a **CONFLICT** response instead of proceeding.     
+
+
+Lesson learned: Even simple validations like **unique mobile + email checks** prevent bigger data inconsistencies and ensure users’ bookings are correctly linked.   
+
+**📌 Issue 10: Handling Duplicate Location Inserts**    
+
+In the early implementation, every new location DTO blindly created Country and State entities, even if they already existed. This caused **constraint violations**, wasted DB writes, and risked overwriting audit fields.    
+
+Investigation & Solution:   
+1. Introduced a **Find-or-Create pattern** to check if the entity exists before inserting.
+2. Moved creation logic into a Mapper to handle validation, normalization, and decision-making.
+3. Preserved audit fields like `createdBy` and `createdAt` for existing entities.
+4. Returned meaningful responses: **SUCCESS** for new entries, **CONFLICT** if reused, **BAD_REQUEST** for invalid input.   
+
+Lesson learned: Smart entity handling not only prevents duplicates and constraint errors but also keeps the system scalable and maintainable.   
+
+
+### 3. Performance & Optimization Journey   
+
+In any real-world system, it’s not enough to just make things work — they have to work efficiently, scale gracefully, and remain maintainable. While building BookMyRide, several areas of the project initially functioned correctly but were slow, resource-heavy, or non-scalable.
+
+This section dives into those performance and optimization challenges, how I identified bottlenecks, explored solutions, and implemented improvements, often blending documentation, tutorials, Medium articles, AI insights, and hands-on experimentation.   
+
+
+**1. Efficient Top-Booked Bus & Passenger Reports Using JPQL and Custom DTOs**   
+
+At first, generating reports for the ADMIN dashboard seemed simple: just fetch Bus or User entities, filter by date, and loop over results.  
+
+Problem:  
+- Raw entity queries returned unordered, unpaginated results.
+- Aggregating data in memory caused performance degradation as data grew.
+- Sorting and calculating totals manually was inefficient and error-prone.    
+
+Investigation & Solution:   
+1. Referred to Medium tutorials, Hibernate docs, and ChatGPT suggestions on JPQL constructor queries.
+2. Created custom DTOs to hold only the necessary fields.
+3. Used JPQL constructor queries with aggregation (SUM, COUNT) and GROUP BY to calculate totals directly in the database.
+4. Verified DTO constructor matched query exactly — a subtle mistake I initially made caused MissingConstructorException.   
+
+Outcome:   
+- Reports were now fast, scalable, and memory-efficient.
+- Aggregates calculated in database, reducing server load.
+- Pagination and sorting fully supported.
+- Avoided manual loops and redundant calculations.   
+
+Lesson: **Pushing heavy calculations to the database and using DTOs efficiently is critical for performance.**   
+
+2. JPQL Constructor Conversion Issue (Enum → String)
+
+While building the Booked AppUser report, I wanted to return gender and role as Strings, but JPQL returned Enums.
+
+Mistakes & Exploration:
+
+Tried converting via getters inside JPQL → failed
+
+ChatGPT suggested mapping, but it initially misled me
+
+Referred to Spring JPA docs and experimented in test cases
+
+Solution:
+
+Fetch Enums as-is
+
+Convert to Strings inside the DTO constructor:
+
+this.gender = user.getGender().getGenderName();
+this.role = user.getRole().toString();
+
+
+Result: Constructor exceptions disappeared, reporting logic became clean, and the system remained type-safe.
+
+Lesson: Some transformations are best done after the query, not during JPQL execution.
+
+3. Service Catch Blocks Breaking @Transactional Behavior
+
+Initially, I handled exceptions inside service catch blocks and returned a custom response directly.
+
+Problem:
+
+Spring assumed the transaction completed normally
+
+Rollbacks didn’t happen as intended, causing partial updates
+
+Investigation:
+
+Consulted Spring Transaction Management docs
+
+Tested multiple scenarios to reproduce transactional inconsistencies
+
+Solution:
+
+Rethrow exceptions from service layer instead of returning
+
+Handle them in the controller layer to send user-friendly responses
+
+Impact:
+
+Ensured transaction integrity
+
+Simplified rollback logic
+
+Reduced hard-to-debug errors in multi-step booking processes
+
+Lesson: Proper layering of exception handling is crucial for safe transactional behavior.
+
+4. Optimizing JPQL Queries for Large Datasets
+
+Problem:
+
+Initial queries fetched full entity graphs for reporting and filtering
+
+Performance suffered when tables grew
+
+Approach:
+
+Analyzed queries with Hibernate SQL logging
+
+Identified N+1 query issues on related entities
+
+Implemented JOIN FETCH for necessary relations
+
+Combined with DTO projection to limit data volume
+
+Outcome:
+
+Reduced query count from hundreds to a handful per request
+
+Reduced memory usage and improved response time
+
+Learned how small query structure changes can dramatically affect performance
+
+5. Prefix-Based Keyword Search for Scalability
+
+Numeric search conflicts (ID vs fare vs mobile) initially required complex if-else chains.
+
+Solution:
+
+Implemented prefix-based search for all key fields (e.g., id_, cost_, mobile_)
+
+This approach reduced ambiguity and simplified query logic
+
+Benefits:
+
+Keyword search became fast, predictable, and scalable
+
+Easy to extend in the future without breaking existing logic
+
+6. Optimizing Booking Concurrency
+
+Earlier, concurrency issues forced extra database calls and manual checks.
+
+Optimization:
+
+Introduced Optimistic Locking with @Version fields
+
+Wrapped critical updates in single transactions
+
+Added retry logic on OptimisticLockException
+
+Impact:
+
+Booking system became robust under concurrent access
+
+Eliminated duplicate seat updates
+
+Maintained high performance without heavy locking mechanisms
+
+7. Lessons Learned on Performance & Optimization
+
+Push calculations to the database wherever possible
+
+Use DTOs to reduce payload and memory overhead
+
+Handle transactions correctly to prevent hidden performance issues
+
+Optimize query patterns (avoid N+1, fetch only needed relations)
+
+Normalize inputs and design clear search mechanisms for predictable performance
+
+Small code-level decisions (like DTO constructor matching or exception handling) can significantly impact system stability and speed
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+### D. Final Reflections   
 
 _**BookMyRide**_ became a massive project, and I faced numerous complex challenges along the way. To optimize the system and tackle extreme, critical issues, **I never hesitated to design the architecture and features boldly**. This approach is what makes _**BookMyRide**_ **strong, feature-rich, and technically advanced**.   
 
 Yes—it still has **one major issue** and a few minor areas for optimization. I left them intentionally. My goal was to **encourage readers and fellow developers**—whether freshers, seniors, or advanced engineers—to explore, think critically, and even solve these challenges on their own.   
 
-This way, _**BookMyRide**_ not only stands as a robust platform but also as a **learning opportunity for others to innovate and improve**.    
+This way, _**BookMyRide**_ not only stands as a robust platform but also as a **learning opportunity for others to innovate and improve**.      
  
-
+### section 11 (Next Version Notes)
 
 
 
