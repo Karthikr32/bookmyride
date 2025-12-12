@@ -1,5 +1,7 @@
 # BookMyRide 🚍 v1 - *A Full-Featured Bus Booking System*
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; BookMyRide is a robust bus booking system built with Java 21 and Spring Boot, following industry-standard clean MVC architecture to ensure modularity and maintainability. It leverages Java core OOP principles for clear separation of concerns across well-defined modules such as user authentication, booking, bus, and location management. The system implements secure, role-based access control, optimistic locking for concurrency, and comprehensive logging for critical actions. It supports guest and registered user bookings with pagination, sorting, and validation utilities, prioritizing data integrity and scalability. This design approach delivers a clean, scalable backend with reusable components, aligned to enterprise-grade development best practices.
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _**BookMyRide**_ is a robust bus booking system built with Java 21 and Spring Boot, designed with clean MVC architecture to ensure modularity, maintainability, and scalability. It applies strong OOP principles to clearly separate concerns across modules like user authentication, booking, bus management, and location handling. **Security is a core part of the platform**, powered by Spring Security with JWT-based authentication and role-based access control, ensuring safe interactions for guests, registered users, and management-level authorities. The system also implements optimistic locking for concurrency, detailed audit logging for critical actions, and strict validation utilities to maintain data integrity.  
+
+Across the entire application, BookMyRide provides **pagination, sorting, structured error handling, and consistent API responses**, ensuring predictable behavior, easier debugging, and a smoother experience for both users and administrators. This architecture delivers a clean, scalable backend with reusable components — aligned with modern, enterprise-grade development best practices.
 
 ## Tech Used
 **Tech Stack:** Java 21, Spring Boot 3.2, MySQL 8, Maven, JWT, Lombok, Postman  
@@ -12,97 +14,96 @@
 ![Lombok](https://img.shields.io/badge/Lombok-1.18.28-blueviolet?style=for-the-badge)
 ![Postman](https://img.shields.io/badge/Postman-API%20Testing-orange?style=for-the-badge)
 
-## Key Features
-- **Booking Module:** Allows guests and registered users to book or cancel buses with seat availability checks, optimistic locking, and validation. Only registered users can view their own bookings, while Management users can access all bookings with pagination and sorting.  
-- **AppUser Module:** Handles both guest and registered users, including registration, authentication, profile management, and secure JWT-based login. Supports password changes and profile updates.  
-- **Management Module:** Contains all authority-level users who manage data across other modules (Bus, AppUser, Booking, MasterLocation). Implements role-based access control and audit logging.  
-- **Bus Module:** CRUD operations for bus details, with validation, audit logging, and concurrency handling using optimistic locking.  
-- **MasterLocation & Location Data:** Stores routes and structured location data (CityEntity, StateEntity, CountryEntity) to support booking and management operations, ensuring data integrity and proper mapping.  
+## Key Features   
 
-✅ Total of 31 fully functional REST APIs across all modules.
+**1. Comprehensive Bus Booking Workflow:** _**BookMyRide**_ enables both guest and registered users to search for buses, check availability, and complete bookings with accurate seat validation. The system uses **optimistic locking** to prevent overbooking during high-traffic operations. Registered users can access their personal booking history, while Management users have extended visibility with powerful **pagination, filtering, and sorting** across all bookings.   
 
-## Technical Architecture
+**2. Secure and Structured User Management:** The platform supports full user lifecycle features, including registration, authentication, and profile management. Backed by **JWT-based authentication** and strict validation rules, users can log in securely, update their details, and manage their accounts with confidence. Password updates and profile changes follow controlled and secure flows to protect user identity.   
 
-### 🏗 1. Application Layers  
-> The "BookMyRide" application is designed following layered architecture principles to separate concerns and promote maintainability:
+**3. Robust Management & Administrative Controls:** Designed for real operational environments, the Management Module provides administrative users with elevated permissions. Through **role-based access control (RBAC)**, management users can supervise and manage core data across modules like Bus, AppUser, Booking, and MasterLocation. All sensitive operations are captured using **audit logging**, ensuring full transparency and traceability of administrative actions.   
 
-### 🔹 Controller Layer
-  - Exposes REST APIs, validates incoming requests, and retrieves logged-in user details via **@AuthenticationPrincipal**. It delegates business operations to the service layer and sends standardized responses wrapped in **ApiResponse**.
+**4. Dedicated Bus Handling & Operational Data Management:** The system offers complete CRUD operations for bus details, including route, type, fare, and travel duration. Every update is validated thoroughly to maintain data integrity, while optimistic locking ensures that multiple administrators cannot accidentally overwrite each other’s changes. Audit logs track all modifications for compliance and debugging.    
 
-### 🔹 Service Layer
-  - Encapsulates business logic, orchestrates workflows (such as booking preview → continue → confirm), and coordinates multiple repositories. Utilizes utilities for validation and formatting, applies transactional control via **@Transactional**, and maps between entities and DTOs.
+**5. Well-Structured Location Framework:** To support rich search and booking operations, _**BookMyRide**_ includes a multi-level location hierarchy consisting of City, State, Country entities with flattened MasterLocation entity. This structured design ensures reliable route mappings and clean relationships between buses, bookings, and management workflows. It strengthens scalability and enables seamless expansion for future releases.   
 
-### 🔹 Repository Layer
-  - Implements data access using Spring Data JPA with CRUD operations. Ensures data integrity with optimistic locking (**@Version**), enforces constraints, and manages relationships across entities like Country, State, City, Bus, and Booking.
+**6. Enhanced Application Functionalities for Real-World Use:** Beyond core modules, BookMyRide provides several advanced capabilities that elevate the system to professional-grade:  
 
-### 🔹 Security Layer
-  - Implements JWT-based authentication and role-based authorization. The custom **JwtFilter** validates tokens, extracts **UserPrincipal** containing user identity and roles, and protects endpoints with **@PreAuthorize** annotations.
-  - Separate login flows exist for Management/Admin users (username + password) and regular users (mobile + password).
+- **Role-Based Access Control (RBAC)** for restricted and secure operations.
+- **JWT Authentication** for modern login sessions.
+- **Pagination & Sorting** for large datasets.
+- **Validation Utilities** for clean, error-free user inputs.
+- **Audit Logging** for tracking critical actions.
+- **Consistent API Responses using Nested DTOs**, ensuring clarity and maintainability.
+- **Error Handling Layer** with custom exceptions and global handlers.  
 
-### 🔹 Utilities Layer
- - Provides common functionalities such as date parsing in a format like either (dd-MM-yyyy / dd/MM/yyyy / yyyy-MM-dd), normalize, parse & validates request, pagination, locations, enums and userPrincipal.
- - Generate unique identifiers like username, ticket, transaction ID and also dummy placeholders.
+✅ Total of 31 fully functional REST APIs across all modules.    
 
-### 🔹 Mapper Layer
-  - Facilitates transformation between database entities and data transfer objects (DTOs), filtering data exposed to clients and ensuring structured, secure responses, especially for booking user response, bus search results, and location information.
+## Technical Architecture   
 
-### 🔄 2. Request Processing Flow
-> Here is the generalized request pipeline used across the application:
- 
+The _**BookMyRide**_ application follows a **layered architecture** with clean separation of concerns, ensuring **scalability, maintainability**, and **testability**. Built on Spring Boot, it integrates security, transaction management, and data mapping to deliver robust enterprise-grade backend operations.
+
+### 1. Application Layers    
+- **Controller Layer:** Exposes RESTful APIs, handles request validation, extracts authenticated user details via `@AuthenticationPrincipal`, and orchestrates responses using standardized `ApiResponse` wrappers. Delegates core logic to services.
+- **Service Layer:** Encapsulates business workflows (e.g., booking preview → continue → confirm), coordinates repositories, applies `@Transactional` for atomicity, and leverages utilities for validation, formatting, and DTO mapping.
+- **Repository Layer:** Provides data access via Spring Data JPA with CRUD operations. Enforces data integrity through optimistic locking (`@Version`), entity relationships (e.g., Country → State → City → Bus → Booking), and constraint validation.
+- **Security Layer:** Implements JWT-based authentication and role-based authorization. A custom JwtFilter validates tokens, populates `UserPrincipal` in the security context, and secures endpoints with `@PreAuthorize`.
+- **Utilities Layer:** Handles cross-cutting concerns like flexible date parsing (dd-MM-yyyy, dd/MM/yyyy, yyyy-MM-dd), request normalization, pagination, enum management, unique ID generation (e.g., username, ticket, transaction ID), and placeholders.
+- **Mapper Layer:** Converts entities to DTOs, filters sensitive data, and structures responses for clients (e.g., booking details, bus search results, locations).     
+
+### 2. Request Processing Flow   
 <details>
-  <summary>📄 View Request flow</summary>
+  <summary><b>📄 View Request flow</b></summary>
 <br>  
   
-  **[Client Request]**  
+  **Client Request**  
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;⮟  
-**[Security Layer - JWT Filter]**  
-&nbsp;&nbsp;&nbsp; - &nbsp;validates token  
-&nbsp;&nbsp;&nbsp; - &nbsp;extracts UserPrincipal (if present)  
+**Security (JWT Filter: validate token, extract UserPrincipal)**  
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;⮟  
-**[Controller Layer]**  
-&nbsp;&nbsp;&nbsp; - &nbsp;validates input  
-&nbsp;&nbsp;&nbsp; - &nbsp;calls Service layer  
+**Controller (request validation → Service call)**   
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;⮟  
-**[Service Layer]**  
-&nbsp;&nbsp;&nbsp; - &nbsp;business logic  
-&nbsp;&nbsp;&nbsp; - &nbsp;calls Utilities (date parsing, pagination, validation)  
-&nbsp;&nbsp;&nbsp; - &nbsp;coordinates between multiple repositories  
+**Service (business logic → Utilities → Repositories)**  
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;⮟  
-**[Repository Layer]**  
-&nbsp;&nbsp;&nbsp; - &nbsp;JPA/Hibernate DB operations  
-&nbsp;&nbsp;&nbsp; - &nbsp;optimistic locking  
+**Repository (JPA operations, optimistic locking)**  
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;⮟  
-**[Service Layer - Post Processing]**  
-&nbsp;&nbsp;&nbsp; - &nbsp;mapping Entity → DTO  
-&nbsp;&nbsp;&nbsp; - &nbsp;assembling ApiResponse  
+**Service (post-processing: Entity → DTO, ApiResponse assembly)**  
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;⮟  
-**[Controller Layer]**  
-&nbsp;&nbsp;&nbsp; - &nbsp;return standardized success/failure/error response  
+**Controller (standardized response)**   
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;⮟  
-**[Client]**  
+**Client Response**  
 
 </details>
 
 
-### 🔐 3. Security Architecture
-### 🔸 JWT Generation
- - JWTs include subject (username or mobile), roles, issue and expiration timestamps. Tokens are provided on successful login/sign-up.
+### 3. Security Architecture   
 
-### 🔸 JWT Filter Workflow
- - The **JwtFilter** extracts and validates tokens for tampering, expiration, signature integrity. Valid tokens build a **UserPrincipal** stored in the security context; invalid or missing tokens mark the user as unauthenticated.
-   
-### 🔸 Authorization
- - Enforced via **@PreAuthorize** annotations at the class and method level based on roles, leveraging claims extracted from JWT.
+#### JWT Lifecycle  
 
-### 🔸 Authentication & JWT Token Usage  
+JWTs are issued upon successful signup or login, and each token encapsulates key information to securely identify and authorize users. Tokens include the **subject (username or mobile number)**, assigned **roles**, and **timestamps** for issuance and expiration. Each token is valid for 6 hours, after which any requests using an expired token are rejected with **401 Unauthorized**. This lifecycle ensures stateless authentication while maintaining temporal security constraints.  
+
+#### Filter Workflow   
+
+The JwtFilter acts as the gatekeeper for all protected endpoints. It performs the following checks on each incoming request:   
+- **Signature Verification:** Ensures the token has not been tampered with.
+- **Expiry Check:** Validates that the token is still within its lifetime.
+- **Integrity Verification:** Confirms the token structure and claims are consistent.   
+
+Which immediately results:   
+- **Valid tokens:** The filter sets a `UserPrincipal` in the security context, allowing downstream components to access user details and roles.
+- **Invalid or missing tokens:** The request is treated as **unauthenticated**, and access to protected resources is denied.   
+
+#### Authorization    
+
+Role-based access control is enforced using `@PreAuthorize` annotations on classes and methods. The JWT claims (**roles**) determine which endpoints a user can access, providing fine-grained control over application functionality and ensuring that users can only perform actions permitted by their role. This mechanism allows the system to enforce security consistently across all layers, from API endpoints to internal service methods. By leveraging JWT claims, access decisions are made in a stateless manner, improving both performance and scalability while maintaining strict authorization boundaries.
+
+#### Authentication & JWT Token Usage   
 
 **_BookMyRide_** uses **JWT (JSON Web Token)** for authenticating users across all passengers and management endpoints. This centralized mechanism ensures secure, stateless authentication and consistent client integration.  
 
-#### 1. JWT Issuance  
+**JWT Issuance**   
 - Tokens are issued upon successful signup or login.
-- Returned in the custom response using `ApiResponse` as a string under the data field:
+- Returned in the custom response using `ApiResponse` as a string under the `data` field:
 
-##### Response Body  
+**Response Body**    
 {  
 &nbsp;&nbsp;&nbsp; "status": 201,  
 &nbsp;&nbsp;&nbsp; "message": "<Custom_Message_According_To_Request>",  
@@ -110,59 +111,56 @@
 }  
 > Frontend/client extracts the token from `data` for subsequent requests.   
 
-#### 2. Using the JWT Token  
+**Using the JWT Token**     
 - Include the token in the Authorization header of all protected API requests:
+ 
 > **`Authorization: Bearer <JWT_TOKEN>`**.
+
 - **Scope:** Provides access to endpoints requiring authentication (profile, data creation/updation, higher authority actions, etc.).
 - **Validity:** Each token is valid for **6 hours**. Requests with expired tokens will return: **401 UNAUTHORIZED**.  
 
-#### 3. Best Practices  
+**Best Practices**    
 - **Store securely:** Use secure storage on mobile apps or HTTP-only cookies/localStorage for web apps.
 - **Always include in requests:** Any request that is misses or invalid tokens are rejected.
 - **Renewal:** After expiration, users must login again to obtain a new token.
-- **Consistency:** This mechanism is uniform for all passengers (USER/GUEST) and management APIs.  
-
-#### 4. Reference in API Documentation  
-
-All Signup/Login API endpoints (user or management) return JWT in the same format. Rather than repeating usage instructions, each API doc should reference this section:
-> “Upon successful signup/login, a JWT token is returned. Refer to Authentication & JWT Usage for details on how to use it.”
+- **Consistency:** This mechanism is uniform for all passengers (USER/GUEST) and management APIs.   
 
 
-### 🔁 4. Transaction & Concurrency Management
-### 🔸 @Transactional Usage
- - Critical modules like Booking and Location use Spring's **@Transactional** to ensure atomicity and rollback on exceptions including concurrency, internal, and network errors.
-   
-### 🔸 Optimistic Locking (Versioning)
- - Entities include a **@Version** field. Concurrent update attempts trigger exceptions allowing controller-level handling with standard HTTP 409 Conflict responses, preventing data inconsistencies like race conditions or double bookings.
+### 4. Transaction & Concurrency Management   
 
-### 🔸 Concurrency Exception Handling
- - Optimistic locking exceptions are caught, rethrown to trigger rollbacks, and mapped to meaningful error responses.
+Ensuring data consistency and preventing race conditions is critical in _**BookMyRide**_, especially for operations like bookings flows, bus & location creation/updation/deletion, etc... The system employs both **transaction management and concurrency control mechanisms** to maintain integrity and reliability.   
 
+**Transactional Management (`@Transactional`)**  
+- Critical flows, such as bus creation, booking flows, cancellations, and location updates, are executed within transactional boundaries.
+- This ensures **atomic execution**, meaning all steps succeed together or fail together, with automatic rollback in case of errors.
+- By leveraging transactions, the system guarantees that partially completed operations do not leave the database in an inconsistent state.   
 
-### 🔗 5. Module Interaction (High-Level)
-**Client** → **Controller** → **Service** → **Repository** → **Database**
+**Optimistic Locking (@Version)**  
+- The system uses optimistic locking to detect concurrent modifications of the same resource.
+- Each entity version is tracked, and updates are rejected if the version has changed since it was last read.
+- This prevents **race conditions** such as double bookings or conflicting updates to user or ride data, without relying on heavy database locks.   
 
-#### 🔑 Key Interactions:
-- Booking → Bus → AppUser → Location
-   - Validates journey inputs
-   - Ensures city/state/country correctness
-   - Checks seat availability
-   - Generates preview → continues → confirmation
+**Exception Handling**    
+- Concurrency-related exceptions (e.g., `OptimisticLockingFailureException`) are caught and mapped to meaningful **HTTP responses**.
+- This provides clear feedback to the client and allows the application to handle retries or inform the user appropriately.   
 
-- Management/Admin → Bus/Location modules
-   - Secure CRUD operations
-   - Optimistic locking ensures safe updates
- 
-- Utility Modules
-   - Integrated across controllers/services for repeated logic
+**Impact & Importance**  
+- Together, transactional management and optimistic locking ensure **data integrity, consistency, and reliability across the platform**.
+- They are fundamental to providing a seamless user experience, preventing double bookings, lost updates, and other critical race conditions in high-concurrency scenarios. 
 
-- Mapper Modules
-   - Ensures structured DTO responses instead of exposing raw entities
+### 5. Module Interaction (High-Level)  
+
+> **Client** → **Controller** → **Service** → **(Utilities + Mapper)** → **Repository** → **Database**   
+
+#### Core Flows:  
+- **Booking:** Bus → AppUser → Location; validates inputs, checks availability, generates previews & confirmations.
+- **Management:** Secure CRUD for Bus & Location with concurrency safeguards.
+- **Cross-Cutting:** Utilities and mappers ensure consistency across modules.   
+
+This design promotes l**oose coupling, single responsibility, and high cohesion**, forming a robust and maintainable backend.     
     
 
-## Folder Structure
-> Here is the folder structure of my application "**BookMyRide**".
-
+## Folder Structure   
 <details>
   <summary><b>📁 Folder Structure (Click to Expand)</b></summary> 
   
@@ -190,10 +188,8 @@ src/
 </details>
 
 ## Database Design / ER Diagram  
-> Here is the 🗄️ ER Diagram of BookMyRide database:
-
 <details>
-  <summary>📄 View ER Diagram</summary>
+  <summary><b>📄 View ER Diagram (Click to Expand)</b></summary>
   <br>
   
 ![BookMyRide ER Diagram]()
