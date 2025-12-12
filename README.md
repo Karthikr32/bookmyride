@@ -1,4 +1,4 @@
-# BookMyRide 🚍 v1 - *A Full-Featured Bus Booking System*
+# BookMyRide 🚍 v1 - *A Full-Featured Bus Booking System*  
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; _**BookMyRide**_ is a robust bus booking system built with Java 21 and Spring Boot, designed with clean MVC architecture to ensure modularity, maintainability, and scalability. It applies strong OOP principles to clearly separate concerns across modules like user authentication, booking, bus management, and location handling. **Security is a core part of the platform**, powered by Spring Security with JWT-based authentication and role-based access control, ensuring safe interactions for guests, registered users, and management-level authorities. The system also implements optimistic locking for concurrency, detailed audit logging for critical actions, and strict validation utilities to maintain data integrity.  
 
 Across the entire application, BookMyRide provides **pagination, sorting, structured error handling, and consistent API responses**, ensuring predictable behavior, easier debugging, and a smoother experience for both users and administrators. This architecture delivers a clean, scalable backend with reusable components — aligned with modern, enterprise-grade development best practices.
@@ -196,8 +196,17 @@ src/
 
 </details>
 
-## Comprehensive API Reference (31 APIs)
-> Detailed documentation of all backend endpoints with sample request bodies, roles, and success/error responses.
+## Comprehensive API Reference (31 APIs)   
+
+This section provides a complete and professionally structured reference for all 31 REST APIs in the _**BookMyRide**_ backend. Each endpoint is documented with a consistent, in-depth format that includes:   
+- **Endpoint Summary & Functional Description**
+- **Request Body and Request Parameters**
+- **Backend Processing Workflow** explaining how the request is handled internally
+- **Success & Error Responses** with collapsible screenshots for quick visual inspection
+- **HTTP Status Code Table** detailing all possible outcomes
+- **Edge Cases & Developer Notes** highlighting special conditions, validations, and internal behaviors   
+
+This comprehensive structure ensures clear understanding for developers, simplifies integration for frontend clients, and provides a deep, reliable reference for future enhancements.   
 
 ### 🔐 1. Management Login (Admin Login)
 
@@ -211,17 +220,18 @@ src/
 **Authentication:** Not Required (First step of admin login)  
 (This endpoint issues a new JWT Token. For further details, See **Authentication & JWT Usage** inside Security Architecture under Technical Architecture.)  
 
-#### 📝 Description
-This API authenticates the **Management/Admin user** using the system-generated username and password.
-It represents the **entry point** for all management-level administrative operations such as managing locations, buses, bookings, and master data.  
+#### 📝 Description   
 
-Key highlights:  
+The **Management Login API** is the secure entry point for BookMyRide’s internal administrative users, including **ADMIN, SUPER_ADMIN,** and future management roles. It provides a **strictly separated login flow from public users**, authenticates management accounts, issues JWT tokens with role and management flags, and establishes trusted sessions for all protected admin operations. With **system-generated usernames, BCrypt-encrypted passwords**, and layered request validation, the API ensures only authorized management users gain access while preventing privilege escalation, cross-domain token misuse, and brute-force or credential-stuffing attacks. On first-time startup, a default admin is created via secure bootstrap credentials, enabling immediate operational readiness. Centralizing admin authentication through this API strengthens governance, reliability, and security across the platform.  
 
+Key Features:    
 - Uses **Spring Security’s AuthenticationManager** to verify credentials.
 - Supports **username-only login** for management users (regular users log in using mobile number, handled automatically by custom `UserDetailsService`).
+- Secure password verification with BCrypt and Spring Security
 - Returns a **JWT token**, required for all subsequent secure admin operations.
 - Implements strict security: invalid credentials → immediate **401/404** responses.
 - Backed by a **bootstrap mechanism (CommandLineRunner)** that automatically generates the first admin user at application startup.
+- Protection against brute-force, credential stuffing, and cross-role attacks
 
 
 #### 📤 Request Body
@@ -231,43 +241,62 @@ Key highlights:
 } 
 > 💡 Must Use This Dummy Credentials (as configured in application.properties) for Safe & Secure Login. 
 
-#### ⚙️ Backend Processing Workflow
+#### ⚙️ Backend Processing Workflow  
+
 **1. DTO Validation**  
 - The request is first validated using `@Valid` in combination with `BindingResult`.
-- If any field fails validation (e.g., missing username or password), the API immediately returns a **400 Bad Request** containing the list of validation errors. No authentication attempts happen unless the DTO passes validation.
+- If any field fails validation (e.g., missing username or password), the API immediately returns a **400 Bad Request** containing the list of validation errors wrap into a proper structure using `ApiResponse`. No authentication attempts happen unless the DTO passes validation.
 
 **2. Fetch Management User**   
 - The system performs an initial DB lookup using `managementService.fetchByUsername(...)`.
 - If no management user exists for the provided `username`, the API responds with **401 Unauthorized**, ensuring no clues are leaked about whether the username is incorrect or the password is wrong.
 
 **3. Authentication Pipeline Execution**  
-- A `UsernamePasswordAuthenticationToken` is constructed using credentials from the DTO.
-- This token is passed to `authenticationManager.authenticate()`, which internally:
-   - Verifies the username exists in the system
-   - Checks the password using BCrypt hashing
-   - And validates that the management account is enabled and valid for authentication.  
+- Once the username is verified, a `UsernamePasswordAuthenticationToken` is constructed and sent to `authenticationManager.authenticate()`, which internally:  
+   - Verifies the username exists in the system via `MyUserDetailsService`
+   - Checks the password using **BCrypt hashing**
+   - And validates that the management account is enabled and valid for authentication.
+   - Authority extracted for role validation
 
-**4. Error Handling During Authentication**   
-- If credentials do not match, a `BadCredentialsException` triggers a **401 Unauthorized** response.
-- If the username does not exist in the security layer, `UsernameNotFoundException` triggers a **404 Not Found** response.
-- Any unexpected failure within the authentication pipeline results in a **500 Internal Server Error**, ensuring controlled and predictable error exposure.  
+- If any failures occurs:  
+  
+| Exception                 | HTTP Code                 | Meaning                               |
+| ------------------------- | ------------------------- | ------------------------------------- |
+| `BadCredentialsException`   | **401 Unauthorized**          | Valid username but incorrect password |
+| `UsernameNotFoundException` | **404 Not Found**             | Username missing in security layer    |
+| **Any exception**             | **500 Internal Server Error** | Unexpected internal error             |  
+    
 
-**5. Extracting the Authenticated Principal**   
-- Once authentication succeeds, the system retrieves a fully populated `UserPrincipal` object.
-- This principal includes the admin’s full name, username, role, and granted authorities, which are later used for role-based access control.  
+**4. Extracting the Authenticated Principal**   
 
-**6. JWT Token Generation**   
+After successful authentication, Spring Security injects a populated `UserPrincipal`, containing:  
+- Admin full name
+- System-generated username
+- Role (ADMIN, SUPER_ADMIN, etc.)
+- Granted authorities
+- Unique internal identifiers  
 
-A JWT token is generated using `jwtService.generateToken()`.
-The token includes:  
-- The username as the subject, ADMIN as role, issued & expiry timestamps
-- And an internal “management flag” indicating this is a **Management-grade token**, separate from user tokens.
+This principal drives authorization for all subsequent management APIs.   
 
-**7. Successful Authentication Response**   
+**5. JWT Token Generation**   
 
-The API returns a **200 OK** response containing:  
-- A success message with admin’s full name
-- And the generated **JWT token** required for subsequent protected admin operations.
+A JWT token is generated using `jwtService.generateToken()`. Token contents includes:  
+- Subject → system-generated username
+- Role → strictly management roles
+- Issued & expiry timestamps
+- Internal managementToken = true flag
+- Token validity = 6 hours
+
+This ensures that Public/user tokens cannot be reused for **Management endpoints**.     
+
+**6. Successful Authentication Response**   
+
+If authentication succeeds:     
+- HTTP **200 OK**
+- A success message identifying the admin
+- JWT token in the `data` field     
+
+The token must be used for all protected management operations.   
 
 #### 📤 Success Response
 <details> 
@@ -298,32 +327,60 @@ The API returns a **200 OK** response containing:
 
 | HTTP Code | Status Name       | Meaning               | When It Occurs                                |
 | --------- | ----------------- | --------------------- | --------------------------------------------- |
-| 200       | SUCCESS           | Request succeeded     | Valid credentials → token returned            |
-| 400       | BAD_REQUEST       | Validation Falied     | Missing/invalid fields in login DTO           |
-| 401       | UNAUTHORIZED      | Authentication Failed | Username exists but password incorrect        |
-| 404       | NOT_FOUND         | Resource Not Found    | Username does not exist in DB                 |
-| 500       | INTERNAL_SERVER_ERROR | Unexpected Error | Unexpected server-side error                   |
+| **200**       | SUCCESS           | Request succeeded     | Valid credentials → token returned            |
+| **400**       | BAD_REQUEST       | Validation Falied     | Missing/invalid fields in login DTO           |
+| **401**       | UNAUTHORIZED      | Authentication Failed | Username exists but password incorrect        |
+| **404**       | NOT_FOUND         | Resource Not Found    | Username does not exist in DB                 |
+| **500**       | INTERNAL_SERVER_ERROR | Unexpected Error | Unexpected server-side error                   |
+
 
 #### ⚠️ Edge Cases & Developer Notes
 **1. Automatic Creation of First Admin User**  
 - When the application starts for the first time, the system checks whether any management accounts exist.
 - If none are found, the `ManagementBootstrap` class (powered by `CommandLineRunner`) automatically creates the first admin user using credentials from `application.properties`.
 - This ensures secure, zero-downtime setup without temporarily disabling Spring Security.
+- **Developers must change the default password immediately after safe login**   
 
 **2. Admin Token vs User Token Separation**   
-- The custom `UserDetailsService` differentiates between mobile numbers (user accounts) and alphanumeric usernames (management accounts).
-As a result:
- - A user token cannot access management endpoints.
- - A management token cannot be used in user flows.
+- The authentication system differentiates logins by analyzing the login identifier:
+ 
+  - **Numeric mobile** → routed to public user login flow
+  - **Alphanumeric username** → routed to management login flow
+     
+This prevents:  
+ - Public users from attempting admin login
+ - Admins from logging in through the public endpoints
+ - Cross-role token abuse
  - Token roles and the internal “management flag” enforce this separation at authentication and authorization layers.  
 
-**3. Invalid or Non-Regex Subjects**  
-- If the login subject resembles a mobile number (via regex), the system routes the authentication attempt through the USER account flow.
-- Otherwise, it is interpreted strictly as a MANAGEMENT login. This mechanism prevents cross-domain login attacks.
+**3. Subject Classification & Admin Username Strategy**   
 
-**4. Importance of Keeping Bootstrap Credentials Secure**  
-- Since the initial admin account is generated from properties, those property values must be protected.
-- Once logged in, the admin is expected to update default credentials to enforce better security hygiene.
+_**BookMyRide**_ enforces strict separation between USER and MANAGEMENT authentication:   
+- **Mobile-number patterns** (regex-based) are routed to the **USER** login flow.
+- **Other subjects** are treated strictly as **Management** logins.    
+
+This prevents cross-domain login attacks, mis-typed credentials from leaking, and ensures domain integrity. 
+Management users like **ADMIN** usernames are:  
+- System-generated, non-human-readable, and non-sequential.
+- Never tied to mobile numbers.  
+
+These measures reduce credential-stuffing, username enumeration, and predictability. Bootstrap admin credentials, generated from `application properties`, must be protected. Admins are expected to rotate them on first login to maintain security hygiene.
+
+
+**4. Password Controls, JWT Isolation & Failure Hardening**   
+
+Management passwords:  
+- Always **BCrypt-encrypted** with high complexity.
+- Rotated periodically (best practice).
+- Cannot match standard user passwords
+
+Failed logins return a uniform 401 Unauthorized, preventing enumeration. **404** occurs only in deep provider resolution.  
+
+Management/Admin tokens:  
+- Carry management roles and a dedicated management flag.
+- Follow stricter validation and are rejected on USER endpoints.  
+
+High-risk inputs (e.g., `admin123`, `ADMIN9876`, `1234567890`) are classified via regex and composition, preventing cross-domain mistakes, brute-force attempts, and token misuse. These controls together provide a **secure, isolated, and hardened authentication model for Management users**.  
 </details>
 
 
