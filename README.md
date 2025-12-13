@@ -490,13 +490,13 @@ Key highlights:
 #### 📊 HTTP Status Code Table
 | HTTP Code | Status Name           | Meaning               | When It Occurs                                    |
 | --------- | --------------------- | --------------------- | ------------------------------------------------- |
-| 200       | SUCCESS               | Request succeeded     | Profile updated successfully                      |
-| 400       | BAD_REQUEST           | Validation Failed     | Invalid/missing fields in DTO or invalid gender   |
-| 401       | UNAUTHORIZED          | Authentication Failed | Token invalid, expired, or missing                |
-| 403       | FORBIDDEN             | Access Denied         | Role mismatch or email/mobile conflict with users |
-| 404       | NOT_FOUND             | Resource Not Found    | Management account not found                      |
-| 409       | CONFLICT              | Duplicate Entry       | Email/mobile already exists                       |
-| 500       | INTERNAL_SERVER_ERROR | Unexpected Error      | Any unexpected server-side error                  |
+| **200**       | SUCCESS               | Request succeeded     | Profile updated successfully                      |
+| **400**       | BAD_REQUEST           | Validation Failed     | Invalid/missing fields in DTO or invalid gender   |
+| **401**       | UNAUTHORIZED          | Authentication Failed | Token invalid, expired, or missing                |
+| **403**       | FORBIDDEN             | Access Denied         | Role mismatch or email/mobile conflict with users |
+| **404**       | NOT_FOUND             | Resource Not Found    | Management account not found                      |
+| **409**       | CONFLICT              | Duplicate Entry       | Email/mobile already exists                       |
+| **500**       | INTERNAL_SERVER_ERROR | Unexpected Error      | Any unexpected server-side error                  |
 
 
 
@@ -626,12 +626,12 @@ Key highlights:
 #### 📊 HTTP Status Code Table
 | HTTP Code | Status Name           | Meaning               | When It Occurs                       |
 | --------- | --------------------- | --------------------- | ------------------------------------ |
-| 200       | SUCCESS               | Request succeeded     | Password updated successfully        |
-| 400       | BAD_REQUEST           | Validation Failed     | Invalid DTO or missing fields        |
-| 401       | UNAUTHORIZED          | Authentication Failed | Old password incorrect               |
-| 404       | NOT_FOUND             | Resource Not Found    | Admin account not found              |
-| 403       | FORBIDDEN             | Access Denied         | User does not have ADMIN role        |
-| 500       | INTERNAL_SERVER_ERROR | Unexpected Error      | Unexpected failure during processing |
+| **200**       | SUCCESS               | Request succeeded     | Password updated successfully        |
+| **400**       | BAD_REQUEST           | Validation Failed     | Invalid DTO or missing fields        |
+| **401**       | UNAUTHORIZED          | Authentication Failed | Old password incorrect               |
+| **404**       | NOT_FOUND             | Resource Not Found    | Admin account not found              |
+| **403**       | FORBIDDEN             | Access Denied         | User does not have ADMIN role        |
+| **500**       | INTERNAL_SERVER_ERROR | Unexpected Error      | Unexpected failure during processing |
 
 
 
@@ -714,11 +714,11 @@ Key highlights:
 #### 📊 HTTP Status Code Table
 | HTTP Code | Status Name           | Meaning               | When It Occurs                       |
 | --------- | --------------------- | --------------------- | ------------------------------------ |
-| 200       | SUCCESS               | Request succeeded     | Profile loaded successfully          |
-| 401       | UNAUTHORIZED          | Authentication Failed | JWT token null/expired               |
-| 403       | FORBIDDEN             | Access Denied         | User does not have ADMIN role        |
-| 404       | NOT_FOUND             | Resource Not Found    | Admin account not found              |
-| 500       | INTERNAL_SERVER_ERROR | Unexpected Error      | Unexpected failure during processing |
+| **200**       | SUCCESS               | Request succeeded     | Profile loaded successfully          |
+| **401**       | UNAUTHORIZED          | Authentication Failed | JWT token null/expired               |
+| **403**       | FORBIDDEN             | Access Denied         | User does not have ADMIN role        |
+| **404**       | NOT_FOUND             | Resource Not Found    | Admin account not found              |
+| **500**       | INTERNAL_SERVER_ERROR | Unexpected Error      | Unexpected failure during processing |
 
 
 
@@ -851,12 +851,12 @@ Key highlights:
 #### 📊 HTTP Status Code Table
 | HTTP Code | Status Name           | Meaning               | When It Occurs                                        |
 | --------- | --------------------- | --------------------- | ----------------------------------------------------- |
-| 201       | CREATED               | Location created      | Successfully added new city/state/country combination |
-| 400       | BAD_REQUEST           | Validation Failed     | Missing/invalid DTO, or country/state not recognized  |
-| 401       | UNAUTHORIZED          | Authentication Failed | Token invalid or expired                              |
-| 403       | FORBIDDEN             | Access Denied         | User does not have ADMIN role                         |
-| 409       | CONFLICT              | Duplicate Entry       | City/State/Country combination already exists         |
-| 500       | INTERNAL_SERVER_ERROR | Unexpected Error      | Any unhandled server-side exception                   |
+| **201**       | CREATED               | Location created      | Successfully added new city/state/country combination |
+| **400**       | BAD_REQUEST           | Validation Failed     | Missing/invalid DTO, or country/state not recognized  |
+| **401**       | UNAUTHORIZED          | Authentication Failed | Token invalid or expired                              |
+| **403**       | FORBIDDEN             | Access Denied         | User does not have ADMIN role                         |
+| **409**       | CONFLICT              | Duplicate Entry       | City/State/Country combination already exists         |
+| **500**       | INTERNAL_SERVER_ERROR | Unexpected Error      | Any unhandled server-side exception                   |
 
 
 #### ⚠️ Edge Cases & Developer Notes
@@ -1044,12 +1044,12 @@ Key highlights:
 #### 📊 HTTP Status Code Table  
 | HTTP Code | Status Name           | Meaning               | When It Occurs                                   |
 | --------- | --------------------- | --------------------- | ------------------------------------------------ |
-| 201       | CREATED               | Locations created     | All entries successfully added                   |
-| 206       | PARTIAL_CONTENT       | Partial Success       | Some entries skipped due to duplicates or errors |
-| 400       | BAD_REQUEST           | Validation Failed     | Invalid DTO or empty list                        |
-| 401       | UNAUTHORIZED          | Authentication Failed | Token invalid or expired                         |
-| 403       | FORBIDDEN             | Access Denied         | User lacks ADMIN role                            |
-| 500       | INTERNAL_SERVER_ERROR | Unexpected Error      | Any unhandled server-side exception              |
+| **201**       | CREATED               | Locations created     | All entries successfully added                   |
+| **206**       | PARTIAL_CONTENT       | Partial Success       | Some entries skipped due to duplicates or errors |
+| **400**       | BAD_REQUEST           | Validation Failed     | Invalid DTO or empty list                        |
+| **401**       | UNAUTHORIZED          | Authentication Failed | Token invalid or expired                         |
+| **403**       | FORBIDDEN             | Access Denied         | User lacks ADMIN role                            |
+| **500**       | INTERNAL_SERVER_ERROR | Unexpected Error      | Any unhandled server-side exception              |
 
 
 
@@ -1119,14 +1119,14 @@ Key highlights:
 #### 📥 Query Parameters
 | Parameter | Type   | Default | Description                                                                                   | Required |
 | --------- | ------ | ------- | --------------------------------------------------------------------------------------------- | -------- |
-| page      | Integer| 1       | Page number (1-based from client)                                                             | No       |
-| size      | Integer| 10      | Number of items per page                                                                      | No       |
-| sortBy    | String | id      | Field to sort by (`id`, `name`, `state.name`, `state.country.name`, `createdAt`, `updatedAt`) | No       |
-| sortDir   | String | asc     | Sort direction (`asc` or `desc`)                                                              | No       |
-| country   | String | -       | Filter by Country (must match Country regex, capitalized)                                     | No       |
-| state     | String | -       | Filter by State (must match State regex, capitalized)                                       | No       |
-| city      | String | -       | Filter by City (starts with capital letter)                                                   | No       |
-| role      | String | -       | Filter by Creator Role                                                                        | No       |
+| **page**      | Integer| 1       | Page number (1-based from client)                                                             | No       |
+| **size**      | Integer| 10      | Number of items per page                                                                      | No       |
+| **sortBy**    | String | `id`      | Field to sort by (`id`, `name`, `state.name`, `state.country.name`, `createdAt`, `updatedAt`) | No       |
+| **sortDir**   | String | `ASC`     | Sort direction case-insensitive (`ASC` or `DESC`)                                             | No       |
+| **country**   | String | -       | Filter by Country (must match Country regex, capitalized)                                     | No       |
+| **state**     | String | -       | Filter by State (must match State regex, capitalized)                                       | No       |
+| **city**      | String | -       | Filter by City (starts with capital letter)                                                   | No       |
+| **role**      | String | -       | Filter by Creator Role                                                                        | No       |
 
 > Example url to try: `/bookmyride/management/locations?page=2&size=5&country=India&sortBy=city&sortDir=desc`
 
@@ -1192,8 +1192,8 @@ This design delivers a **consistent, audit-ready, and future-proof response** th
 #### 📊 HTTP Status Code Table
 | HTTP Code | Status Name       | Meaning               | When It Occurs                                |
 | --------- | ----------------- | --------------------- | --------------------------------------------- |
-| 200       | SUCCESS           | Request succeeded     | Data found and returned successfully          |
-| 400       | BAD_REQUESt       | Validation Failed     | Invalid ID / regex or enum fail               |
+| **200**       | SUCCESS           | Request succeeded     | Data found and returned successfully          |
+| **400**       | BAD_REQUESt       | Validation Failed     | Invalid ID / regex or enum fail               |
 
 
 #### ⚠️ Edge Cases & Developer Notes  
@@ -1382,13 +1382,13 @@ If any other admin modified the location during update:
 #### 📊 HTTP Status Code Table
 | HTTP Code | Status Name       | Meaning               | When It Occurs                                |
 | --------- | ----------------- | --------------------- | --------------------------------------------- |
-| 200       | OK                | Request succeeded     | Data found and returned successfully          |
-| 400       | BAD_REQUEST       | Validation Falied     | Invalid ID / invalid DTO / regex or enum fail |
-| 401       | UNAUTHORIZED      | Authentication Failed | Missing or invalid JWT                        |
-| 404       | NOT_FOUND         | Resource Not Found    | CityEntity / MasterLocation entity missing    |
-| 403       | FORBIDDEN         | Access Denied         | Only Authority users could modify             |
-| 409       | CONFLICT          | Duplicate Entry       | New combination already exists / Optimistic lock conflict |
-| 500       | INTERNAL_SERVER_ERROR | Unexpected Error | Unexpected server-side error              |
+| **200**       | OK                | Request succeeded     | Data found and returned successfully          |
+| **400**       | BAD_REQUEST       | Validation Falied     | Invalid ID / invalid DTO / regex or enum fail |
+| **401**       | UNAUTHORIZED      | Authentication Failed | Missing or invalid JWT                        |
+| **404**       | NOT_FOUND         | Resource Not Found    | CityEntity / MasterLocation entity missing    |
+| **403**       | FORBIDDEN         | Access Denied         | Only Authority users could modify             |
+| **409**       | CONFLICT          | Duplicate Entry       | New combination already exists / Optimistic lock conflict |
+| **500**       | INTERNAL_SERVER_ERROR | Unexpected Error | Unexpected server-side error              |
 
 
 #### ⚠️ Edge Cases & Developer Notes
@@ -1589,13 +1589,13 @@ This prevents race-condition-based partial deletions or inconsistent states.
 #### 📊 HTTP Status Code Table
 | HTTP Code | Status Name           | Meaning               | When It Occurs                              |
 | --------- | --------------------- | --------------------- | ------------------------------------------- |
-| 200       | OK                    | Location deleted      | Successful deletion                         |
-| 400       | BAD_REQUEST           | Validation Failed     | Invalid ID                                  |
-| 401       | UNAUTHORIZED          | Authentication Failed | Invalid/expired token                       |
-| 403       | FORBIDDEN             | Access Denied         | Role not ADMIN                              |
-| 404       | NOT_FOUND             | Record Missing        | City or MasterLocation not found            |
-| 409       | CONFLICT              | Concurrency Issue     | Deleted by another admin / version conflict |
-| 500       | INTERNAL_SERVER_ERROR | Unexpected Error      | Unhandled system failure                    |
+| **200**       | OK                    | Location deleted      | Successful deletion                         |
+| **400**       | BAD_REQUEST           | Validation Failed     | Invalid ID                                  |
+| **401**       | UNAUTHORIZED          | Authentication Failed | Invalid/expired token                       |
+| **403**       | FORBIDDEN             | Access Denied         | Role not ADMIN                              |
+| **404**       | NOT_FOUND             | Record Missing        | City or MasterLocation not found            |
+| **409**       | CONFLICT              | Concurrency Issue     | Deleted by another admin / version conflict |
+| **500**       | INTERNAL_SERVER_ERROR | Unexpected Error      | Unhandled system failure                    |
 
 
 #### ⚠️ Edge Cases & Developer Notes
@@ -1715,12 +1715,12 @@ If two admins attempt a full wipe simultaneously:
 #### 📊 HTTP Status Code Table
 | HTTP Code | Status                | Meaning               | When It Occurs                   |
 | --------- | --------------------- | --------------------- | -------------------------------- |
-| 200       | OK                    | All data deleted      | Successful hierarchical wipe     |
-| 401       | UNAUTHORIZED          | Authentication failed | JWT missing or invalid           |
-| 403       | FORBIDDEN             | Access denied         | Role ≠ ADMIN                     |
-| 404       | NOT_FOUND             | Invalid admin         | Principal validation failed      |
-| 409       | CONFLICT              | Concurrent deletion   | Another admin already wiped data |
-| 500       | INTERNAL_SERVER_ERROR | Server error          | Underlying system failure        |
+| **200**       | OK                    | All data deleted      | Successful hierarchical wipe     |
+| **401**       | UNAUTHORIZED          | Authentication failed | JWT missing or invalid           |
+| **403**       | FORBIDDEN             | Access denied         | Role ≠ ADMIN                     |
+| **404**       | NOT_FOUND             | Invalid admin         | Principal validation failed      |
+| **409**       | CONFLICT              | Concurrent deletion   | Another admin already wiped data |
+| **500**       | INTERNAL_SERVER_ERROR | Server error          | Underlying system failure        |
 
 
 #### ⚠️ Edge Cases & Developer Notes
@@ -1938,13 +1938,13 @@ Prevents conflicted or duplicate entries in high-concurrency admin environments.
 #### 📊 HTTP Status Code Table
 | HTTP Code | Status                | Meaning               | When It Occurs                   |
 | --------- | --------------------- | --------------------- | -------------------------------- |
-| 201       | CREATED               | Bus Created           | All validations passed, save successful|
-| 400       | BAD_REQUEST           | Validation Error      | Bad DTO, invalid enum, invalid time, or location error|
-| 401       | UNAUTHORIZED          | Auth Failed           | oken missing/invalid Or UserPrincipal null|
-| 403       | FORBIDDEN             | Access denied         | Role mismatch                    |
-| 404       | NOT_FOUND             | Invalid admin         | Admin not found OR master location/ DB entities missing|
-| 409       | CONFLICT              | Concurrent deletion   | Bus number exists OR optimistic lock triggered |
-| 500       | INTERNAL_SERVER_ERROR | Server error          | Underlying system failure        |
+| **201**       | CREATED               | Bus Created           | All validations passed, save successful|
+| **400**       | BAD_REQUEST           | Validation Error      | Bad DTO, invalid enum, invalid time, or location error|
+| **401**       | UNAUTHORIZED          | Auth Failed           | oken missing/invalid Or UserPrincipal null|
+| **403**       | FORBIDDEN             | Access denied         | Role mismatch                    |
+| **404**       | NOT_FOUND             | Invalid admin         | Admin not found OR master location/ DB entities missing|
+| **409**       | CONFLICT              | Concurrent deletion   | Bus number exists OR optimistic lock triggered |
+| **500**       | INTERNAL_SERVER_ERROR | Server error          | Underlying system failure        |
 
 
 #### ⚠️ Edge Cases & Developer Notes  
@@ -2024,11 +2024,11 @@ Built using a modular filtering pipeline, enabling new filters or enum types to 
 #### 📥 Query Parameters  
 | Parameter | Type    | Default | Description                                                                                                                                                                    | Required |
 | --------- | ------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------- |
-| page      | Integer | 1       | The page number for paginated results (1-based indexing)                                                                                                                       | No       |
-| size      | Integer | 10      | Number of records per page                                                                                                                                                     | No       |
-| sortBy    | String  | id      | Field by which to sort the results—options include: `id`, `busName`, `busNumber`, `busType`, `stateOfRegistration`, `fare`, `departureAt`, `arrivalAt`, `createdAt`, `updatedAt`                   | No       |
-| sortDir   | String  | ASC     | Sort direction, either `ASC` (ascending) or `DESC` (descending)                                                                                                                    | No       |
-| keyword   | String  | -       | Optional filter string supporting multiple formats and patterns including prefixed filters (id_, fare_, bus_, location_), regex-based enums, and dates/times in strict formats | No       |
+| **page**      | Integer | 1       | The page number for paginated results (1-based indexing)                                                                                                                       | No       |
+| **size**      | Integer | 10      | Number of records per page                                                                                                                                                     | No       |
+| **sortBy**    | String  | `id`      | Field by which to sort the results—options include: `id`, `busName`, `busNumber`, `busType`, `stateOfRegistration`, `fare`, `departureAt`, `arrivalAt`, `createdAt`, `updatedAt`                   | No       |
+| **sortDir**   | String  | `ASC`     | Sort direction, either `ASC` (ascending) or `DESC` (descending)                                                                                                                    | No       |
+| **keyword**   | String  | -       | Optional filter string supporting multiple formats and patterns including prefixed filters (`id_`, `fare_`, `bus_`, `location_`), regex-based enums, and dates/times in strict formats | No       |
 
 
 #### ⚙️ Backend Processing Flow  
@@ -2113,10 +2113,10 @@ This structure ensures that clients receive a **single, holistic view** of a bus
 #### 📊 HTTP Status Code Table
 | HTTP Code | Status                | Meaning               | When It Occurs                   |
 | --------- | --------------------- | --------------------- | -------------------------------- |
-| 401       | UNAUTHORIZED          | Auth Failed           | Role mismatch due to token invalid|
-| 403       | FORBIDDEN             | Access denied         | Role mismatch                    |
-| 400       | BAD_REQUEST           | Validation Error      | Bad DTO, invalid enum, invalid time, or location error|
-| 200       | OK                    | Success               | Results a paginated output        |
+| **401**       | UNAUTHORIZED          | Auth Failed           | Role mismatch due to token invalid|
+| **403**       | FORBIDDEN             | Access denied         | Role mismatch                    |
+| **400**       | BAD_REQUEST           | Validation Error      | Bad DTO, invalid enum, invalid time, or location error|
+| **200**       | OK                    | Success               | Results a paginated output        |
 
 
 
@@ -2319,13 +2319,13 @@ This separation ensures clean decoupling of data transformation from business lo
 #### HTTP Status Code Table
 | HTTP Code | Status Name       | Meaning               | When It Occurs                                |
 | --------- | ----------------- | --------------------- | --------------------------------------------- |
-| 200       | OK                | Request succeeded     | Data found and returned successfully          |
-| 400       | BAD_REQUEST       | Validation Falied     | Invalid ID / invalid DTO / regex or enum fail |
-| 401       | UNAUTHORIZED      | Authentication Failed | Missing or invalid JWT                        |
-| 404       | NOT_FOUND         | Resource Not Found    | CityEntity / MasterLocation entity missing    |
-| 403       | FORBIDDEN         | Access Denied         | Only Authority users could modify             |
-| 409       | CONFLICT          | Duplicate Entry       | New combination already exists / Optimistic lock conflict |
-| 500       | INTERNAL_SERVER_ERROR | Unexpected Error |  Unexpected server-side error occured          |
+| **200**       | OK                | Request succeeded     | Data found and returned successfully          |
+| **400**       | BAD_REQUEST       | Validation Falied     | Invalid ID / invalid DTO / regex or enum fail |
+| **401**       | UNAUTHORIZED      | Authentication Failed | Missing or invalid JWT                        |
+| **404**       | NOT_FOUND         | Resource Not Found    | CityEntity / MasterLocation entity missing    |
+| **403**       | FORBIDDEN         | Access Denied         | Only Authority users could modify             |
+| **409**       | CONFLICT          | Duplicate Entry       | New combination already exists / Optimistic lock conflict |
+| **500**       | INTERNAL_SERVER_ERROR | Unexpected Error |  Unexpected server-side error occured          |
 
 
 #### ⚠️ Edge Cases & Developer Notes  
@@ -2480,13 +2480,13 @@ Any unexpected internal error triggers a rollback and returns **500 Internal Ser
 #### 📊 HTTP Status Code Table
 | HTTP Code | Status Name           | Meaning                 | When It Occurs                   |
 | --------- | --------------------- | ----------------------- | -------------------------------- |
-| 200       | OK                    | Successfully deleted    | Bus existed & deletion succeeded |
-| 400       | BAD_REQUEST           | Invalid data            | Invalid ID                       |
-| 401       | UNAUTHORIZED          | Authentication failed   | Missing/invalid JWT              |
-| 403       | FORBIDDEN             | Access denied           | Non-admin                        |
-| 404       | NOT_FOUND             | Bus not found           | ID not in DB                     |
-| 409       | CONFLICT              | Concurrent modification | Another admin deleted same bus   |
-| 500       | INTERNAL_SERVER_ERROR | Unexpected server issue | Repo/DB/transaction failures     |
+| **200**       | OK                    | Successfully deleted    | Bus existed & deletion succeeded |
+| **400**       | BAD_REQUEST           | Invalid data            | Invalid ID                       |
+| **401**       | UNAUTHORIZED          | Authentication failed   | Missing/invalid JWT              |
+| **403**       | FORBIDDEN             | Access denied           | Non-admin                        |
+| **404**       | NOT_FOUND             | Bus not found           | ID not in DB                     |
+| **409**       | CONFLICT              | Concurrent modification | Another admin deleted same bus   |
+| **500**       | INTERNAL_SERVER_ERROR | Unexpected server issue | Repo/DB/transaction failures     |
 
 
 #### ⚠️ Edge Cases & Developer Notes  
@@ -2734,9 +2734,9 @@ For example query like `filterBusByLocationWithBothTypeAndTime()`, `filterBusByA
 #### 📊 HTTP Status Code Table
 | HTTP Code | Status Name           | Meaning                 | When It Occurs                   |
 | --------- | --------------------- | ----------------------- | -------------------------------- |
-| 200       | OK                    | Successfully delivered  | Bus existed & delivered succeeded|
-| 400       | BAD_REQUEST           | Invalid data            | Invalid pagination input / enum values|
-| 404       | NOT_FOUND             | Bus not found           | No bus data found                |
+| **200**       | OK                    | Successfully delivered  | Bus existed & delivered succeeded|
+| **400**       | BAD_REQUEST           | Invalid data            | Invalid pagination input / enum values|
+| **404**       | NOT_FOUND             | Bus not found           | No bus data found                |
 
 
 #### ⚠️ Edge Cases & Developer Notes  
@@ -3140,12 +3140,12 @@ This preview serves as the **starting point of the booking workflow**, giving th
 #### 📊 HTTP Status Code Table   
 | HTTP Code | Status                | Meaning                                 | When It Occurs                                     |
 | --------- | --------------------- | --------------------------------------- | -------------------------------------------------- |
-| 201       | CREATED               | Booking Created successful              | Booking + seat lock succeeded                      |
-| 400       | BAD_REQUEST           | Validation Error                        | DTO invalid, malformed date, seats < 1             |
-| 403       | FORBIDDEN             | Role mismatch                           | Mobile belongs to restricted/management role       |
-| 404       | NOT_FOUND             | Bus not found                           | ID not present in DB                               |
-| 409       | CONFLICT              | Insufficient Seats                      | availableSeats < seatsBooked or Capacity limitation|
-| 500       | INTERNAL_SERVER_ERROR | System failure                          | Unexpected exception                               |
+| **201**       | CREATED               | Booking Created successful              | Booking + seat lock succeeded                      |
+| **400**       | BAD_REQUEST           | Validation Error                        | DTO invalid, malformed date, seats < 1             |
+| **403**       | FORBIDDEN             | Role mismatch                           | Mobile belongs to restricted/management role       |
+| **404**       | NOT_FOUND             | Bus not found                           | ID not present in DB                               |
+| **409**       | CONFLICT              | Insufficient Seats                      | availableSeats < seatsBooked or Capacity limitation|
+| **500**       | INTERNAL_SERVER_ERROR | System failure                          | Unexpected exception                               |
 
 
 #### ⚠️ Edge Cases & Developer Notes  
@@ -3250,10 +3250,10 @@ This editing feature is **rejected** for:
 
 | Status     | Reason                                       |
 | ---------- | -------------------------------------------- |
-| PROCESSING | Already moved to payment; no changes allowed |
-| CONFIRMED  | Booking is final & immutable                 |
-| CANCELLED  | Closed booking cannot be edited              |
-| EXPIRED    | Auto-expired; seats already released         |  
+| `PROCESSING` | Already moved to payment; no changes allowed |
+| `CONFIRMED`  | Booking is final & immutable                 |
+| `CANCELLED`  | Closed booking cannot be edited              |
+| `EXPIRED`    | Auto-expired; seats already released         |  
 
 Each invalid state returns → **403 FORBIDDEN** with contextual messages.
 
@@ -3379,13 +3379,13 @@ This response serves as the **post-edit recalculated snapshot**, ensuring the cl
 #### 📊 HTTP Status Code Table
 | HTTP Code | Status                | Meaning                                 | When It Occurs                                     |
 | --------- | --------------------- | --------------------------------------- | -------------------------------------------------- |
-| 200       | OK                    | Booking edited successful               | All validations pass, saved                        |
-| 400       | BAD_REQUEST           | Validation Error                        | Invalid DTO, seats < 1, invalid travelAt           |
-| 403       | FORBIDDEN             | Edit Not Allowed                        | Booking status not editable                        |
-| 404       | NOT_FOUND             | Booking not found                       | ID not present in DB                               |
-| 408       | REQUEST_TIMEOUT       | Booking expired                         | Optimistic lock detects expiration                 |
-| 409       | CONFLICT              | Seats unavailable / duplicate user info | Requested seats > available, conflicting user data |
-| 500       | INTERNAL_SERVER_ERROR | System failure                          | Unexpected exception                               |
+| **200**       | OK                    | Booking edited successful               | All validations pass, saved                        |
+| **400**       | BAD_REQUEST           | Validation Error                        | Invalid DTO, seats < 1, invalid travelAt           |
+| **403**       | FORBIDDEN             | Edit Not Allowed                        | Booking status not editable                        |
+| **404**       | NOT_FOUND             | Booking not found                       | ID not present in DB                               |
+| **408**       | REQUEST_TIMEOUT       | Booking expired                         | Optimistic lock detects expiration                 |
+| **409**       | CONFLICT              | Seats unavailable / duplicate user info | Requested seats > available, conflicting user data |
+| **500**       | INTERNAL_SERVER_ERROR | System failure                          | Unexpected exception                               |
 
 
 #### ⚠️ Edge Cases & Developer Notes    
@@ -3575,11 +3575,11 @@ This DTO serves as the **intermediate, payment-ready snapshot** of the booking, 
 #### 📊 HTTP Status Code Table
 | HTTP Code | Status                | When It Occurs                                              | Message                                                                                                     |
 | --------- | --------------------- | ----------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
-| 400       | BAD_REQUEST           | Invalid booking ID                                          | "Invalid Booking ID. Please check and try again"                                                            |
-| 403       | FORBIDDEN             | Booking already processed, cancelled, confirmed, or expired | Contextual message depending on status                                                                      |
-| 404       | NOT_FOUND             | Booking not found                                           | "Booking data not found for given Booking ID"                                                               |
-| 408       | REQUEST_TIMEOUT       | Booking expired before continue or optimistic lock detected | "Oops! Your booking has expired, and couldn't continue the process. Please make a new booking to continue." |
-| 500       | INTERNAL_SERVER_ERROR | Unexpected backend error                                    | "Booking failed to continue due to internal server problem. Please try again later."                        |
+| **400**       | BAD_REQUEST           | Invalid booking ID                                          | "Invalid Booking ID. Please check and try again"                                                            |
+| **403**       | FORBIDDEN             | Booking already processed, cancelled, confirmed, or expired | Contextual message depending on status                                                                      |
+| **404**       | NOT_FOUND             | Booking not found                                           | "Booking data not found for given Booking ID"                                                               |
+| **408**       | REQUEST_TIMEOUT       | Booking expired before continue or optimistic lock detected | "Oops! Your booking has expired, and couldn't continue the process. Please make a new booking to continue." |
+| **500**       | INTERNAL_SERVER_ERROR | Unexpected backend error                                    | "Booking failed to continue due to internal server problem. Please try again later."                        |
 
 
 #### ⚠️ Edge Cases & Developer Notes  
@@ -3753,11 +3753,11 @@ Once the booking is successfully confirmed, the system maps the persisted entity
 #### 📊 HTTP Status Code Table  
 | HTTP Code | Status                | When It Occurs                                                  | Message                                                                                                         |
 | --------- | --------------------- | --------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
-| 400       | BAD_REQUEST           | Invalid booking ID or payment method                            | "Invalid Booking ID. Please check and try again" / "Invalid payment method"                                     |
-| 403       | FORBIDDEN             | Booking not eligible (PENDING, CANCELLED, EXPIRED, CONFIRMED)   | Contextual message                                                                                              |
-| 404       | NOT_FOUND             | Booking not found                                               | "No booking data found for given Booking ID"                                                                    |
-| 408       | REQUEST_TIMEOUT       | Booking expired before confirmation or optimistic lock detected | "Oops! Your booking has expired, and the payment couldn’t be processed. Please make a new booking to continue." |
-| 500       | INTERNAL_SERVER_ERROR | Unexpected backend error                                        | "Booking failed to confirm due to internal server problem. Please try again later."                             |
+| **400**       | BAD_REQUEST           | Invalid booking ID or payment method                            | "Invalid Booking ID. Please check and try again" / "Invalid payment method"                                     |
+| **403**       | FORBIDDEN             | Booking not eligible (PENDING, CANCELLED, EXPIRED, CONFIRMED)   | Contextual message                                                                                              |
+| **404**       | NOT_FOUND             | Booking not found                                               | "No booking data found for given Booking ID"                                                                    |
+| **408**       | REQUEST_TIMEOUT       | Booking expired before confirmation or optimistic lock detected | "Oops! Your booking has expired, and the payment couldn’t be processed. Please make a new booking to continue." |
+| **500**       | INTERNAL_SERVER_ERROR | Unexpected backend error                                        | "Booking failed to confirm due to internal server problem. Please try again later."                             |
 
 
 #### ⚠️ Edge Cases & Developer Notes  
@@ -3858,7 +3858,7 @@ This design ensures that cancellations are **safe, consistent, and fully auditab
 #### 📥 Request Parameter  
 | Parameter | Type | Description                                    | Required |
 | --------- | ---- | ---------------------------------------------- | -------- |
-| id        | Long | ID of the booking to cancel. Must be positive. | Yes      |
+| `id`        | Long | ID of the booking to cancel. Must be positive. | Yes      |
 > 💡 Notes:
 - Only bookings in **PENDING** or **PROCESSING** status are eligible for cancellation.
 - Once a booking is either **CONFIRMED**, **CANCELLED**, or **EXPIRED**, for those cancellation is forbidden.
@@ -3946,11 +3946,11 @@ For eligible bookings, the system performs atomic updates within a transactional
 #### 📊 HTTP Status Code Table 
 | HTTP Code | Status                | When It Occurs                              | Message                                                                                                                |
 | --------- | --------------------- | ------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
-| 400       | BAD_REQUEST           | Invalid booking ID                          | `"Invalid Booking ID. Please check and try again"`                                                                     |
-| 403       | FORBIDDEN             | Booking not eligible for cancellation       | `"You can only cancel bookings that haven’t been confirmed yet. Booking ID X is no longer eligible for cancellation."` |
-| 404       | NOT_FOUND             | Booking not found                           | `"No booking data found for given Booking ID X"`                                                                       |
-| 408       | REQUEST_TIMEOUT       | Optimistic lock detected or booking expired | `"This booking has expired and can no longer be cancelled."`                                                           |
-| 500       | INTERNAL_SERVER_ERROR | Unexpected backend error                    | `"Booking failed to cancel due to internal server problem. Please try again later."`                                   |
+| **400**       | BAD_REQUEST           | Invalid booking ID                          | `"Invalid Booking ID. Please check and try again"`                                                                     |
+| **403**       | FORBIDDEN             | Booking not eligible for cancellation       | `"You can only cancel bookings that haven’t been confirmed yet. Booking ID X is no longer eligible for cancellation."` |
+| **404**       | NOT_FOUND             | Booking not found                           | `"No booking data found for given Booking ID X"`                                                                       |
+| **408**       | REQUEST_TIMEOUT       | Optimistic lock detected or booking expired | `"This booking has expired and can no longer be cancelled."`                                                           |
+| **500**       | INTERNAL_SERVER_ERROR | Unexpected backend error                    | `"Booking failed to cancel due to internal server problem. Please try again later."`                                   |
 
 
 #### ⚠️ Edge Cases & Developer Notes  
@@ -6357,7 +6357,7 @@ Ensure your environment has the following installed and configured:
 - **Java JDK:** 17+
 - **Maven:** 3.8+
 - **Database:** MySQL (or PostgreSQL if configured differently)
-- **IDE:** IntelliJ IDEA (recommended) / VS Code
+- **IDE:** IntelliJ IDEA (recommended) / Eclipse
 - **Git:** For cloning the repository
 - **API Testing Tool:** Postman or Insomnia (optional, for testing endpoints)  
  
