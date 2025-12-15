@@ -208,6 +208,8 @@ This section provides a complete and professionally structured reference for all
 
 This comprehensive structure ensures clear understanding for developers, simplifies integration for frontend clients, and provides a deep, reliable reference for future enhancements.   
 
+**Note:** It is strongly recommended that developers/readers follow the API documentation in the specified order, from #1 through #31. This sequence is deliberately structured to ensure the correct and secure interaction with the _**BookMyRide**_ backend. Each API builds on the prior workflow, and adhering to this progression provides a seamless experience while maintaining the integrity and security of the system. Skipping steps or using APIs out of order may lead to unexpected behavior or security restrictions.   
+
 ### 🔐 1. Management Login (Admin Login)
 
 <details> 
