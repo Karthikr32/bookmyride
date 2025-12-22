@@ -22,7 +22,7 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 public class SecurityFilterConfig {
 
     @Bean
-    @Order(1)  // in order to make this method more prior than spring's own feature
+    @Order(1)
     public SecurityFilterChain securityFilter(HttpSecurity http, JwtFilter jwtFilter) throws Exception {
         return http
                 .csrf(AbstractHttpConfigurer::disable)
@@ -45,7 +45,7 @@ public class SecurityFilterConfig {
 
     @Bean
     public AuthenticationManager authenticationManager(AuthenticationConfiguration authenticationConfiguration) throws Exception {
-        return authenticationConfiguration.getAuthenticationManager();      // Object for AuthenticationManager
+        return authenticationConfiguration.getAuthenticationManager();
     }
 
 

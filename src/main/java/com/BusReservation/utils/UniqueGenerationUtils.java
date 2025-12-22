@@ -10,7 +10,7 @@ public class UniqueGenerationUtils {
         StringBuilder travelTicket = new StringBuilder();
         travelTicket.append("TK");
 
-        String id = String.format("%02d", bookingId);     // 02d means, if single digit -> 0d or dd
+        String id = String.format("%02d", bookingId);
         travelTicket.append(id);
 
         UUID uuid = UUID.randomUUID();
@@ -19,6 +19,7 @@ public class UniqueGenerationUtils {
         return travelTicket.toString();
     }
 
+
     public static String generateTransactionId(Integer digits, Long bookingId) {
         StringBuilder transactionId = new StringBuilder();
         transactionId.append("TNX");
@@ -26,7 +27,7 @@ public class UniqueGenerationUtils {
         String id = String.format("%02d", bookingId);
         transactionId.append(id);
 
-        String time = LocalDateTime.now().format(DateTimeFormatter.ofPattern("HHmmssSSS"));    // hr_min_sec_ms
+        String time = LocalDateTime.now().format(DateTimeFormatter.ofPattern("HHmmssSSS"));
         transactionId.append(time);
 
         UUID uuid = UUID.randomUUID();
@@ -38,7 +39,7 @@ public class UniqueGenerationUtils {
 
     public static String getUsername(String fullName) {
         StringBuilder stringBuilder = new StringBuilder();
-        stringBuilder.append("adm_");   // 3
+        stringBuilder.append("adm_");
 
         String[] name = fullName.trim().split(" ");
         if(name.length == 1) stringBuilder.append(name[0].trim().toLowerCase()).append("_");
@@ -50,7 +51,6 @@ public class UniqueGenerationUtils {
         UUID uuid = UUID.randomUUID();
         String unique = uuid.toString().substring(0, 4);
         stringBuilder.append(unique);
-
         return stringBuilder.toString();
     }
 }

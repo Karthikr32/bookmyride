@@ -13,7 +13,7 @@ import java.time.LocalDateTime;
 public class ManagementMapper {
 
     public static Management dtoToManagement(ManagementSignUpDto signUpDto, Gender gender, BCryptPasswordEncoder passwordEncoder) {
-        Management newManagement = new Management();    // 10
+        Management newManagement = new Management();
         newManagement.setFullName(signUpDto.getFullName());
         newManagement.setGender(gender);
         newManagement.setUsername(UniqueGenerationUtils.getUsername(newManagement.getFullName()));
@@ -27,8 +27,9 @@ public class ManagementMapper {
         return newManagement;
     }
 
+
     public static ManagementProfileDto managementToDto(Management management) {
-        ManagementProfileDto managementProfileDto = new ManagementProfileDto();   // 8
+        ManagementProfileDto managementProfileDto = new ManagementProfileDto();
         managementProfileDto.setId(management.getId());
         managementProfileDto.setFullName(management.getFullName());
         managementProfileDto.setGender(management.getGender().getGenderName());

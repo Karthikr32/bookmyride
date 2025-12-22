@@ -5,13 +5,13 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Data
-public class BookingListDto {     // 12 + 9 == 21
+public class BookingListDto {
 
     private BookingInfo booking;
     private BusInfo bus;
 
     @Data
-    public static final class BookingInfo {    // 16
+    public static final class BookingInfo {
         private Long id;
         private Long seatsBooked;
         private LocalDateTime bookedAt;
@@ -31,7 +31,7 @@ public class BookingListDto {     // 12 + 9 == 21
     }
 
     @Data
-    public static final class BusInfo {  // 6
+    public static final class BusInfo {
         private String busNumber;
         private String busName;
         private String busType;

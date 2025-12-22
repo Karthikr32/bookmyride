@@ -1,6 +1,6 @@
 package com.BusReservation.constants;
 
-public enum State {            // 28 + 4
+public enum State {
     ANDHRA_PRADESH("Andra Pradesh"),
     ARUNACHAL_PRADESH("Arunachal Pradesh"),
     ASSAM("Assam"),

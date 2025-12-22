@@ -5,14 +5,14 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Data
-public class ManagementBookingDataDto {     // 32
+public class ManagementBookingDataDto {
 
     private BookingInfo booking;
     private BusInfo bus;
     private PassengerInfo passenger;
 
     @Data
-    public static final class BookingInfo {    // 15
+    public static final class BookingInfo {
         private Long id;
         private LocalDateTime bookedAt;
         private LocalDate travelAt;
@@ -31,7 +31,7 @@ public class ManagementBookingDataDto {     // 32
     }
 
     @Data
-    public static final class BusInfo {     // 12
+    public static final class BusInfo {
         private Long id;
         private String busNumber;
         private String busName;
@@ -47,7 +47,7 @@ public class ManagementBookingDataDto {     // 32
     }
 
     @Data
-    public static final class PassengerInfo {   // 7
+    public static final class PassengerInfo {
         private Long id;
         private String name;
         private String email;
@@ -56,5 +56,4 @@ public class ManagementBookingDataDto {     // 32
         private String role;
         private Long seatsBooked;
     }
-
 }

@@ -15,20 +15,20 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 @Table(name = "management")
-public class Management {      // 11  --> 10
+public class Management {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     @Column(nullable = false)
-    private String fullName;         // can allow single/double name
+    private String fullName;
 
     @Enumerated(EnumType.STRING)
     private Gender gender;
 
     @Column(unique = true, nullable = false)
-    private String username;        // will be generated via backend
+    private String username;
 
     @Column(nullable = false)
     private String password;
@@ -45,9 +45,9 @@ public class Management {      // 11  --> 10
     @Column(nullable = false)
     private LocalDateTime createdAt;
 
-    private LocalDateTime profileUpdatedAt;      // for profile update API
+    private LocalDateTime profileUpdatedAt;
 
-    private LocalDateTime passwordLastUpdatedAt;   // for password update API
+    private LocalDateTime passwordLastUpdatedAt;
 
     @JsonIgnore
     @OneToMany(mappedBy = "createdBy")

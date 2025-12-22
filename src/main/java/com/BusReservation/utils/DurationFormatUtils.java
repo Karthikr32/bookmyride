@@ -1,7 +1,7 @@
 package com.BusReservation.utils;
 import java.time.Duration;
 
-public class DurationFormat {
+public class DurationFormatUtils {
 
     public static Duration convertTo(Integer hours, Integer minutes) {
         return Duration.ofHours(hours).plusMinutes(minutes);
@@ -12,9 +12,8 @@ public class DurationFormat {
         int hour = duration.toHoursPart();
         int minute = duration.toMinutesPart();
 
-        String hr = String.format("%02d", hour);
-        String min = String.format("%02d", minute);
-
-        return hr + "h " + min + "m";
+        String hrStr = String.format("%02d", hour);
+        String minStr = String.format("%02d", minute);
+        return hrStr + "h " + minStr + "m";
     }
 }

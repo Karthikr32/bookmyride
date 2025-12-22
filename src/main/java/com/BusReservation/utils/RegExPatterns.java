@@ -15,6 +15,8 @@ public final class RegExPatterns {
 
     public static final String ROLE_REGEX = "(?i)^(USER|ADMIN|GUEST)$";
 
+    public static final String INTERNAL_ROLE_REGEX = "(?i)^(ADMIN)$";
+
     public static final String COST_WITH_DECIMAL_REGEX = "^([1-9][0-9]{2,}.[0-9]{2})$";
 
     public static final String COST_WITHOUT_DECIMAL_REGEX = "^([1-9][0-9]{2,})$";
@@ -66,5 +68,4 @@ public final class RegExPatterns {
     public static final String ADMIN_PASSWORD_REGEX = "^(?=.*[A-Z])(?=.*[a-z])(?=.*[0-9])(?=.*[@#$%!&*]).{12,}$";
 
     public static final String USER_PASSWORD_REGEX = "^(?=.*[A-Z])(?=.*[a-z])(?=.*[0-9])(?=.*[@#$%!&*]).{10,}$";
-
 }

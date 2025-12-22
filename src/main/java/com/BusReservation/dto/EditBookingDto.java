@@ -11,9 +11,9 @@ import java.time.LocalDate;
 @Data
 public class EditBookingDto {
 
-    @NotNull(message = "Travel date is required")        // NotBlank is for String
+    @NotNull(message = "Travel date is required")
     @Pattern(regexp = RegExPatterns.DATE_REGEX, message = "Invalid date. Travel date must be in a format of either (dd-MM-yyyy) or (yyyy-MM-dd)")
-    private String travelAt;             // when to user decides to travel
+    private String travelAt;
 
     @NotBlank(message = "Name is required")
     @Pattern(regexp = RegExPatterns.NAME_REGEX, message = "Name must starts with capital letter followed by small letter")

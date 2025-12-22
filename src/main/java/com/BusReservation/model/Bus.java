@@ -16,7 +16,7 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 @Table(name = "buses")
-public class Bus {    // total -> 22 | Exclude 3 (Id/bookings/version) -> 19 | 19 fields to entry
+public class Bus {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -34,25 +34,25 @@ public class Bus {    // total -> 22 | Exclude 3 (Id/bookings/version) -> 19 | 1
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private AcType acType;               // AC or NON_AC
+    private AcType acType;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private SeatType seatType;           // SEATER or SLEEPER or SEATER_SLEEPER
+    private SeatType seatType;
 
     @Column(nullable = false)
     @Enumerated(EnumType.STRING)
-    private State stateOfRegistration;                 // TN/kerala/andra/delhi | can Identify using Bus number
+    private State stateOfRegistration;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private PermitStatus interStatePermitStatus;    // yes/no
+    private PermitStatus interStatePermitStatus;
 
     @Column(nullable = false)
     private Long capacity;
 
     @Column(nullable = false)
-    private Long availableSeats;     // (capacity - seatsBooked)
+    private Long availableSeats;
 
     @ManyToOne
     @JsonIgnore
@@ -65,35 +65,35 @@ public class Bus {    // total -> 22 | Exclude 3 (Id/bookings/version) -> 19 | 1
     private MasterLocation toLocation;
 
     @Column(nullable = false)
-    private Duration duration;      // PT??H??M -> eg: PT05H47M -> 05 hour 47 minutes
+    private Duration duration;
 
-    @Column(precision = 6, scale = 2, nullable = false)   // precision(total) - 6 digits (9,999.99) | scale(after point) - 2 (.99)
-    private BigDecimal fare;     // modified
-
-    @Column(nullable = false)          // no need to be unique
-    private LocalTime departureAt;     // NOT BG, want to get this from ADMIN via dto (data_java : HH:mm:ss | data_DB : HH:mm:ss)
+    @Column(precision = 6, scale = 2, nullable = false)
+    private BigDecimal fare;
 
     @Column(nullable = false)
-    private LocalTime arrivalAt;       // Bg departureAt + bus_duration
+    private LocalTime departureAt;
+
+    @Column(nullable = false)
+    private LocalTime arrivalAt;
 
     @Version
     @Column(nullable = false)
-    private Long version;             // Do not touch
+    private Long version;
 
     @ManyToOne
     @JoinColumn(name = "created_by_id", nullable = false)
     private Management createdBy;
 
     @Column(nullable = false)
-    private LocalDateTime createdAt;     // Bg
+    private LocalDateTime createdAt;
 
     @ManyToOne
     @JoinColumn(name = "updated_by_id")
     private Management updatedBy;
 
-    private LocalDateTime updatedAt;     // Bg
+    private LocalDateTime updatedAt;
 
     @JsonIgnore
-    @OneToMany(mappedBy = "bus")           // map using field name not column name
+    @OneToMany(mappedBy = "bus")
     private List<Booking> bookings;
 }

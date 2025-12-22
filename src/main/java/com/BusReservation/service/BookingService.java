@@ -48,8 +48,7 @@ public class BookingService {
             return new ServiceResponse<>(ResponseStatus.SUCCESS, "The available Booking data list in this page " + pageNum, new ApiPageResponse<>(bookingList, pageData.getTotalPages(), pageData.getTotalElements(), pageData.getNumber(), pageData.getSize(), pageData.isFirst(), pageData.isEmpty()));
         }
 
-        // In order to avoid conflicts use "prefix-based search"
-        if(keyword.startsWith("id_")) {   // 3
+        if(keyword.startsWith("id_")) {
             Long bookingId = Long.parseLong(keyword.substring(3).trim());
             if(bookingId <= 0) return new ServiceResponse<>(ResponseStatus.BAD_REQUEST, "Invalid Booking ID. ID cannot be 0 or less than 0");
 
@@ -59,7 +58,7 @@ public class BookingService {
             if(pageData.isEmpty()) return new ServiceResponse<>(ResponseStatus.NOT_FOUND, "No Booking data found for the given Booking ID " + bookingId + " in this page " + pageNum, new ApiPageResponse<>(bookingList, pageData.getTotalPages(), pageData.getTotalElements(), pageData.getNumber(), pageData.getSize(), pageData.isFirst(), pageData.isEmpty()));
             return new ServiceResponse<>(ResponseStatus.SUCCESS, "The Booking data found for the given Booking ID " + bookingId + " in this page " + pageNum, new ApiPageResponse<>(bookingList, pageData.getTotalPages(), pageData.getTotalElements(), pageData.getNumber(), pageData.getSize(), pageData.isFirst(), pageData.isEmpty()));
         }
-        else if(keyword.startsWith("mobile_")) {  // 7
+        else if(keyword.startsWith("mobile_")) {
             String mobileNum = keyword.substring(7).trim();
             if(mobileNum.matches(RegExPatterns.MOBILE_REGEX)) {
                 Page<Booking> pageData = bookingRepo.findByAppUser_Mobile(mobileNum, pageable);
@@ -70,7 +69,7 @@ public class BookingService {
             }
             return new ServiceResponse<>(ResponseStatus.BAD_REQUEST, "Invalid mobile number. Mobile number must starts with either 6 or 7 or 8 or 9 and followed by 9 digits");
         }
-        else if (keyword.startsWith("cost_")) {   // 5
+        else if (keyword.startsWith("cost_")) {
             String costStr = keyword.trim().substring(5);
 
             BigDecimal cost;
@@ -88,7 +87,7 @@ public class BookingService {
             if(pageData.isEmpty()) return new ServiceResponse<>(ResponseStatus.NOT_FOUND, "No Booking data found for the given Booking Cost in this page " + pageNum, new ApiPageResponse<>(bookingList, pageData.getTotalPages(), pageData.getTotalElements(), pageData.getNumber(), pageData.getSize(), pageData.isFirst(), pageData.isEmpty()));
             return new ServiceResponse<>(ResponseStatus.SUCCESS, "The Booking data found for the given Booking Cost in this page " + pageNum, new ApiPageResponse<>(bookingList, pageData.getTotalPages(), pageData.getTotalElements(), pageData.getNumber(), pageData.getSize(), pageData.isFirst(), pageData.isEmpty()));
         }
-        else if(keyword.startsWith("bus_")) {  // for bus_name
+        else if(keyword.startsWith("bus_")) {
             String busName = keyword.substring(4).trim();
             if(!busName.matches(RegExPatterns.BUS_NAME_REGEX)) return new ServiceResponse<>(ResponseStatus.BAD_REQUEST, "Invalid Bus name input. Bus name must start with a capital letter and can include letters, numbers, spaces, and symbols like @, (), /, &, .");
 
@@ -98,7 +97,7 @@ public class BookingService {
             if(pageData.isEmpty()) return new ServiceResponse<>(ResponseStatus.NOT_FOUND, "No Booking data found for the given Bus Name in this page " + pageNum, new ApiPageResponse<>(bookingList, pageData.getTotalPages(), pageData.getTotalElements(), pageData.getNumber(), pageData.getSize(), pageData.isFirst(), pageData.isEmpty()));
             return new ServiceResponse<>(ResponseStatus.SUCCESS, "Booking data found for the given Bus Name in this page " + pageNum, new ApiPageResponse<>(bookingList, pageData.getTotalPages(), pageData.getTotalElements(), pageData.getNumber(), pageData.getSize(), pageData.isFirst(), pageData.isEmpty()));
         }
-        else if(keyword.startsWith("user_")) {   // user's name
+        else if(keyword.startsWith("user_")) {
             String appUserName = keyword.substring(5).trim();
             if(!appUserName.matches(RegExPatterns.NAME_REGEX)) return new ServiceResponse<>(ResponseStatus.BAD_REQUEST, "Invalid App-User Name. Only alphabets and spaces are allowed (e.g., 'John Doe'). No numbers or special characters.");
 
@@ -108,7 +107,7 @@ public class BookingService {
             if(pageData.isEmpty()) return new ServiceResponse<>(ResponseStatus.NOT_FOUND, "No Booking data found for the given App-user Name in this page " + pageNum, new ApiPageResponse<>(bookingList, pageData.getTotalPages(), pageData.getTotalElements(), pageData.getNumber(), pageData.getSize(), pageData.isFirst(), pageData.isEmpty()));
             return new ServiceResponse<>(ResponseStatus.SUCCESS, "Booking data found for the given App-user Name in this page " + pageNum, new ApiPageResponse<>(bookingList, pageData.getTotalPages(), pageData.getTotalElements(), pageData.getNumber(), pageData.getSize(), pageData.isFirst(), pageData.isEmpty()));
         }
-        else if(keyword.startsWith("location_")) {    // both fromLocation and toLocation
+        else if(keyword.startsWith("location_")) {
             String location = keyword.substring(9).trim();
             if(!location.matches(RegExPatterns.LOCATION_REGEX)) return new ServiceResponse<>(ResponseStatus.BAD_REQUEST, "Invalid City Name. Only letters, spaces, and hyphens are allowed. No numbers or special characters.");
 
@@ -148,11 +147,11 @@ public class BookingService {
 
             if(pageData.isEmpty()) return new ServiceResponse<>(ResponseStatus.NOT_FOUND, "No Booking data found for the given Bus Number in this page " + pageNum, new ApiPageResponse<>(bookingList, pageData.getTotalPages(), pageData.getTotalElements(), pageData.getNumber(), pageData.getSize(), pageData.isFirst(), pageData.isEmpty()));
             return new ServiceResponse<>(ResponseStatus.SUCCESS, "The Booking data found for the given Bus Number in this page " + pageNum, new ApiPageResponse<>(bookingList, pageData.getTotalPages(), pageData.getTotalElements(), pageData.getNumber(), pageData.getSize(), pageData.isFirst(), pageData.isEmpty()));
-        }   // 01/01/2024 OR 01-01-2024 OR 2024-01-01
+        }
         else if(keyword.matches(RegExPatterns.DATE_REGEX)) {
             DateTimeFormatter format = (keyword.contains("/")) ? DateTimeFormatter.ofPattern("dd/MM/uuuu").withResolverStyle(ResolverStyle.STRICT) : DateTimeFormatter.ofPattern("dd-MM-uuuu").withResolverStyle(ResolverStyle.STRICT);
 
-            ServiceResponse<LocalDate> parsedDate = DateParser.parseDate(keyword, format);
+            ServiceResponse<LocalDate> parsedDate = DateParserUtils.parseDate(keyword, format);
             if(parsedDate.getStatus() == ResponseStatus.BAD_REQUEST) return new ServiceResponse<>(parsedDate.getStatus(), parsedDate.getMessage());
 
             String dateStr = parsedDate.getData().toString();
@@ -170,15 +169,14 @@ public class BookingService {
 
     @Transactional
     public ServiceResponse<BookingPreviewDto> createNewBooking(AppUser appUser, Bus bookedBus, @Valid BookingDto bookingDto, LocalDate date) {
-        if(bookingDto.getSeatsBooked() >= 1) {          // booked seats at least 1 or more than 1
+        if(bookingDto.getSeatsBooked() >= 1) {
             try {
-                if(bookedBus.getAvailableSeats() >= bookingDto.getSeatsBooked()) {        // if seats avail
+                if(bookedBus.getAvailableSeats() >= bookingDto.getSeatsBooked()) {
                     Long remaining = bookedBus.getAvailableSeats() - bookingDto.getSeatsBooked();
 
-                    // Should never be < 0 due to earlier check, but guarding just in case when multiple booking occur at same mm
                     if(remaining < 0) return new ServiceResponse<>(ResponseStatus.CONFLICT, "Seats just got booked by others. Please try again new booking.");
 
-                    bookedBus.setAvailableSeats(remaining);   // detect the bus seats in order to avoid conflicts
+                    bookedBus.setAvailableSeats(remaining);
                     Booking booking = BookingMapper.newBooking(appUser,bookedBus, bookingDto, date);
 
                     Booking newBooking = bookingRepo.save(booking);
@@ -188,18 +186,19 @@ public class BookingService {
                 log.info("NEW BOOKING ATTEMPT FAILED: Requested seats ({}) exceed available seats ({}) on Bus number {} for User {}-{}.", bookingDto.getSeatsBooked(), bookedBus.getAvailableSeats(), bookedBus.getBusNumber(), appUser.getId(), appUser.getName());
                 return new ServiceResponse<>(ResponseStatus.INSUFFICIENT, "Requested number of seats exceeds availability. Only " + bookedBus.getAvailableSeats() + " seat(s) left. Please try other buses");
             }
-            catch (ObjectOptimisticLockingFailureException | OptimisticLockException e) {           // for safety + OptimisticLockException is covered by ObjectOptimisticLockingFailureException wrapper.
+            catch (ObjectOptimisticLockingFailureException | OptimisticLockException e) {
                 log.info("OPTIMISTIC LOCK -> NEW BOOKING: Booking tried by user {}-{} could not completed due to their chosen seats from Bus number {} were booked by others.", bookingDto.getName(), bookingDto.getMobile(), bookingDto.getBusNumber());
                 throw e;
             }
             catch (Exception e) {
                 log.warn("INTERNAL ERROR -> NEW BOOKING failed: {}", e.getMessage());
-                throw e;                 //  THROW THR EXCEPTION NOT TRY TO PASS THIS INTO CONTROLLER
+                throw e;
             }
         }
         log.info("NEW BOOKING ATTEMPT FAILED: User {}-{} requested {} seat(s), which is below the minimum allowed (1).", appUser.getId(), appUser.getName(), bookingDto.getSeatsBooked());
         return new ServiceResponse<>(ResponseStatus.BAD_REQUEST, "To make a successful booking, Booked seats should be atleast 1 or more");
     }
+
 
     @Transactional
     public ServiceResponse<BookingSummaryDto> continueBooking(Long bookingId) {
@@ -208,7 +207,7 @@ public class BookingService {
             LocalDateTime expiresAt = booking.get().getBookingExpiresAt();
             Booking continueBooking = booking.get();
             if(continueBooking.getBookingStatus() == BookingStatus.PENDING && continueBooking.getPaymentStatus() == PaymentStatus.UNPAID) {
-                if(expiresAt.isAfter(LocalDateTime.now())) {      // not expired
+                if(expiresAt.isAfter(LocalDateTime.now())) {
                     continueBooking.setBookingStatus(BookingStatus.PROCESSING);
                     continueBooking.setPaymentStatus(PaymentStatus.PENDING);
                     continueBooking.setBusTicket(null);
@@ -219,7 +218,7 @@ public class BookingService {
                     log.info("CONTINUE BOOKING: Booking with Booking ID: {} for User ID: {}, Name: {} was been continued successfully.", continueBooking.getId(), continueBooking.getAppUser().getId(), continueBooking.getAppUser().getName());
                     return new ServiceResponse<>(ResponseStatus.SUCCESS, "Here is your updated booking summary. Please proceed to payment to confirm your reservation.", bookingSummary);
                 }
-                // what if expired?
+
                 try {
                     bookingRepo.save(BookingMapper.bookingExpiredBeforeContinue(continueBooking));
                     log.info("CONTINUE BOOKING: Booking with Booking ID: {} has expired at {}", continueBooking.getId(), continueBooking.getBookingExpiresAt());
@@ -250,7 +249,7 @@ public class BookingService {
             LocalDateTime expiresAt = booking.get().getBookingExpiresAt();
             Booking confirmBooking = booking.get();
             if(confirmBooking.getBookingStatus() == BookingStatus.PROCESSING && confirmBooking.getPaymentStatus() == PaymentStatus.PENDING) {
-                if(expiresAt.isAfter(LocalDateTime.now())) {          // not expired
+                if(expiresAt.isAfter(LocalDateTime.now())) {
                     confirmBooking.setPaymentMethod(paymentMethod);
                     confirmBooking.setPaymentStatus(PaymentStatus.PAID);
                     confirmBooking.setBookingStatus(BookingStatus.CONFIRMED);
@@ -263,7 +262,7 @@ public class BookingService {
                     log.info("CONFIRM BOOKING: Booking ID {} has been confirmed successfully for the User {}-{}", confirmBooking.getId(), confirmBooking.getAppUser().getId(), confirmBooking.getAppUser().getName());
                     return new ServiceResponse<>(ResponseStatus.SUCCESS, "Payment successful! Your booking has been confirmed. Thank you for choosing BookMyRide.", BookingMapper.finalBookingSummary(savedBooking));
                 }
-                // what if expired?
+
                 try {
                     bookingRepo.save(BookingMapper.bookingExpired(confirmBooking));
                     log.info("CONFIRM BOOKING: Booking with Booking ID: {} has expired at {}", confirmBooking.getId(), confirmBooking.getBookingExpiresAt());
@@ -286,11 +285,6 @@ public class BookingService {
         return new ServiceResponse<>(ResponseStatus.NOT_FOUND, "No booking data found for given Booking ID " + bookingId);
     }
 
- // NOTE: The below methods cancelBooking() and autoExpiredDetection() are mostly doing the same job, but exactly they both updates the bus seats back.
-    /* Here, what if they both triggered at same time exactly at same milliseconds. which double updates the bus seats leads to misuse!
-    -> SOLUTION: Use "Optimistic Lock" what is this?
-    -> Used to prevent the method if some other method with same functionality done the task. For eg: In this scenario, Both cancelBooking and autoDetect method has to update the Bus seats if user canceled/booking_expired.
-    ->  Can handle this by using @Version for a field, if any of method come, JPA checks the version if version - 1, then JPA will allow the method to do action(modify) and updates the version value to 2. where if other method with same functionality triggers at the same time, but can differ in milliseconds, JPA will chack the version now, its value is 2 means then the other method with same functionality had executed. so reject this method and we can catch the OptimisticLockException gracefully. */
 
     @Transactional
     public ServiceResponse<String> cancelBooking(Long bookingId) {
@@ -298,14 +292,14 @@ public class BookingService {
         if(existedBooking.isPresent()) {
             Booking booking = existedBooking.get();
 
-            if(booking.getBookingStatus() == BookingStatus.PENDING || booking.getBookingStatus() == BookingStatus.PROCESSING) {    // booking can be cancelled only in status (pending || processing) But not once it confirmed
+            if(booking.getBookingStatus() == BookingStatus.PENDING || booking.getBookingStatus() == BookingStatus.PROCESSING) {
                 try {
                     booking.setBookingStatus(BookingStatus.CANCELLED);
                     booking.setPaymentStatus(PaymentStatus.UNPAID);
                     booking.setPaymentMethod(PaymentMethod.NONE);
                     booking.setBusTicket(null);
                     booking.setTransactionId(null);
-                    booking.setCanceledAt(LocalDateTime.now());       // current date&time for cancellation
+                    booking.setCanceledAt(LocalDateTime.now());
 
                     Bus bus = booking.getBus();
                     bus.setAvailableSeats(bus.getAvailableSeats() + booking.getSeatsBooked());
@@ -330,10 +324,9 @@ public class BookingService {
     }
 
 
-
-    // Now, what if booking time expired and in PENDING/PROCESSING status but still not done any action by user?
+   // Handle expired booking when status is still PENDING or PROCESSING
     @Transactional
-    @Scheduled(fixedRate = 1000 * 60)       // triggers avery single minute
+    @Scheduled(fixedRate = 1000 * 60)
     public void autoExpiredDetection() {
         List<Booking> bookings = bookingRepo.findByBookingStatus(BookingStatus.PENDING, BookingStatus.PROCESSING);
 
@@ -367,6 +360,7 @@ public class BookingService {
         if(pageData.isEmpty()) return new ServiceResponse<>(ResponseStatus.NOT_FOUND, "No Booking data found for the given Date " + date + " in this page " + pageNum, pageData);
         return new ServiceResponse<>(ResponseStatus.SUCCESS, "The Booking data found for the given Date " + date + " in this page " + pageNum, pageData);
     }
+
 
     public ServiceResponse<ApiPageResponse<List<ManagementBookingDataDto>>> getByAnyKeyword(String keyword, Pageable pageable) {
         Integer pageNum = pageable.getPageNumber() + 1;
@@ -462,12 +456,11 @@ public class BookingService {
         if(existingBooking.isEmpty()) return new ServiceResponse<>(ResponseStatus.NOT_FOUND, "No Booking data found for the given Booking ID " + bookingId);
         Booking booking = existingBooking.get();
 
-        // Instead of directly adding the .getSeatBooked() from dto. find the additionally added seats and then make use of it.
         Long originalSeatCount = booking.getSeatsBooked();
         Long newSeatCount = bookingDto.getSeatsBooked();
         Long modifiedCount = newSeatCount - originalSeatCount;
 
-        if(newSeatCount >= 1) {                // what if this request come if booking status is processing or confirmed
+        if(newSeatCount >= 1) {
             if(booking.getBookingStatus() == BookingStatus.PENDING && booking.getPaymentStatus() == PaymentStatus.UNPAID) {
                 if(booking.getBus().getAvailableSeats() >= modifiedCount) {
                     try {
@@ -501,13 +494,8 @@ public class BookingService {
         return new ServiceResponse<>(ResponseStatus.BAD_REQUEST, "To proceed with the booking, you must select at least one seat.");
     }
 
+
     public Page<Booking> fetchUserBooking(Long id, Pageable pageable ) {
         return bookingRepo.getAllBookingData(id, pageable);
     }
 }
-
-/*
- -> If seats avail -> proceed booking and save that into DB
- -> Else return with proper message
- -> Along with make decrement the availableSeats in Bus entity.
-*/

@@ -1,6 +1,6 @@
 package com.BusReservation.constants;
 
-public enum BusType {     // 13
+public enum BusType {
     AC_SLEEPER("A/C Sleeper"),
     NON_AC_SLEEPER("Non A/C Sleeper"),
     AC_SEATER_SLEEPER("A/C Seater / Sleeper"),

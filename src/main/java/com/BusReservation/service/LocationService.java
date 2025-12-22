@@ -126,7 +126,7 @@ public class LocationService {
             return new ServiceResponse<>(ResponseStatus.BAD_REQUEST, "Invalid city value. Each must start with a capital letter. Please correct the input and try again.");
         }
         else if(role != null && !role.isBlank()) {
-            if(role.matches(RegExPatterns.ROLE_REGEX)) {
+            if(role.matches(RegExPatterns.INTERNAL_ROLE_REGEX)) {
                 ServiceResponse<Role> roleEnumResponse = ParsingEnumUtils.getParsedEnumType(Role.class, state, "Role");
                 if(roleEnumResponse.getStatus() != ResponseStatus.SUCCESS) return new ServiceResponse<>(roleEnumResponse.getStatus(), roleEnumResponse.getMessage());
                 Role roleEnum = roleEnumResponse.getData();
@@ -151,13 +151,16 @@ public class LocationService {
         return cityEntityRepo.existsByNameAndState_NameAndState_Country_Name(city, state, country);
     }
 
+
     public Optional<CountryEntity> countryExistsByName(Country country) {
         return countryEntityRepo.findByName(country);
     }
 
+
     public Optional<StateEntity> fetchByStateAndCountryName(State state, CountryEntity countryEntity) {
         return stateEntityRepo.findByNameAndCountry(state, countryEntity);
     }
+
 
     public boolean cityAndStateExists(String city, StateEntity state) {
         return cityEntityRepo.existsByNameAndState(city, state);
@@ -181,15 +184,12 @@ public class LocationService {
                     "The combination of City: '" + locationEntryDto.getCity() + "', State: '" + locationEntryDto.getState() + "', Country: '" + locationEntryDto.getCountry() + "' already exists. Please provide a different location.");
 
         try {
-            // country
             Optional<CountryEntity> countryOptionalData = this.countryExistsByName(country);
-            CountryEntity savedCountryEntity = countryOptionalData.orElseGet(() -> countryEntityRepo.save(LocationMapper.addDataFromDtoToCountryEntity(country, management)));    // if present assign or else map
+            CountryEntity savedCountryEntity = countryOptionalData.orElseGet(() -> countryEntityRepo.save(LocationMapper.addDataFromDtoToCountryEntity(country, management)));
 
-            // state
             Optional<StateEntity> stateOptionalData = this.fetchByStateAndCountryName(state, savedCountryEntity);
             StateEntity savedStateEntity = stateOptionalData.orElseGet(() -> stateEntityRepo.save(LocationMapper.addDataFromDtoToStateEntity(state, savedCountryEntity, management)));
 
-            // city
             boolean isCityAndStateExists = this.cityAndStateExists(locationEntryDto.getCity(), savedStateEntity);
             if(isCityAndStateExists)
                 return new ServiceResponse<>(ResponseStatus.CONFLICT,
@@ -213,7 +213,7 @@ public class LocationService {
 
     @Transactional
     public ServiceResponse<List<String>> postListOfNewLocationData(@Valid List<LocationEntryDto> locationEntryDtoList, Management management) {
-        List<String> results = new ArrayList<>();  // conflicts, success, error
+        List<String> results = new ArrayList<>();
 
         for(LocationEntryDto location : locationEntryDtoList) {
             ServiceResponse<Country> parsingCountryResponse = ParsingEnumUtils.getParsedEnumType(Country.class, location.getCountry(), "country");
@@ -232,15 +232,12 @@ public class LocationService {
             }
 
             try {
-                // country
                 Optional<CountryEntity> countryEntityOptional = this.countryExistsByName(country);
                 CountryEntity savedCountryEntity = countryEntityOptional.orElseGet(() -> countryEntityRepo.save(LocationMapper.addDataFromDtoToCountryEntity(country, management)));
 
-                // state
                 Optional<StateEntity> stateEntityOptional = this.fetchByStateAndCountryName(state, savedCountryEntity);
                 StateEntity savedStateEntity = stateEntityOptional.orElseGet(() -> stateEntityRepo.save(LocationMapper.addDataFromDtoToStateEntity(state, savedCountryEntity, management)));
 
-                // city
                 boolean isCityAndStateExists = this.cityAndStateExists(location.getCity(), savedStateEntity);
                 if(isCityAndStateExists) {
                     String error = "DUPLICATE_ENTRY: City: '" + location.getCity() + "' already exists under State: '" + savedStateEntity.getName().getStateName() + "'. Please provide a different city for this state.";
@@ -358,13 +355,10 @@ public class LocationService {
         }
 
         try {
-            // country
             CountryEntity updatedCountryEntity = (countryEntity.getName() != country) ? countryEntityRepo.save(LocationMapper.updateDataFromDtoToCountryEntity(countryEntity, country, management)) : countryEntity;
 
-            // state
             StateEntity updatedStateEntity = (stateEntity.getName() != state) ? stateEntityRepo.save(LocationMapper.updateDataFromDtoToStateEntity(stateEntity, state, updatedCountryEntity, management)) : stateEntity;
 
-            // city
             boolean cityAndStateExists = this.cityAndStateExists(locationEntryDto.getCity(), updatedStateEntity);
             if(cityAndStateExists && !cityEntity.getName().equalsIgnoreCase(locationEntryDto.getCity()))
                 return new ServiceResponse<>(ResponseStatus.CONFLICT,

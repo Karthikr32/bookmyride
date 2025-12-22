@@ -58,7 +58,6 @@ public class ManagementAuthController {
         boolean isExistsInAppUser = appUserService.fetchByEmailOrMobile(signUpDto.getEmail(), signUpDto.getMobile());
         if(isExistsInAppUser) return ResponseEntity.status(HttpStatus.FORBIDDEN).body(ApiResponse.statusMsg(HttpStatus.FORBIDDEN.value(), Code.ACCESS_DENIED, "The provided email or mobile number is already registered to a non-management user. Management user accounts must use unique credentials not associated with regular users."));
 
-        // checking for conflicts
         boolean isExistsAny = managementService.existsByEmailOrMobile(signUpDto.getEmail(), signUpDto.getMobile());
         if(isExistsAny) return ResponseEntity.status(HttpStatus.CONFLICT).body(ApiResponse.statusMsg(HttpStatus.CONFLICT.value(), Code.DUPLICATE_ENTRY, "An management user account with the provided email or mobile number already exists. Please provide unique one."));
 
@@ -84,7 +83,7 @@ public class ManagementAuthController {
         Optional<Management> managementUser = managementService.fetchByUsername(loginDto.getUsername());
         if(managementUser.isEmpty()) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(ApiResponse.statusMsg(HttpStatus.UNAUTHORIZED.value(), Code.UNAUTHORIZED, "Access denied. Invalid username or password."));
 
-        Authentication authentication = new UsernamePasswordAuthenticationToken(loginDto.getUsername(), loginDto.getPassword());   // must give the data from DTO not the entity
+        Authentication authentication = new UsernamePasswordAuthenticationToken(loginDto.getUsername(), loginDto.getPassword());
 
         Authentication authResponse;
         try {

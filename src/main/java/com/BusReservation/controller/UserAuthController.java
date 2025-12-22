@@ -42,7 +42,7 @@ public class UserAuthController {
         if(isExists) return ResponseEntity.status(HttpStatus.FORBIDDEN).body(ApiResponse.statusMsg(HttpStatus.FORBIDDEN.value(), Code.ACCESS_DENIED, "Access denied for this role."));
 
         Optional<AppUser> existedAppUser = appUserService.fetchByMobile(signUpDto.getMobile());
-        if(existedAppUser.isPresent()) {    // existed user
+        if(existedAppUser.isPresent()) {
             AppUser appUser = existedAppUser.get();
 
             if(appUser.getIsUser() && appUser.getRole() == Role.USER) return ResponseEntity.status(HttpStatus.FORBIDDEN).body(ApiResponse.statusMsg(HttpStatus.FORBIDDEN.value(), Code.ACCESS_DENIED, "Mobile number is already registered. Cannot register again."));
@@ -50,7 +50,7 @@ public class UserAuthController {
             AppUser updatedUser = appUserService.upgradeAppUserToUser(appUser, signUpDto);
             String token = jwtService.generateToken(updatedUser.getMobile(), updatedUser.getRole(), true);
             return ResponseEntity.ok(ApiResponse.successStatusMsgData(HttpStatus.OK.value(), "Upgrade complete. Guest user is now a registered user.", token));
-        }  // new
+        }
 
         AppUser newUser = appUserService.newSignedUpUser(signUpDto);
         String token = jwtService.generateToken(newUser.getMobile(), newUser.getRole(), true);
@@ -75,7 +75,7 @@ public class UserAuthController {
 
         Authentication authResponse;
         try {
-            authResponse = authenticationManager.authenticate(authentication);         // this line invokes our custom MyUserDetailsService class for serDetailsService to load user data
+            authResponse = authenticationManager.authenticate(authentication);
         }
         catch (BadCredentialsException e) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(ApiResponse.statusMsg(HttpStatus.UNAUTHORIZED.value(), Code.UNAUTHORIZED, "Invalid credentials. Please check your mobile number or password."));

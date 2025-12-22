@@ -25,6 +25,7 @@ public class JwtFilter extends OncePerRequestFilter {
     private final JwtService jwtService;
     private final MyUserDetailsService myUserDetailsService;
 
+
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response,
                                     FilterChain filterChain) throws ServletException, IOException {
@@ -33,15 +34,15 @@ public class JwtFilter extends OncePerRequestFilter {
         final String token;
         final String subject;
 
-        if(authHeader == null || !authHeader.startsWith("Bearer ")) {     // if header is null || not a jwt one, then
-            filterChain.doFilter(request, response);        // skip those request to other filters
+        if(authHeader == null || !authHeader.startsWith("Bearer ")) {
+            filterChain.doFilter(request, response);
             return;
         }
 
         token = authHeader.substring(7);
         subject = jwtService.extractData(token);
 
-        // if the extracted data is not null OR this token/user is not already yet authenticated (i.e: he/she is new for this filter check)
+        // Process request if token is valid and user is not yet authenticated
         if(subject != null && SecurityContextHolder.getContext().getAuthentication() == null) {
             assert subject != null;
             UserPrincipal userPrincipal = (UserPrincipal) myUserDetailsService.loadUserByUsername(subject);
@@ -62,7 +63,8 @@ public class JwtFilter extends OncePerRequestFilter {
     }
 
 
-    @Override           // used to prevent/avoid Jwt filter check for some endpoints
+    // Skip JWT filter for specific endpoints
+    @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
         String path = request.getRequestURI();
         return path.startsWith("/public/") || path.startsWith("/auth/bookmyride/public/") || path.startsWith("/auth/bookmyride/management/login");

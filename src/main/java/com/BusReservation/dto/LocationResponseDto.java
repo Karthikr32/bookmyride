@@ -5,7 +5,7 @@ import java.time.LocalDateTime;
 
 
 @Data
-public class LocationResponseDto {    // 12
+public class LocationResponseDto {
 
     private City city;
     private State state;
@@ -13,7 +13,7 @@ public class LocationResponseDto {    // 12
 
 
     @Data
-    public static final class City {   // 8
+    public static final class City {
         private Long id;
         private String city;
         private String createdByName;
@@ -26,7 +26,7 @@ public class LocationResponseDto {    // 12
 
 
     @Data
-    public static final class State {  // 8
+    public static final class State {
         private Long id;
         private String state;
         private String createdByName;
@@ -39,7 +39,7 @@ public class LocationResponseDto {    // 12
 
 
     @Data
-    public static final class Country {   // 8
+    public static final class Country {
         private Long id;
         private String country;
         private String createdByName;
@@ -49,5 +49,4 @@ public class LocationResponseDto {    // 12
         private String updatedByRole;
         private LocalDateTime updatedAt;
     }
-
 }

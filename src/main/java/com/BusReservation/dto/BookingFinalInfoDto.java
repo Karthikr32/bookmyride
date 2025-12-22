@@ -5,7 +5,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Data
-public class BookingFinalInfoDto {    // 24
+public class BookingFinalInfoDto {
 
     private BookingInfo booking;
     private BusInfo bus;
@@ -13,7 +13,7 @@ public class BookingFinalInfoDto {    // 24
 
 
     @Data
-    public static final class BookingInfo {     // 12
+    public static final class BookingInfo {
         private Long bookingId;
         private LocalDateTime bookedAt;
         private LocalDate travelAt;
@@ -22,17 +22,17 @@ public class BookingFinalInfoDto {    // 24
         private String paymentMethod;
         private String busTicket;
         private String transactionId;
-        private String discount;      // discount + '%'
+        private String discount;
         private BigDecimal discountAmount;
         private BigDecimal totalCost;
         private BigDecimal finalCost;
     }
 
     @Data
-    public static final class BusInfo {    // 11
+    public static final class BusInfo {
         private String busNumber;
         private String busName;
-        private String busType;    // modified
+        private String busType;
         private String acType;
         private String seatType;
         private String duration;
@@ -44,7 +44,7 @@ public class BookingFinalInfoDto {    // 24
     }
 
     @Data
-    public static final class PassengerInfo {    // 5
+    public static final class PassengerInfo {
         private String name;
         private String email;
         private String mobile;

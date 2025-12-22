@@ -22,9 +22,11 @@ public class MasterLocationService {
         return masterLocationRepo.findByCityAndStateAndCountry(city, state, country);
     }
 
+
     public boolean cityStateCountryExists(String city, String state, String country) {
         return masterLocationRepo.existsByCityAndStateAndCountry(city, state, country);
     }
+
 
     public void updateMasterLocation(MasterLocation masterLocation, CityEntity cityEntity, Management management) {
         masterLocation.setCity(cityEntity.getName());
@@ -34,6 +36,7 @@ public class MasterLocationService {
         masterLocation.setUpdatedAt(LocalDateTime.now());
         masterLocationRepo.save(masterLocation);
     }
+
 
     public void saveNewLocationData(CityEntity cityEntity, Management management) {
         MasterLocation masterLocation = new MasterLocation();
@@ -45,13 +48,16 @@ public class MasterLocationService {
         masterLocationRepo.save(masterLocation);
     }
 
+
     public void deleteLocationData(MasterLocation masterLocation) {
         masterLocationRepo.delete(masterLocation);
     }
 
+
     public void deleteAllLocationData() {
         masterLocationRepo.deleteAll();
     }
+
 
     public Optional<MasterLocation> fetchEntityByCity(String location) {
         return masterLocationRepo.findByCityIgnoreCase(location);

@@ -12,12 +12,13 @@ import java.time.LocalDateTime;
 public class LocationMapper {
 
     public static CountryEntity addDataFromDtoToCountryEntity(Country country, Management management) {
-        CountryEntity countryEntity = new CountryEntity();  // 3
+        CountryEntity countryEntity = new CountryEntity();
         countryEntity.setName(country);
         countryEntity.setCreatedById(management);
         countryEntity.setCreatedAt(LocalDateTime.now());
         return countryEntity;
     }
+
 
     public static StateEntity addDataFromDtoToStateEntity(State state, CountryEntity countryEntity, Management management) {
         StateEntity stateEntity = new StateEntity();
@@ -28,6 +29,7 @@ public class LocationMapper {
         return stateEntity;
     }
 
+
     public static CityEntity addDataFromDtoToCityEntity(String cityStr, StateEntity stateEntity, Management management) {
         CityEntity city = new CityEntity();
         city.setName(cityStr);
@@ -36,6 +38,7 @@ public class LocationMapper {
         city.setCreatedAt(LocalDateTime.now());
         return city;
     }
+
 
     public static LocationResponseDto entityToLocationResponseDto(CityEntity cityEntity) {
         LocationResponseDto locationResponseDto = new LocationResponseDto();
@@ -96,7 +99,6 @@ public class LocationMapper {
         locationResponseDto.setCity(city);
         locationResponseDto.setCountry(country);
         locationResponseDto.setState(state);
-
         return locationResponseDto;
     }
 
@@ -108,6 +110,7 @@ public class LocationMapper {
         return countryEntity;
     }
 
+
     public static StateEntity updateDataFromDtoToStateEntity(StateEntity stateEntity, State state, CountryEntity countryEntity, Management management) {
         stateEntity.setName(state);
         stateEntity.setCountry(countryEntity);
@@ -115,6 +118,7 @@ public class LocationMapper {
         stateEntity.setUpdatedAt(LocalDateTime.now());
         return stateEntity;
     }
+
 
     public static CityEntity updateDataFromDtoToCityEntity(CityEntity cityEntity, String city, StateEntity stateEntity, Management management) {
         cityEntity.setName(city);

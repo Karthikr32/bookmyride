@@ -32,9 +32,10 @@ public class AppUserService {
         return appUserRepo.findById(id);
     }
 
+
     public ServiceResponse<ApiPageResponse<List<ManagementAppUserDataDto>>> getAllAppUserData(PaginationRequest request, String keyword) {
         Pageable pageable = PaginationRequest.getPageable(request);
-        Integer pageNum = pageable.getPageNumber() + 1;    // bcz, at backend page starts from 0, But for client page starts from 1.
+        Integer pageNum = pageable.getPageNumber() + 1;
 
         if(keyword == null || keyword.isBlank()) {
             Page<AppUser> pageData = appUserRepo.findAll(pageable);
@@ -44,7 +45,7 @@ public class AppUserService {
             return new ServiceResponse<>(ResponseStatus.SUCCESS, "The available users data list in this page " + pageNum, new ApiPageResponse<>(appUserList, pageData.getTotalPages(), pageData.getTotalElements(), pageData.getNumber(), pageData.getSize(), pageData.isFirst(), pageData.isEmpty()));
         }
 
-        if(keyword.startsWith("id_")) {     // 3
+        if(keyword.startsWith("id_")) {
             Long appUserId =  Long.parseLong(keyword.substring(3).trim());
             if(appUserId <= 0) return new ServiceResponse<>(ResponseStatus.BAD_REQUEST, "Invalid ID. ID cannot be 0 or less than 0");
 
@@ -54,7 +55,7 @@ public class AppUserService {
             if(pageData.isEmpty()) return new ServiceResponse<>(ResponseStatus.NOT_FOUND, "No users data found for the given ID " + appUserId + " in this page " + pageNum, new ApiPageResponse<>(appUserList, pageData.getTotalPages(), pageData.getTotalElements(), pageData.getNumber(), pageData.getSize(), pageData.isFirst(), pageData.isEmpty()));
             return new ServiceResponse<>(ResponseStatus.SUCCESS, "The users data found for the given ID " + appUserId + " in this page " + pageNum, new ApiPageResponse<>(appUserList, pageData.getTotalPages(), pageData.getTotalElements(), pageData.getNumber(), pageData.getSize(), pageData.isFirst(), pageData.isEmpty()));
         }
-        else if(keyword.startsWith("mobile_")) {   // 7
+        else if(keyword.startsWith("mobile_")) {
             String mobile = keyword.substring(7).trim();
 
             if(!mobile.matches(RegExPatterns.MOBILE_REGEX)) return new ServiceResponse<>(ResponseStatus.BAD_REQUEST, "Invalid mobile number. Mobile number must starts with either 6 or 7 or 8 or 9 and followed by 9 digits");
@@ -72,7 +73,7 @@ public class AppUserService {
             if(pageData.isEmpty()) return new ServiceResponse<>(ResponseStatus.NOT_FOUND, "No users data found for the given Email in this page " + pageNum, new ApiPageResponse<>(appUserList, pageData.getTotalPages(), pageData.getTotalElements(), pageData.getNumber(), pageData.getSize(), pageData.isFirst(), pageData.isEmpty()));
             return new ServiceResponse<>(ResponseStatus.SUCCESS, "The users data found for the given Email in this page " + pageNum, new ApiPageResponse<>(appUserList, pageData.getTotalPages(), pageData.getTotalElements(), pageData.getNumber(), pageData.getSize(), pageData.isFirst(), pageData.isEmpty()));
         }
-        else if(keyword.startsWith("user_")) {    // 5
+        else if(keyword.startsWith("user_")) {
             String appUserName = keyword.substring(5).trim();
             if(!appUserName.matches(RegExPatterns.NAME_REGEX)) return new ServiceResponse<>(ResponseStatus.BAD_REQUEST, "Invalid App-User Name. Only alphabets and spaces are allowed (e.g., 'John Doe'). No numbers or special characters.");
 
@@ -127,12 +128,13 @@ public class AppUserService {
         return appUserRepo.save(AppUserMapper.signUpDtoToAppUser(signUpDto, passwordEncoder));
     }
 
+
     public AppUser upgradeAppUserToUser(AppUser appUser, SignUpLoginDto signUpDto) {
-        appUser.setRole(Role.USER);               // promoted
+        appUser.setRole(Role.USER);
         appUser.setPassword(passwordEncoder.encode(signUpDto.getPassword()));
-        appUser.setIsUser(true);                  // yes, from now itself
+        appUser.setIsUser(true);
         appUser.setRegisteredAt(LocalDateTime.now());
-        appUser.setIsProfileCompleted(true);      // this user profile is already completed since he/she come from appUser(already done some bookings) -> user
+        appUser.setIsProfileCompleted(true);
         appUser.setPasswordLastUpdatedAt(null);
         return appUserRepo.save(appUser);
     }
@@ -166,6 +168,7 @@ public class AppUserService {
         AppUser savedUser = appUserRepo.save(appUser);
         return new ServiceResponse<>(ResponseStatus.SUCCESS, savedUser);
     }
+
 
     public ServiceResponse<AppUser> updateExistedAppUserData(AppUser appUser, @Valid EditBookingDto bookingDto) {
         boolean isEmailExists = appUserRepo.existsByEmail(bookingDto.getEmail());
@@ -240,7 +243,7 @@ public class AppUserService {
             }
             return new ServiceResponse<>(ResponseStatus.BAD_REQUEST, "Invalid gender input. Gender would be either male or female.");
         }
-        else if(role != null && !role.isBlank()) {        // i.e: value of role is not null & is not blank
+        else if(role != null && !role.isBlank()) {
             if(role.matches(RegExPatterns.ROLE_REGEX)) {
                 ServiceResponse<Role> roleEnumResult = ParsingEnumUtils.getParsedEnumType(Role.class, role, "Role");
                 if(roleEnumResult.getStatus() == ResponseStatus.BAD_REQUEST) return new ServiceResponse<>(roleEnumResult.getStatus(), roleEnumResult.getMessage());
@@ -261,7 +264,7 @@ public class AppUserService {
     public ServiceResponse<UserProfileDto> updateProfile(AppUser appUser, UpdateUserProfileDto userProfileDto) {
         boolean isEmailExists = appUserRepo.existsByEmail(userProfileDto.getEmail());
 
-        if(!appUser.getIsProfileCompleted()) {          // new user (no booking done yet!)
+        if(!appUser.getIsProfileCompleted()) {
             if(isEmailExists) return new ServiceResponse<>(ResponseStatus.CONFLICT, "The provided email address is already in use. Please use a different one.");
 
             ServiceResponse<AppUser> updateResponse = this.applyProfileUpdates(appUser, userProfileDto);
@@ -293,6 +296,7 @@ public class AppUserService {
         appUser.setProfileUpdatedAt(LocalDateTime.now());
         return new ServiceResponse<>(ResponseStatus.SUCCESS, appUser);
     }
+
 
     public ServiceResponse<String> changeUserNewPassword(AppUser user, @Valid ChangeUserPasswordDto changeUserPasswordDto) {
         user.setPassword(passwordEncoder.encode(changeUserPasswordDto.getNewPassword()));

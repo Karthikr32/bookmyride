@@ -41,10 +41,11 @@ public class ManagementBootstrap implements CommandLineRunner {
         this.managementRepo = managementRepo;
     }
 
+
     @Override
     public void run(String... args) throws Exception {
         if(managementService.totalManagementCount() == 0) {
-            Management newManagement = new Management();    // 10
+            Management newManagement = new Management();
             newManagement.setFullName(FULLNAME);
             newManagement.setGender(Gender.NOT_SPECIFIED);
             newManagement.setUsername(USERNAME);
@@ -59,6 +60,6 @@ public class ManagementBootstrap implements CommandLineRunner {
             managementRepo.save(newManagement);
             log.info("System generated & added a new Management user successfully. Ready to log in.");
         }
-        else log.info("No generation, Hence management user avail in DB.");
+        else log.info("Management user already exists in DB; no new generation needed.");
     }
 }

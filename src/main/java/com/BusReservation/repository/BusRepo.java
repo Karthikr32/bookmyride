@@ -30,18 +30,18 @@ public interface BusRepo extends JpaRepository<Bus, Long> {
     @Query("SELECT b FROM Bus b WHERE b.seatType LIKE CONCAT('%', :seatType, '%')")
     Page<Bus> findBusDataBySeatType(@Param("seatType") String seatType, Pageable pageable);
 
-    Page<Bus> findByBusType(BusType busType, Pageable pageable);         // can't use enum type with LIKE for partial search bcz LIKE works only for String type
+    Page<Bus> findByBusType(BusType busType, Pageable pageable);
 
     Page<Bus> findByStateOfRegistration(State state, Pageable pageable);
 
     @Query(nativeQuery = true, value = "SELECT * FROM buses WHERE created_at LIKE CONCAT(:date, '%') OR updated_at LIKE CONCAT(:date, '%')")
-    Page<Bus> findByCreatedAtOrUpdatedAt(@Param("date") String date, Pageable pageable);              // evenThough denoting 2 fields and passing 1 parameter. But using JPQL/SQL this is valid and work
+    Page<Bus> findByCreatedAtOrUpdatedAt(@Param("date") String date, Pageable pageable);
 
     boolean existsByBusNumber(String busNumber);
 
     Page<Bus> findById(Long busId, Pageable pageable);
 
-    Optional<Bus> findByBusNumber(String busNumber);        // passing field as in-sensitive
+    Optional<Bus> findByBusNumber(String busNumber);
 
     Page<Bus> findByBusNumber(String busNumber, Pageable pageable);
 
@@ -81,8 +81,3 @@ public interface BusRepo extends JpaRepository<Bus, Long> {
     @Query("SELECT new com.BusReservation.dto.BookedBusReportDto(b.id, b.busNumber, b.busName, b.busType, b.acType, COUNT(bk.id) AS totalBookings, SUM(bk.finalCost) AS totalRevenue, FLOOR(((b.capacity - b.availableSeats) * 100) / b.capacity) AS occupancy, FLOOR((b.availableSeats * 100) / b.capacity) AS availability) FROM Bus b JOIN b.bookings bk WHERE bk.bookedAt BETWEEN :startDate AND :endDate AND b.acType = :acType GROUP BY b.id, b.busNumber, b.busName, b.busType, b.acType, b.capacity, b.availableSeats")
     Page<BookedBusReportDto> findBookedBusReportByAcType(@Param("startDate") LocalDateTime startDate, @Param("endDate") LocalDateTime endDate, @Param("acType") AcType acType, Pageable pageable);
 }
-
-
-// busName, busType, location, state, status
-// In JPQL & SQL we, can't  use LIKE & BETWEEN together!
-// RULE: All selected columns that are not aggregated → MUST appear in GROUP BY.

@@ -24,17 +24,21 @@ public class ManagementService {
         return managementRepo.count();
     }
 
+
     public Optional<Management> fetchById(Long id) {
         return managementRepo.findById(id);
     }
+
 
     public boolean existsByEmailOrMobile(String email, String mobile) {
         return managementRepo.existsByEmailOrMobile(email, mobile);
     }
 
+
     public boolean existsByEmailAndMobile(String email, String mobile) {
         return managementRepo.existsByEmailAndMobile(email, mobile);
     }
+
 
     public ServiceResponse<Management> addNewManagementUser(@Valid ManagementSignUpDto signUpDto) {
         ServiceResponse<Gender> genderEnumParsing = ParsingEnumUtils.getParsedEnumType(Gender.class, signUpDto.getGender(), "Gender");
@@ -44,13 +48,16 @@ public class ManagementService {
         return new ServiceResponse<>(ResponseStatus.SUCCESS, savedManagementData);
     }
 
+
     public Optional<Management> fetchByUsername(String username) {
         return managementRepo.findByUsername(username);
     }
 
+
     public ServiceResponse<ManagementProfileDto> fetchProfileData(Management management) {
         return new ServiceResponse<>(ResponseStatus.SUCCESS, "Management user profile loaded successfully.", ManagementMapper.managementToDto(management));
     }
+
 
     public boolean ifMobileNumberExists(String mobile) {
         return managementRepo.existsByMobile(mobile);
@@ -108,6 +115,7 @@ public class ManagementService {
         return new ServiceResponse<>(ResponseStatus.SUCCESS, "Profile data updated successfully." + message, ManagementMapper.managementToDto(updatedManagementData));
     }
 
+
     public ServiceResponse<String> changeNewPassword(Management management, @Valid ChangeManagementPasswordDto changePasswordDto) {
         management.setPassword(passwordEncoder.encode(changePasswordDto.getNewPassword()));
         management.setPasswordLastUpdatedAt(LocalDateTime.now());
@@ -115,14 +123,3 @@ public class ManagementService {
         return new ServiceResponse<>(ResponseStatus.SUCCESS, "Password updated successfully.");
     }
 }
-
-
-// UPDATE NEED TO DO:
-        /*
-         1. Tracking which ADMIN did what -> (Mark this from Bus entity itself)
-         also consider adding,
-         createdByUserId
-         createdByRole
-         updatedByUserId
-         updatedByRole
-        */

@@ -14,15 +14,15 @@ import java.util.*;
 public class AppUserMapper {
 
     public  static AppUser bookingDtoToAppUser(BookingDto bookingDto, Gender gender) {
-        AppUser appUser = new AppUser();     // 10
+        AppUser appUser = new AppUser();
         appUser.setName(bookingDto.getName());
         appUser.setGender(gender);
         appUser.setMobile(bookingDto.getMobile());
         appUser.setEmail(bookingDto.getEmail());
-        appUser.setRole(Role.GUEST);                               // Initially GUEST
-        appUser.setPassword(MockDataUtils.getDummyPassword());    // no pass, so dummy placeholder
-        appUser.setIsUser(false);                                // no bcz he/she GUEST
-        appUser.setIsProfileCompleted(true);                    // evenThough he/she was GUEST, I set the profile as false
+        appUser.setRole(Role.GUEST);
+        appUser.setPassword(MockDataUtils.getDummyPassword());
+        appUser.setIsUser(false);
+        appUser.setIsProfileCompleted(true);
         appUser.setRegisteredAt(null);
         appUser.setProfileUpdatedAt(null);
         appUser.setPasswordLastUpdatedAt(null);
@@ -39,17 +39,18 @@ public class AppUserMapper {
         newAppUser.setMobile(signUpDto.getMobile());
         newAppUser.setPassword(passwordEncoder.encode(signUpDto.getPassword()));
         newAppUser.setIsUser(true);
-        newAppUser.setIsProfileCompleted(false);           // this user is actually new to app, since he/she decided to make signup 1st and then go for bookings
+        newAppUser.setIsProfileCompleted(false);
         newAppUser.setRegisteredAt(LocalDateTime.now());
         newAppUser.setPasswordLastUpdatedAt(null);
         return newAppUser;
     }
 
+
     public static ManagementAppUserDataDto appUserToManagementAppUserDataDto(AppUser appUser) {
         ManagementAppUserDataDto managementAppUserDataDto = new ManagementAppUserDataDto();
 
         List<ManagementAppUserDataDto.BookingInfo> bookingInfos = appUser.getBookings().stream().map(booking -> {
-            ManagementAppUserDataDto.BookingInfo bookingInfo = new ManagementAppUserDataDto.BookingInfo();   // 15
+            ManagementAppUserDataDto.BookingInfo bookingInfo = new ManagementAppUserDataDto.BookingInfo();
             bookingInfo.setBookingId(booking.getId());
             bookingInfo.setBusId(booking.getBus().getId());
             bookingInfo.setBusNumber(booking.getBus().getBusNumber());
@@ -68,7 +69,7 @@ public class AppUserMapper {
             return bookingInfo;
         }).toList();
 
-        ManagementAppUserDataDto.PassengerInfo passengerInfo = new ManagementAppUserDataDto.PassengerInfo();   // 9
+        ManagementAppUserDataDto.PassengerInfo passengerInfo = new ManagementAppUserDataDto.PassengerInfo();
         passengerInfo.setId(appUser.getId());
         passengerInfo.setName(appUser.getName());
         passengerInfo.setMobile(appUser.getMobile());
@@ -85,8 +86,9 @@ public class AppUserMapper {
         return managementAppUserDataDto;
     }
 
+
     public static UserProfileDto appUserToUserProfileDto(AppUser user) {
-        UserProfileDto userProfileDto = new UserProfileDto();    // 8
+        UserProfileDto userProfileDto = new UserProfileDto();
         userProfileDto.setId(user.getId());
         userProfileDto.setName(user.getName());
         userProfileDto.setMobile(user.getMobile());
@@ -105,7 +107,7 @@ public class AppUserMapper {
         MasterLocation fromLocation = booking.getFromLocation();
         MasterLocation toLocation = booking.getToLocation();
 
-        BookingListDto.BookingInfo bookingInfo = new BookingListDto.BookingInfo();   // 16
+        BookingListDto.BookingInfo bookingInfo = new BookingListDto.BookingInfo();
         bookingInfo.setId(booking.getId());
         bookingInfo.setBookedAt(booking.getBookedAt());
         bookingInfo.setTravelAt(booking.getTravelAt());
@@ -123,7 +125,7 @@ public class AppUserMapper {
         bookingInfo.setFinalCost(booking.getFinalCost());
         bookingInfo.setCancelledAt(booking.getCanceledAt());
 
-        BookingListDto.BusInfo busInfo = new BookingListDto.BusInfo();   // 6
+        BookingListDto.BusInfo busInfo = new BookingListDto.BusInfo();
         busInfo.setBusNumber(booking.getBus().getBusNumber());
         busInfo.setBusName(booking.getBus().getBusName());
         busInfo.setBusType(booking.getBus().getBusType().getBusTypeName());

@@ -8,24 +8,24 @@ import java.time.LocalDateTime;
 
 
 @Data
-public class ManagementBusDataDto {    // 17 + (booking - 11)
+public class ManagementBusDataDto {
 
     private BusInfo bus;
     private List<BookingInfo> bookings;
 
 
     @Data
-    public static final class BusInfo {   // 16
+    public static final class BusInfo {
         private Long id;
         private String busNumber;
         private String busName;
         private String busType;
         private String acType;
         private String seatType;
-        private String stateOfRegistration;      // TN/kerala/andra/delhi | can Identify using Bus number
+        private String stateOfRegistration;
         private String interStatePermitStatus;
         private Long capacity;
-        private Long availableSeats;           // (capacity - seatsBooked)
+        private Long availableSeats;
         private String fromLocation;
         private String toLocation;
         private String duration;
@@ -36,7 +36,7 @@ public class ManagementBusDataDto {    // 17 + (booking - 11)
 
 
     @Data
-    public static final class ManagementInfo {  // 5
+    public static final class ManagementInfo {
         private Long id;
         private String username;
         private String mobile;
@@ -46,7 +46,7 @@ public class ManagementBusDataDto {    // 17 + (booking - 11)
 
 
     @Data
-    public static final class BookingInfo {    // 15
+    public static final class BookingInfo {
         private Long bookingId;
         private Long passengerId;
         private String passengerName;

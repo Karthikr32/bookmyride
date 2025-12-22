@@ -9,7 +9,7 @@ import java.util.List;
 @Entity
 @Data
 @Table(name = "states")
-public class StateEntity {   // 8 -> 6
+public class StateEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -37,7 +37,7 @@ public class StateEntity {   // 8 -> 6
     private LocalDateTime updatedAt;
 
     @OneToMany(mappedBy = "state")
-    private List<CityEntity> cities;     // DND
+    private List<CityEntity> cities;
 
     @Version
     private Integer version;

@@ -56,17 +56,17 @@ public class BusController {
     }
 
 
-    @GetMapping("/public/buses")   //  storing as String type for travelDate. bcz to handle edge cases
+    @GetMapping("/public/buses")
     public ResponseEntity<Map<String, Object>> getBusByUserCategory(@RequestParam(required = false) String from, @RequestParam(required = false) String to,
                                                                     @RequestParam(required = false) String travelDate, @RequestParam(required = false, defaultValue = "id") String sortBy,
                                                                     @RequestParam(required = false, defaultValue = "ASC") String sortDir, @RequestParam(required = false) String acType,
-                                                                    @RequestParam(required = false) String seatType, @RequestParam(required = false) String timeRange) {    // timeRange value would be in 24 hr format. Eg: 19-20 (19 hr to 20 hr, exactly as 7PM to 8PM)
+                                                                    @RequestParam(required = false) String seatType, @RequestParam(required = false) String timeRange) {
         List<String> errors = RequestParamValidationUtils.listOfErrors(from, to, travelDate);
 
         if(!errors.isEmpty()) return ResponseEntity.badRequest().body(ApiResponse.errorStatusMsgErrors(HttpStatus.BAD_REQUEST.value(), Code.VALIDATION_FAILED, errors));
         DateTimeFormatter format = (travelDate.contains("-")) ? DateTimeFormatter.ofPattern("dd-MM-uuuu").withResolverStyle(ResolverStyle.STRICT) : DateTimeFormatter.ofPattern("dd/MM/uuuu").withResolverStyle(ResolverStyle.STRICT);
 
-        ServiceResponse<LocalDate> dateResponse = DateParser.validateAndParseDate(travelDate, format);
+        ServiceResponse<LocalDate> dateResponse = DateParserUtils.validateAndParseDate(travelDate, format);
         if(dateResponse.getStatus() == ResponseStatus.BAD_REQUEST) {
             return ResponseEntity.badRequest().body(ApiResponse.statusMsg(HttpStatus.BAD_REQUEST.value(), Code.VALIDATION_FAILED, dateResponse.getMessage()));
         }
@@ -91,7 +91,7 @@ public class BusController {
 
 
     @PreAuthorize("hasRole('ADMIN')")
-    @PostMapping("/management/buses")                   // getting POST request in a JSON body, using @RequestBody convert JSON to Java Objects (Remember: coming as request)
+    @PostMapping("/management/buses")
     public ResponseEntity<Map<String, Object>> addNewBusData(@AuthenticationPrincipal UserPrincipal userPrincipal, @Valid @RequestBody BusDto busDto, BindingResult bindingResult) {
         ResponseEntity<Map<String, Object>> userDetailsValidation = UserPrincipalValidationUtils.validateUserPrincipal(userPrincipal, Role.ADMIN, managementService);
         if(userDetailsValidation.getStatusCode() != HttpStatus.OK) return userDetailsValidation;
@@ -119,9 +119,6 @@ public class BusController {
     }
 
 
-/* While working on Put Request, frontend sends "id" via URL and JSON as body
-   backend needs to find the entry by using the given id, and update the old data to a new one that we'd received using "RequestBody of existing entry
-*/
     @PreAuthorize("hasRole('ADMIN')")
     @PutMapping("/management/buses/{id}")
     public ResponseEntity<Map<String, Object>> updateExistingBusInfo(@AuthenticationPrincipal UserPrincipal userPrincipal, @PathVariable Long id, @Valid @RequestBody BusDto busDto, BindingResult bindingResult) {
@@ -149,10 +146,9 @@ public class BusController {
     }
 
 
-
     @PreAuthorize("hasRole('ADMIN')")
     @DeleteMapping("/management/buses/{id}")
-    public ResponseEntity<Map<String, Object>> deleteBus(@AuthenticationPrincipal UserPrincipal userPrincipal, @PathVariable Long id) {       // no need any validity check for path variable, That'll handle by Spring itself
+    public ResponseEntity<Map<String, Object>> deleteBus(@AuthenticationPrincipal UserPrincipal userPrincipal, @PathVariable Long id) {
         ResponseEntity<Map<String, Object>> userDetailsValidation = UserPrincipalValidationUtils.validateUserPrincipal(userPrincipal, Role.ADMIN, managementService);
         if(userDetailsValidation.getStatusCode() != HttpStatus.OK) return userDetailsValidation;
         assert userDetailsValidation.getBody() != null;
@@ -173,23 +169,4 @@ public class BusController {
         if (response.getStatus() == ResponseStatus.NOT_FOUND) return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ApiResponse.statusMsg(HttpStatus.NOT_FOUND.value(), Code.NOT_FOUND, response.getMessage()));
         return ResponseEntity.ok(ApiResponse.statusMsg(HttpStatus.OK.value(), Code.SUCCESS, response.getMessage()));
     }
-
 }
-
-
-/* NOTE:
- 1.) response.put("status", HttpStatus.NOT_FOUND);
-  This will send JSON as "status" : "NOT_FOUND" (which is not good practice for API's)
-  INSTEAD
-  -> response.put("status", HttpStatus.NOT_FOUND.value());
-  This will send JSON as "status" : 404   (Good practice)
-
-
-  2.)  Creating more/diff map for every response(success/failure) Instead create 1 and use for all.
-
-  3.) When to use .badRequest()?
-  -> When any DTO has error like field mismatch, field empty or email invalid, etc.
-*/
-
-// Using try/catch tried to delete, but not worked as expected, why?
-//  "EmptyResultDataAccessException" will occur when trying to perform something on the non-existed element in DB

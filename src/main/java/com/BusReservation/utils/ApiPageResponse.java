@@ -14,11 +14,12 @@ public class ApiPageResponse<T> {
     private boolean isFirst;
     private boolean isLast;
 
+
     public ApiPageResponse(T content, Integer totalPages, Long totalElements, Integer currentPage, Integer pageSize, boolean isFirst, boolean isLast) {
         this.content = content;
         this.totalPages = totalPages;
         this.totalElements = totalElements;
-        this.currentPage = currentPage + 1;   // bcz, Pagination usually starts from 0
+        this.currentPage = currentPage + 1;
         this.pageSize = pageSize;
         this.isFirst = isFirst;
         this.isLast = isLast;

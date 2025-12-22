@@ -35,16 +35,9 @@ public class AppUserController {
         if(sortDir.equalsIgnoreCase("ASC")) sort = Sort.Direction.ASC;
         else sort = Sort.Direction.DESC;
 
-        final PaginationRequest request = new PaginationRequest(page, size, sortBy, sort);    // without "final" somewhere value of the sortBy field mis-taken as default value "id". with final keyword it would be prevented.
+        final PaginationRequest request = new PaginationRequest(page, size, sortBy, sort);
         ServiceResponse<ApiPageResponse<List<ManagementAppUserDataDto>>> response = appUserService.getAllAppUserData(request, keyword);
         if(response.getStatus() == ResponseStatus.BAD_REQUEST) return ResponseEntity.badRequest().body(ApiResponse.statusMsg(HttpStatus.BAD_REQUEST.value(), Code.VALIDATION_FAILED, response.getMessage()));
         return ResponseEntity.ok(ApiResponse.successStatusMsgData(HttpStatus.OK.value(), response.getMessage(), response.getData()));
     }
 }
-
-
-/* NOTE
- @RequestParam(required = false)
- -> Using RequestParam for a Get request is the best way of processing, it helps to extract the value/data from URL that had passed with query?
- -> required = false, ensures that no strict needed for query data from the received request. i.e: "URL/query?key=value" is Optional whether, can receive with or without key/value query like "URL/query?" also can be accepted.
-*/

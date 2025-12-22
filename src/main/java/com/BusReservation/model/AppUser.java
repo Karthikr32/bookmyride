@@ -14,7 +14,7 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 @Table(name = "users")
-public class AppUser {    // 13 --> 11
+public class AppUser {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -33,14 +33,14 @@ public class AppUser {    // 13 --> 11
     private String mobile;
 
     @Column(nullable = false)
-    private String password;     // for GUEST -> GUEST_NO_AUTH | USER -> their own password
+    private String password;
 
     @Column(nullable = false)
     @Enumerated(EnumType.STRING)
     private Role role;
 
     @Column(nullable = false)
-    private Boolean isUser;          // flag to check role before updating | GUEST = false | USER = true | ADMIN = false
+    private Boolean isUser;
 
     @Column(nullable = false)
     private Boolean isProfileCompleted;
@@ -49,7 +49,7 @@ public class AppUser {    // 13 --> 11
 
     private LocalDateTime registeredAt;
 
-    private LocalDateTime passwordLastUpdatedAt;    // for password update API
+    private LocalDateTime passwordLastUpdatedAt;
 
     @JsonIgnore
     @OneToMany(mappedBy = "appUser")

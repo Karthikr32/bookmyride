@@ -10,6 +10,6 @@ public class GenerateSecretKey {
         Key key = Keys.secretKeyFor(SignatureAlgorithm.HS256);
         String secretKey = Encoders.BASE64.encode(key.getEncoded());
 
-        System.out.println("The secret key is " + secretKey);
+        System.out.println("Your generated secret key: " + secretKey);
     }
 }

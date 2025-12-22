@@ -48,7 +48,7 @@ public class BusService {
             return new ServiceResponse<>(ResponseStatus.SUCCESS, "The available Bus data list in this page " + pageNum, new ApiPageResponse<>(busList, pageData.getTotalPages(), pageData.getTotalElements(), pageData.getNumber(), pageData.getSize(), pageData.isFirst(), pageData.isEmpty()));
         }
 
-        if(keyword.startsWith("id_")) {    // 3
+        if(keyword.startsWith("id_")) {
             Long busId = Long.parseLong(keyword.substring(3));
             if(busId <= 0) return new ServiceResponse<>(ResponseStatus.BAD_REQUEST, "Invalid Bus ID. ID cannot be 0 or less than 0");
 
@@ -58,7 +58,7 @@ public class BusService {
             if(pageData.isEmpty()) return new ServiceResponse<>(ResponseStatus.NOT_FOUND, "No Bus data found for the given Bus ID "+ busId + " in this page " + pageNum, new ApiPageResponse<>(busList, pageData.getTotalPages(), pageData.getTotalElements(), pageData.getNumber(), pageData.getSize(), pageData.isFirst(), pageData.isEmpty()));
             return new ServiceResponse<>(ResponseStatus.SUCCESS, "The Bus data found for the given Bus ID in this page " + pageNum, new ApiPageResponse<>(busList, pageData.getTotalPages(), pageData.getTotalElements(), pageData.getNumber(), pageData.getSize(), pageData.isFirst(), pageData.isEmpty()));
         }
-        else if(keyword.startsWith("fare_")) {    // can accept values like 123.00 or 123 or 123.99
+        else if(keyword.startsWith("fare_")) {
             String costStr = keyword.trim().substring(5);
 
             BigDecimal fareCost;
@@ -76,7 +76,7 @@ public class BusService {
             if(pageData.isEmpty()) return new ServiceResponse<>(ResponseStatus.NOT_FOUND, "No Bus data found for the given Bus Fare in this page " + pageNum, new ApiPageResponse<>(busList, pageData.getTotalPages(), pageData.getTotalElements(), pageData.getNumber(), pageData.getSize(), pageData.isFirst(), pageData.isEmpty()));
             return new ServiceResponse<>(ResponseStatus.SUCCESS, "The Bus data found for the given Bus Fare in this page " + pageNum, new ApiPageResponse<>(busList, pageData.getTotalPages(), pageData.getTotalElements(), pageData.getNumber(), pageData.getSize(), pageData.isFirst(), pageData.isEmpty()));
         }
-        else if(keyword.startsWith("bus_")) {    // for busName
+        else if(keyword.startsWith("bus_")) {
             String busName = keyword.substring(4);
             if(!busName.matches(RegExPatterns.BUS_NAME_REGEX)) return new ServiceResponse<>(ResponseStatus.BAD_REQUEST, "Invalid Bus name input. Bus name must start with a capital letter and can include letters, numbers, spaces, and symbols like @, (), /, &, .");
 
@@ -86,7 +86,7 @@ public class BusService {
             if(pageData.isEmpty()) return new ServiceResponse<>(ResponseStatus.NOT_FOUND, "No Bus data found for the given Bus Name in this page " + pageNum, new ApiPageResponse<>(busList, pageData.getTotalPages(), pageData.getTotalElements(), pageData.getNumber(), pageData.getSize(), pageData.isFirst(), pageData.isEmpty()));
             return new ServiceResponse<>(ResponseStatus.SUCCESS, "Bus data found for the given Bus Name in this page " + pageNum, new ApiPageResponse<>(busList, pageData.getTotalPages(), pageData.getTotalElements(), pageData.getNumber(), pageData.getSize(), pageData.isFirst(), pageData.isEmpty()));
         }
-        else if(keyword.startsWith("location_")) {    // 9
+        else if(keyword.startsWith("location_")) {
             String location = keyword.substring(9).trim();
 
             if(!location.matches(RegExPatterns.LOCATION_REGEX)) return new ServiceResponse<>(ResponseStatus.BAD_REQUEST, "Invalid City Name. Only letters, spaces, and hyphens are allowed. No numbers or special characters.");
@@ -119,11 +119,11 @@ public class BusService {
             catch (DateTimeParseException e) {
                 return new ServiceResponse<>(ResponseStatus.BAD_REQUEST, "Invalid Time input, Please ensure an correct format (HH:mm)");
             }
-        }       // 01/01/2025 | 1-1-2025 OR 2025-01-01
+        }
         else if(keyword.matches(RegExPatterns.DATE_REGEX)) {
             DateTimeFormatter format = keyword.contains("-") ? DateTimeFormatter.ofPattern("dd-MM-uuuu").withResolverStyle(ResolverStyle.STRICT) : DateTimeFormatter.ofPattern("dd/MM/uuuu").withResolverStyle(ResolverStyle.STRICT);
 
-            ServiceResponse<LocalDate> parsedDate = DateParser.parseDate(keyword, format);
+            ServiceResponse<LocalDate> parsedDate = DateParserUtils.parseDate(keyword, format);
             if(parsedDate.getStatus() == ResponseStatus.BAD_REQUEST) return new ServiceResponse<>(parsedDate.getStatus(), parsedDate.getMessage());
 
             String dateStr = parsedDate.getData().toString();
@@ -137,6 +137,7 @@ public class BusService {
         }
         return this.getBusDataByMatchedKeyword(keyword, pageable);
     }
+
 
     public boolean existsBusNumber(String busNumber) {
          return busRepo.existsByBusNumber(busNumber.trim());
@@ -230,15 +231,15 @@ public class BusService {
     }
 
 
-    public ServiceResponse<String> deleteByBusId(Long id, Management management) {  // 2 Db checks is important
+    public ServiceResponse<String> deleteByBusId(Long id, Management management) {
         Optional<Bus> existingBus = busRepo.findById(id);
         if(existingBus.isEmpty()) return new ServiceResponse<>(ResponseStatus.NOT_FOUND, "Bus ID " + id + " is not existed in database.");
         Bus bus = existingBus.get();
 
         try {
-            busRepo.delete(bus);        // using .deleteById() will no longer hold version value, its just hold ID, in order to maintain proper deletion using @Version field, need to use .delete();
+            busRepo.delete(bus);
             log.info("MANAGEMENT ACTION -> ID: {} | Username: {} deleted a bus data successfully with ID: {}", management.getId(), management.getUsername(), id);
-            return new ServiceResponse<>(ResponseStatus.SUCCESS, "Bus ID " + bus.getId() + " was deleted successfully by Management Username: " + management.getUsername());   // if success
+            return new ServiceResponse<>(ResponseStatus.SUCCESS, "Bus ID " + bus.getId() + " was deleted successfully by Management Username: " + management.getUsername());
         }
         catch (ObjectOptimisticLockingFailureException | OptimisticLockException e) {
             log.info("OPTIMISTIC LOCK -> Management   ID: {} | Username: {} attempted to delete a bus that were recently deleted by another management authority.", management.getId(), management.getUsername());
@@ -265,11 +266,10 @@ public class BusService {
         MasterLocation fromMasterLocation = masterLocationResponse.getData().get("from");
         MasterLocation toMasterLocation = masterLocationResponse.getData().get("to");
 
-        // busType && seatType && timeRange
         if((acType != null && !acType.isBlank()) && (seatType != null && !seatType.isBlank()) && (timeRange != null && !timeRange.isBlank())) {
             if(acType.matches(RegExPatterns.AC_TYPE_REGEX) && seatType.matches(RegExPatterns.SEAT_TYPE_REGEX) && timeRange.matches(RegExPatterns.TIME_RANGE_REGEX)) {
                 ServiceResponse<AcType> acTypeEnum = ParsingEnumUtils.getParsedEnumType(AcType.class, acType, "Ac Type");
-                ServiceResponse<Integer[]> parsedTime = TimeRangeParser.timeRangeParser(timeRange);
+                ServiceResponse<Integer[]> parsedTime = TimeParserUtils.timeRangeParser(timeRange);
 
                 if(acTypeEnum.getStatus() == ResponseStatus.BAD_REQUEST) return new ServiceResponse<>(acTypeEnum.getStatus(), acTypeEnum.getMessage());
                 else if(parsedTime.getStatus() == ResponseStatus.BAD_REQUEST) return new ServiceResponse<>(parsedTime.getStatus(), parsedTime.getMessage());
@@ -282,7 +282,7 @@ public class BusService {
                 return new ServiceResponse<>(ResponseStatus.SUCCESS, "Bus data found for the given AC & Seat Type and Departure Time", BusMapper.butToBusUserDto(busList, travelDate));
             }
             return new ServiceResponse<>(ResponseStatus.BAD_REQUEST, "Invalid input values. Please use valid AC Type (AC/NON-AC), Seat Type (SEATER/SLEEPER), and Time Range in HH-HH format.");
-        }   // busType && seatType
+        }
         if((acType != null && !acType.isBlank()) && (seatType != null && !seatType.isBlank())) {
             if(acType.matches(RegExPatterns.AC_TYPE_REGEX) && seatType.matches(RegExPatterns.SEAT_TYPE_REGEX)) {
                 ServiceResponse<AcType> acTypeEnum = ParsingEnumUtils.getParsedEnumType(AcType.class, acType, "Ac Type");
@@ -295,11 +295,11 @@ public class BusService {
                 return new ServiceResponse<>(ResponseStatus.SUCCESS, "Bus data found for the given AC and Seat Type.", BusMapper.butToBusUserDto(busList, travelDate));
             }
             return new ServiceResponse<>(ResponseStatus.BAD_REQUEST, "Invalid AC Type or Seat Type. Accepted values: Bus Type - AC or NON-AC, Seat Type - SEATER or SLEEPER.");
-        }  // busType && timeRange
+        }
         if((acType != null && !acType.isBlank()) && (timeRange != null && !timeRange.isBlank())) {
             if(acType.matches(RegExPatterns.AC_TYPE_REGEX) && timeRange.matches(RegExPatterns.TIME_RANGE_REGEX)) {
                 ServiceResponse<AcType> acTypeEnum = ParsingEnumUtils.getParsedEnumType(AcType.class, acType, "Ac Type");
-                ServiceResponse<Integer[]> parsedTime = TimeRangeParser.timeRangeParser(timeRange);
+                ServiceResponse<Integer[]> parsedTime = TimeParserUtils.timeRangeParser(timeRange);
 
                 if(acTypeEnum.getStatus() == ResponseStatus.BAD_REQUEST) return new ServiceResponse<>(acTypeEnum.getStatus(), acTypeEnum.getMessage());
                 else if(parsedTime.getStatus() == ResponseStatus.BAD_REQUEST) return new ServiceResponse<>(parsedTime.getStatus(), parsedTime.getMessage());
@@ -312,10 +312,10 @@ public class BusService {
                 return new ServiceResponse<>(ResponseStatus.SUCCESS, "Bus data found for the given AC Type and Departure Time", BusMapper.butToBusUserDto(busList, travelDate));
             }
             return new ServiceResponse<>(ResponseStatus.BAD_REQUEST, "Invalid Bus Type or Time Range format. Use Bus Type - AC or NON-AC and Time Range in HH-HH format.");
-        }  // seatType && timeRange
+        }
         if((seatType != null && !seatType.isBlank()) && (timeRange != null && !timeRange.isBlank())) {
             if(seatType.matches(RegExPatterns.SEAT_TYPE_REGEX) && timeRange.matches(RegExPatterns.TIME_RANGE_REGEX)) {
-                ServiceResponse<Integer[]> parsedTime = TimeRangeParser.timeRangeParser(timeRange);
+                ServiceResponse<Integer[]> parsedTime = TimeParserUtils.timeRangeParser(timeRange);
                 if(parsedTime.getStatus() == ResponseStatus.BAD_REQUEST) return new ServiceResponse<>(parsedTime.getStatus(), parsedTime.getMessage());
                 Integer[] time = parsedTime.getData();
 
@@ -326,7 +326,7 @@ public class BusService {
                 return new ServiceResponse<>(ResponseStatus.SUCCESS, "Bus data found for the given Seat Type and Departure Time", BusMapper.butToBusUserDto(busList, travelDate));
             }
             return new ServiceResponse<>(ResponseStatus.BAD_REQUEST, "Invalid Seat Type or Time Range format. Seat Type must be SEATER or SLEEPER. Time Range must be in HH-HH format.");
-        }   // busType
+        }
         if(acType != null && !acType.isBlank()) {
             if(acType.matches(RegExPatterns.AC_TYPE_REGEX)) {
                 ServiceResponse<AcType> acTypeEnum = ParsingEnumUtils.getParsedEnumType(AcType.class, acType, "Ac Type");
@@ -340,7 +340,7 @@ public class BusService {
             }
             return new ServiceResponse<>(ResponseStatus.BAD_REQUEST, "Invalid input values. Please use valid Bus Type (AC/NON-AC).");
 
-        }  // seatType
+        }
         if(seatType != null && !seatType.isBlank()) {
             if(seatType.matches(RegExPatterns.SEAT_TYPE_REGEX)) {
                 Page<Bus> pageData = busRepo.filterBusByLocationWithSeatType(fromMasterLocation, toMasterLocation, NormalizeStringUtils.getNormalize(seatType), pageable);
@@ -350,11 +350,11 @@ public class BusService {
                 return new ServiceResponse<>(ResponseStatus.SUCCESS, "Bus data found for the given Seat Type.", BusMapper.butToBusUserDto(busList, travelDate));
             }
             return new ServiceResponse<>(ResponseStatus.BAD_REQUEST, "Invalid input values. Please use valid Seat Type (SEATER/SLEEPER).");
-        }    // timeRange
+        }
         if(timeRange != null && !timeRange.isBlank()) {
             if(!timeRange.matches(RegExPatterns.TIME_RANGE_REGEX)) return new ServiceResponse<>(ResponseStatus.BAD_REQUEST, "Invalid time range format. Please provide time in HH-HH format (e.g., 06-12).");
 
-            ServiceResponse<Integer[]> parsedTime = TimeRangeParser.timeRangeParser(timeRange);
+            ServiceResponse<Integer[]> parsedTime = TimeParserUtils.timeRangeParser(timeRange);
             if(parsedTime.getStatus() == ResponseStatus.BAD_REQUEST) return new ServiceResponse<>(parsedTime.getStatus(), parsedTime.getMessage());
             Integer[] time = parsedTime.getData();
 
@@ -380,6 +380,7 @@ public class BusService {
         if(data.isEmpty()) return new ServiceResponse<>(ResponseStatus.NOT_FOUND, "No Bus data found for the given Date in this page " + pageNum, data);
         return new ServiceResponse<>(ResponseStatus.SUCCESS, "The available Bus data for the given Date in this page " + pageNum, data);
     }
+
 
     public ServiceResponse<ApiPageResponse<List<ManagementBusDataDto>>> getBusDataByMatchedKeyword(String keyword, Pageable pageable) {
         Integer pageNum = pageable.getPageNumber() + 1;
@@ -437,6 +438,7 @@ public class BusService {
         }
         return new ServiceResponse<>(ResponseStatus.NOT_FOUND, "No Bus data found for the given Input in this page " + pageNum, new ApiPageResponse<>(List.of(), 0, 0L, pageable.getPageNumber(), pageable.getPageSize(), true, true));
     }
+
 
     public ServiceResponse<ApiPageResponse<List<BookedBusReportDto>>> getBookedBusReport(LocalDateTime startDate, LocalDateTime endDate, PaginationRequest request, String category) {
         Pageable pageable = PaginationRequest.getPageable(request);

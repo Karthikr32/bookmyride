@@ -7,9 +7,11 @@ public class MockDataUtils {
         return "USER_" + unique;
     }
 
+
     public static String getDummyEmail(String mobile) {
         return mobile + "@dummy.com";
     }
+
 
     public static String getDummyPassword() {
         return "GUEST_NO_AUTH";

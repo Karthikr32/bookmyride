@@ -7,7 +7,7 @@ import java.time.LocalDateTime;
 
 
 @Data
-public class BookedAppUserReportDto {    // 9
+public class BookedAppUserReportDto {
 
     private Long appUserId;
     private String name;
@@ -20,9 +20,8 @@ public class BookedAppUserReportDto {    // 9
     private LocalDateTime recentBookedAt;
 
 
-    // when assigning values through JPQL, using this annotation is not works as expected!
-    // Also Don't include @AllArgsConstructor and @NoArgsConstructor
-    public BookedAppUserReportDto(Long appUserId, String name, String email, String mobile, Gender gender, Role role, Long totalBookings, BigDecimal totalRevenue, LocalDateTime recentBookedAt) {   // , String gender, String role,
+    // Avoid @AllArgsConstructor/@NoArgsConstructor — breaks JPQL value assignment
+    public BookedAppUserReportDto(Long appUserId, String name, String email, String mobile, Gender gender, Role role, Long totalBookings, BigDecimal totalRevenue, LocalDateTime recentBookedAt) {
         this.appUserId = appUserId;
         this.name = name;
         this.email = email;

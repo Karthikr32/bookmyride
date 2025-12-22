@@ -50,6 +50,7 @@ public class ManagementController {
         return ResponseEntity.ok(ApiResponse.successStatusMsgData(HttpStatus.OK.value(), response.getMessage(), response.getData()));
     }
 
+
     @PutMapping("/profile")
     public ResponseEntity<Map<String, Object>> updateProfile(@AuthenticationPrincipal UserPrincipal userPrincipal, @Valid @RequestBody UpdateManagementProfileDto updateProfileDto, BindingResult bindingResult) {
         ResponseEntity<Map<String, Object>> userDetailsValidation = UserPrincipalValidationUtils.validateUserPrincipal(userPrincipal, Role.ADMIN, managementService);
@@ -102,7 +103,7 @@ public class ManagementController {
     public ResponseEntity<Map<String, Object>> getBookedBusesStats(@RequestParam(required = false, defaultValue = "1") Integer page, @RequestParam(required = false, defaultValue = "10") Integer size,
                                                                    @RequestParam(required = false, defaultValue = "totalBookings") String sortBy, @RequestParam(required = false, defaultValue = "DESC") String sortDir,
                                                                    @RequestParam(required = false) String startDate, @RequestParam(required = false) String endDate,
-                                                                   @RequestParam(required = false) String category) {    // ac / non ac
+                                                                   @RequestParam(required = false) String category) {
 
         List<String> statsFields = List.of("totalBookings", "totalRevenue", "occupancy", "availability");
         var validationResult = PaginationRequest.getRequestValidationForPagination(page, size, sortBy, sortDir, statsFields);
@@ -115,7 +116,7 @@ public class ManagementController {
         List<String> errors = RequestParamValidationUtils.listOfErrors(startDate, endDate);
         if(!errors.isEmpty()) return ResponseEntity.badRequest().body(ApiResponse.errorStatusMsgErrors(HttpStatus.BAD_REQUEST.value(), Code.VALIDATION_FAILED, errors));
 
-        ServiceResponse<Map<String, LocalDateTime>> parsedDateResponse = DateParser.getBothDateTime(startDate, endDate);
+        ServiceResponse<Map<String, LocalDateTime>> parsedDateResponse = DateParserUtils.getBothDateTime(startDate, endDate);
         if(parsedDateResponse.getStatus() == ResponseStatus.BAD_REQUEST) return ResponseEntity.badRequest().body(ApiResponse.statusMsg(HttpStatus.BAD_REQUEST.value(), Code.VALIDATION_FAILED, parsedDateResponse.getMessage()));
         Map<String, LocalDateTime> dateTime = parsedDateResponse.getData();
 
@@ -144,7 +145,7 @@ public class ManagementController {
         List<String> errors = RequestParamValidationUtils.listOfErrors(startDate, endDate);
         if(!errors.isEmpty()) return ResponseEntity.badRequest().body(ApiResponse.errorStatusMsgErrors(HttpStatus.BAD_REQUEST.value(), Code.VALIDATION_FAILED, errors));
 
-        ServiceResponse<Map<String, LocalDateTime>> parsedDateResponse = DateParser.getBothDateTime(startDate, endDate);
+        ServiceResponse<Map<String, LocalDateTime>> parsedDateResponse = DateParserUtils.getBothDateTime(startDate, endDate);
         if(parsedDateResponse.getStatus() == ResponseStatus.BAD_REQUEST) return ResponseEntity.badRequest().body(ApiResponse.statusMsg(HttpStatus.BAD_REQUEST.value(), Code.VALIDATION_FAILED, parsedDateResponse.getMessage()));
         Map<String, LocalDateTime> dateTime = parsedDateResponse.getData();
 
@@ -154,11 +155,4 @@ public class ManagementController {
         if(response.getStatus() == ResponseStatus.BAD_REQUEST) return ResponseEntity.badRequest().body(ApiResponse.statusMsg(HttpStatus.BAD_REQUEST.value(), Code.VALIDATION_FAILED,response.getMessage()));
         return ResponseEntity.ok(ApiResponse.successStatusMsgData(HttpStatus.OK.value(), response.getMessage(), response.getData()));
     }
-
-
-    /*
-    1️⃣ GET /admin/stats/buses/top-booked + its 2️⃣ GET /admin/stats/buses/revenue  (search via date)  -- FINISHED
-    3️⃣ GET /admin/stats/users/top-travelers
-    -> The Least Booked Bus → identify underperforming routes + its 2️⃣ GET /admin/stats/buses/revenue  -- FINISHED
-    */
 }

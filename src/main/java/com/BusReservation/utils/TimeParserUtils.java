@@ -2,7 +2,7 @@ package com.BusReservation.utils;
 
 import com.BusReservation.constants.ResponseStatus;
 
-public class TimeRangeParser {
+public class TimeParserUtils {
 
     public static ServiceResponse<Integer[]> timeRangeParser(String timeRange) {
         Integer[] parsedTimeRange = new Integer[2];

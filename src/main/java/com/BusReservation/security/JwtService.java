@@ -17,10 +17,11 @@ public class JwtService {
     private final String SECRET_KEY;
     private final Long TOKEN_EXPIRATION = Duration.ofHours(6).toMillis();
 
-    // final expects the value but when using @Value it works after the spring injection. In order to keep that final needs manual injection.
+
     public JwtService(@Value("${jwt.secret.key}") String SECRET_KEY) {
         this.SECRET_KEY = SECRET_KEY;
     }
+
 
     public String generateToken(String subject, Role role, Boolean isVerified) {
         Map<String, Object> claims = new HashMap<>();
@@ -44,20 +45,23 @@ public class JwtService {
                 .compact();
     }
 
+
     public Key getKey() {
         byte[] key = Decoders.BASE64.decode(SECRET_KEY);
         return Keys.hmacShaKeyFor(key);
     }
 
+
     public String extractData(String token) {
         Claims claims = Jwts.parser()
                             .setSigningKey(getKey())
                             .build()
-                            .parseClaimsJws(token)   // signature checked here
+                            .parseClaimsJws(token)
                             .getBody();
 
-        return claims.getSubject();       // this subject has mobile(user)/username(admin)
+        return claims.getSubject();
     }
+
 
     public boolean isTokenValid(String token, UserPrincipal userPrincipal) {
         try {

@@ -1,6 +1,6 @@
 package com.BusReservation.constants;
 
-public enum PaymentMethod {     // 6
+public enum PaymentMethod {
     UPI("UPI"),
     CARD("Card"),
     QR_CODE("QR Code"),

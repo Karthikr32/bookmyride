@@ -6,9 +6,8 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 
-// This will come after user presses "CONTINUE BOOKING". Now they need to press "CONFIRM BOOKING" button to confirm the booking by DB and they will receive the final booking statement with ticket, transaction id, etc...
 @Data
-public class BookingSummaryDto {      // 22
+public class BookingSummaryDto {
 
     private BookingInfo booking;
     private BusInfo bus;
@@ -16,13 +15,13 @@ public class BookingSummaryDto {      // 22
 
 
     @Data
-    public static final class BookingInfo {     // 10
+    public static final class BookingInfo {
         private Long bookingId;
         private LocalDateTime bookedAt;
         private LocalDate travelAt;
         private String bookingStatus;
         private String paymentStatus;
-        private String discount;      // discount + '%'
+        private String discount;
         private BigDecimal discountAmount;
         private BigDecimal totalCost;
         private BigDecimal finalCost;
@@ -30,10 +29,10 @@ public class BookingSummaryDto {      // 22
     }
 
     @Data
-    public static final class BusInfo {    // 9
+    public static final class BusInfo {
         private String busNumber;
         private String busName;
-        private String busType;    // modified
+        private String busType;
         private String duration;
         private String fromLocation;
         private String toLocation;
@@ -43,7 +42,7 @@ public class BookingSummaryDto {      // 22
     }
 
     @Data
-    public static final class PassengerInfo {    // 5
+    public static final class PassengerInfo {
         private String name;
         private String email;
         private String mobile;

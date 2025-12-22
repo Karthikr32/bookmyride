@@ -30,12 +30,6 @@ import java.util.*;
 @RequiredArgsConstructor
 public class BookingController {
 
-    /* LOGIC:
-    -> An user make booking ==> validate by bindingResult ==> check whether the user new/existing ==> if(new) -> register/save into AppUser repo |
-    -> An user make booking ==> validate by bindingResult ==> check whether the user new/existing ==> if(new) -> register/save into AppUser repo |
-    -> else proceed booking logic ==>
-    */
-
     private final AppUserService appUserService;
     private final BusService busService;
     private final BookingService bookingService;
@@ -69,7 +63,7 @@ public class BookingController {
         if(bindingResult.hasErrors()) return ResponseEntity.badRequest().body(ApiResponse.errorStatusMsgErrors(HttpStatus.BAD_REQUEST.value(), Code.VALIDATION_FAILED, BindingResultUtils.getListOfStr(bindingResult)));
 
         DateTimeFormatter format = (bookingDto.getTravelAt().contains("-")) ? DateTimeFormatter.ofPattern("dd-MM-uuuu").withResolverStyle(ResolverStyle.STRICT) : DateTimeFormatter.ofPattern("dd/MM/uuuu").withResolverStyle(ResolverStyle.STRICT);
-        ServiceResponse<LocalDate> dateResponse = DateParser.validateAndParseDate(bookingDto.getTravelAt(), format);
+        ServiceResponse<LocalDate> dateResponse = DateParserUtils.validateAndParseDate(bookingDto.getTravelAt(), format);
 
         if(dateResponse.getStatus() == ResponseStatus.BAD_REQUEST) return ResponseEntity.badRequest().body(ApiResponse.statusMsg(HttpStatus.BAD_REQUEST.value(), Code.VALIDATION_FAILED, dateResponse.getMessage()));
         LocalDate date = dateResponse.getData();
@@ -104,7 +98,6 @@ public class BookingController {
     }
 
 
-    // This method only after the new booking and before continue method...
     @PutMapping("/public/bookings/{id}/edit")
     public ResponseEntity<Map<String, Object>> editUserDataInBooking(@PathVariable Long id, @Valid @RequestBody EditBookingDto bookingDto, BindingResult bindingResult) {
         if(id == null || id <= 0) return ResponseEntity.badRequest().body(ApiResponse.statusMsg(HttpStatus.BAD_REQUEST.value(), Code.VALIDATION_FAILED, "Invalid Booking ID. Please check and try again"));
@@ -112,7 +105,7 @@ public class BookingController {
         if(bindingResult.hasErrors()) return ResponseEntity.badRequest().body(ApiResponse.errorStatusMsgErrors(HttpStatus.BAD_REQUEST.value(), Code.VALIDATION_FAILED, BindingResultUtils.getListOfStr(bindingResult)));
 
         DateTimeFormatter format = (bookingDto.getTravelAt().contains("-")) ? DateTimeFormatter.ofPattern("dd-MM-uuuu").withResolverStyle(ResolverStyle.STRICT) : DateTimeFormatter.ofPattern("dd/MM/uuuu").withResolverStyle(ResolverStyle.STRICT);
-        ServiceResponse<LocalDate> dateResponse = DateParser.validateAndParseDate(bookingDto.getTravelAt(), format);
+        ServiceResponse<LocalDate> dateResponse = DateParserUtils.validateAndParseDate(bookingDto.getTravelAt(), format);
 
         if(dateResponse.getStatus() == ResponseStatus.BAD_REQUEST) {
             return ResponseEntity.badRequest().body(ApiResponse.statusMsg(HttpStatus.BAD_REQUEST.value(), Code.VALIDATION_FAILED, dateResponse.getMessage()));
@@ -138,7 +131,6 @@ public class BookingController {
     }
 
 
-    // updating status when user clicks continue booking and pass the necessary data for confirm booking summary view
     @PatchMapping("/public/bookings/{id}/continue")
     public ResponseEntity<Map<String, Object>> continueBooking(@PathVariable Long id) {
         if(id == null || id <= 0) return ResponseEntity.badRequest().body(ApiResponse.statusMsg(HttpStatus.BAD_REQUEST.value(), Code.VALIDATION_FAILED, "Invalid Booking ID. Please check and try again"));
@@ -160,7 +152,6 @@ public class BookingController {
     }
 
 
-    // method for after clicking confirm booking button, check the expire_date and the return the finalDTO
     @PatchMapping("/public/bookings/{id}/confirm")
     public ResponseEntity<Map<String, Object>> confirmBooking(@PathVariable Long id, @RequestBody ConfirmBookingDto confirmBookingDto, BindingResult bindingResult) {
         if(id == null || id <= 0) return ResponseEntity.badRequest().body(ApiResponse.statusMsg(HttpStatus.BAD_REQUEST.value(), Code.VALIDATION_FAILED, "Invalid Booking ID. Please check and try again"));
@@ -189,8 +180,6 @@ public class BookingController {
     }
 
 
-
-    // what if user cancels the booking explicitly by using "CANCEL BOOKING" button
     @PatchMapping("/public/bookings/{id}/cancel")
     public ResponseEntity<Map<String, Object>> cancelBooking(@PathVariable Long id) {
         if(id == null || id <= 0) return ResponseEntity.badRequest().body(ApiResponse.statusMsg(HttpStatus.BAD_REQUEST.value(), Code.VALIDATION_FAILED, "Invalid Booking ID. Please check and try again"));
@@ -210,8 +199,3 @@ public class BookingController {
         return ResponseEntity.ok(ApiResponse.statusMsg(HttpStatus.OK.value(), Code.SUCCESS, response.getMessage()));
     }
 }
-
-/*
-1. AppUser,
-2. bus
-*/

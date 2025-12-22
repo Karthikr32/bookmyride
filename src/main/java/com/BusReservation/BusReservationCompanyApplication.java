@@ -5,7 +5,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.scheduling.annotation.EnableScheduling;
 
 @SpringBootApplication
-@EnableScheduling           // to enable scheduling feature to our Spring application
+@EnableScheduling
 public class BusReservationCompanyApplication {
 
 	public static void main(String[] args) {

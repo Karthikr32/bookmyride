@@ -5,11 +5,11 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Data
-public class BusUserResponseDto {    // 12
-    private LocalDate travelAt;   // when user search for
+public class BusUserResponseDto {
+    private LocalDate travelAt;
     private String busNumber;
     private String busName;
-    private String busType;    // modified
+    private String busType;
     private Long capacity;
     private Long availableSeats;
     private String fromLocation;

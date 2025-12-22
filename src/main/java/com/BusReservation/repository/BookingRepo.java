@@ -15,7 +15,6 @@ import java.util.List;
 @Repository
 public interface BookingRepo extends JpaRepository<Booking, Long> {
 
-    // this is "JPQL" not native SQL, so, need to write like related to Java fields and classNames. (eg: Booking (className) and bookingStatus (entity_field_name))
     @Query("SELECT b FROM Booking b WHERE b.bookingStatus = :bookingStatus1 OR b.bookingStatus = :bookingStatus2")
     List<Booking> findByBookingStatus(@Param("bookingStatus1") BookingStatus bookingStatus1, @Param("bookingStatus2") BookingStatus bookingStatus2);
 
@@ -49,7 +48,7 @@ public interface BookingRepo extends JpaRepository<Booking, Long> {
 
     Page<Booking> findByBus_BusNumber(String busNUmber, Pageable pageable);
 
-    Page<Booking> findByAppUser_Mobile(String mobile, Pageable pageable);       // findByAppUser -> fieldName in Booking to find exact user by mobile use "_" followed by exact field name that declared in AppUser entity
+    Page<Booking> findByAppUser_Mobile(String mobile, Pageable pageable);
 
     Page<Booking> findByAppUser_Email(String email, Pageable pageable);
 

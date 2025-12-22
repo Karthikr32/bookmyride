@@ -17,6 +17,7 @@ public class MyUserDetailsService implements UserDetailsService {
     private final AppUserService appUserService;
     private final ManagementService managementService;
 
+
     @Override
     public UserDetails loadUserByUsername(String subject) throws UsernameNotFoundException {
         if(subject.matches(RegExPatterns.MOBILE_REGEX)) {

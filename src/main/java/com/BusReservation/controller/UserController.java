@@ -37,7 +37,7 @@ public class UserController {
     private final AuthenticationManager authenticationManager;
 
 
-    @GetMapping("/profile")    // User's personal info
+    @GetMapping("/profile")
     public ResponseEntity<Map<String, Object>> viewProfile(@AuthenticationPrincipal UserPrincipal userPrincipal) {
         ResponseEntity<Map<String, Object>> userPrincipalValidation = UserPrincipalValidationUtils.validateUserPrincipal(userPrincipal, appUserService);
         if(userPrincipalValidation.getStatusCode() != HttpStatus.OK) return userPrincipalValidation;
@@ -48,6 +48,7 @@ public class UserController {
         if (response.getStatus() == ResponseStatus.FORBIDDEN) return ResponseEntity.status(HttpStatus.FORBIDDEN).body(ApiResponse.profileStatus(HttpStatus.FORBIDDEN.value(), Code.ACCESS_DENIED, response.getMessage(), false));
         return ResponseEntity.ok(ApiResponse.successStatusMsgData(HttpStatus.OK.value(), response.getMessage(), response.getData()));
     }
+
 
     @PutMapping("/profile")
     public ResponseEntity<Map<String, Object>> updateProfile(@AuthenticationPrincipal UserPrincipal userPrincipal, @Valid @RequestBody UpdateUserProfileDto userProfileDto, BindingResult bindingResult) {
@@ -63,6 +64,7 @@ public class UserController {
         else if(response.getStatus() == ResponseStatus.BAD_REQUEST) return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ApiResponse.statusMsg(HttpStatus.BAD_REQUEST.value(), Code.VALIDATION_FAILED, response.getMessage()));
         return ResponseEntity.ok(ApiResponse.successStatusMsgData(HttpStatus.OK.value(), response.getMessage(), response.getData()));
     }
+
 
     @PatchMapping("/change-password")
     public ResponseEntity<Map<String, Object>> changePassword(@AuthenticationPrincipal UserPrincipal userPrincipal, @Valid @RequestBody ChangeUserPasswordDto changeUserPasswordDto, BindingResult bindingResult) {

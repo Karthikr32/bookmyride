@@ -78,7 +78,7 @@ public class LocationController {
     }
 
 
-    @PostMapping("/locations/list")   // Bulk posting locations
+    @PostMapping("/locations/list")
     public ResponseEntity<Map<String, Object>> postListOfLocations(@AuthenticationPrincipal UserPrincipal userPrincipal, @Valid @RequestBody List<LocationEntryDto> locationEntryDtoList, BindingResult bindingResult) {
         ResponseEntity<Map<String, Object>> validationResponse =  UserPrincipalValidationUtils.validateUserPrincipal(userPrincipal, Role.ADMIN, managementService);
         if(validationResponse.getStatusCode() != HttpStatus.OK) return validationResponse;

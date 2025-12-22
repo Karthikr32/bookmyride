@@ -7,27 +7,27 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 @Data
-public class ManagementAppUserDataDto {   // ADMIN view  total -> 9
+public class ManagementAppUserDataDto {
 
     private PassengerInfo passenger;
     private List<BookingInfo> bookings;
 
     @Data
-    public static final class PassengerInfo {   // 10
+    public static final class PassengerInfo {
         private Long id;
         private String name;
         private String email;
         private String mobile;
         private String gender;
         private String role;
-        private String profileStatus;     // NOT_REGISTERED (GUEST)
-        private LocalDateTime registerAt;   // null
-        private LocalDateTime profileLastUpdate;    // null
+        private String profileStatus;
+        private LocalDateTime registerAt;
+        private LocalDateTime profileLastUpdate;
         private Integer totalBookingsCount;
     }
 
     @Data
-    public static final class BookingInfo {    // 15
+    public static final class BookingInfo {
         private Long bookingId;
         private Long busId;
         private String busNumber;

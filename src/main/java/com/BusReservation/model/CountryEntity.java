@@ -9,7 +9,7 @@ import java.util.List;
 @Entity
 @Data
 @Table(name = "countries")
-public class CountryEntity {   // 7 -> 5
+public class CountryEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -20,7 +20,7 @@ public class CountryEntity {   // 7 -> 5
     private Country name;
 
     @OneToMany(mappedBy = "country")
-    private List<StateEntity> states;   // DND
+    private List<StateEntity> states;
 
     @ManyToOne
     @JoinColumn(name = "created_by", nullable = false)

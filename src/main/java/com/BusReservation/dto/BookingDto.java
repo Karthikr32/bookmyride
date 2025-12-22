@@ -3,13 +3,13 @@ import com.BusReservation.utils.RegExPatterns;
 import jakarta.validation.constraints.*;
 import lombok.Data;
 
-// after bus selection, this would come like a form, after filling this (this would go to BookingController /new) ==> CONTINUE button need to prees for further booking process
-@Data
-public class BookingDto {   // 7
 
-    @NotBlank(message = "Travel date is required")    // dd-MM-yyyy || yyyy-MM-dd
+@Data
+public class BookingDto {
+
+    @NotBlank(message = "Travel date is required")
     @Pattern(regexp = RegExPatterns.DATE_REGEX, message = "Invalid date input. Travel date must be in a format of either (dd-MM-yyyy) or (yyyy-MM-dd)")
-    private String travelAt;             // when to user decides to travel only date not time
+    private String travelAt;
 
     @NotBlank(message = "Name is required")
     @Pattern(regexp = RegExPatterns.NAME_REGEX, message = "Name must starts with capital letter followed by small letter")
@@ -24,7 +24,7 @@ public class BookingDto {   // 7
     private String email;
 
     @NotBlank(message = "Mobile number is required")
-    @Pattern(regexp = RegExPatterns.MOBILE_REGEX, message = "Invalid mobile number. Officially must starts between 6-9")     // can start with 6,7,8,9 followed by 0-9 9 digits
+    @Pattern(regexp = RegExPatterns.MOBILE_REGEX, message = "Invalid mobile number. Officially must starts between 6-9")
     private String mobile;
 
     @NotBlank(message = "Bus number is required")

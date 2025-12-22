@@ -8,7 +8,7 @@ import com.BusReservation.model.AppUser;
 import com.BusReservation.model.Booking;
 import com.BusReservation.model.Bus;
 import com.BusReservation.model.MasterLocation;
-import com.BusReservation.utils.DurationFormat;
+import com.BusReservation.utils.DurationFormatUtils;
 import com.BusReservation.utils.BigDecimalCalculationUtils;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -18,26 +18,25 @@ import java.util.List;
 public class BookingMapper {
 
     public static Booking newBooking(AppUser appUser, Bus bus, BookingDto bookingDto, LocalDate date) {
-        Booking booking = new Booking();         // 22
+        Booking booking = new Booking();
         booking.setAppUser(appUser);
         booking.setBus(bus);
         booking.setFromLocation(bus.getFromLocation());
         booking.setToLocation(bus.getToLocation());
         booking.setSeatsBooked(bookingDto.getSeatsBooked());
-        booking.setBookedAt(LocalDateTime.now());            // current date is the booking date
+        booking.setBookedAt(LocalDateTime.now());
         booking.setTravelAt(date);
         booking.setCanceledAt(null);
         booking.setDepartureAt(LocalDateTime.of(booking.getTravelAt(), bus.getDepartureAt()));
         booking.setArrivalAt(booking.getDepartureAt().plus(bus.getDuration()));
         booking.setUserEditedAt(null);
 
-        // 1st decide and then implement once for all
         Integer discount;
         if(appUser.getIsUser() && appUser.getRole().equals(Role.USER)) discount = 5;
         else discount = 0;
 
         booking.setDiscountPct(discount);
-        BigDecimal seatCount = BigDecimal.valueOf(booking.getSeatsBooked());          // converting integer to BigDecimal
+        BigDecimal seatCount = BigDecimal.valueOf(booking.getSeatsBooked());
         booking.setTotalCost(BigDecimalCalculationUtils.totalCostWithOutDiscount(seatCount, bus.getFare()));
         booking.setDiscountAmount(BigDecimalCalculationUtils.discountedAmount(booking.getTotalCost(), booking.getDiscountPct()));
         booking.setFinalCost(BigDecimalCalculationUtils.finalFareCost(booking.getTotalCost(), booking.getDiscountAmount()));
@@ -47,16 +46,17 @@ public class BookingMapper {
         booking.setPaymentMethod(PaymentMethod.NONE);
         booking.setBusTicket(null);
         booking.setTransactionId(null);
-        booking.setBookingExpiresAt(LocalDateTime.now().plusMinutes(10));    // expire time current time + 10 min
+        booking.setBookingExpiresAt(LocalDateTime.now().plusMinutes(10));
         return booking;
     }
+
 
     public static BookingPreviewDto getBookingPreview(Booking booking) {
         BookingPreviewDto bookingPreviewDto = new BookingPreviewDto();
         MasterLocation fromLocation = booking.getFromLocation();
         MasterLocation toLocation = booking.getToLocation();
 
-        BookingPreviewDto.BookingInfo bookingInfo = new BookingPreviewDto.BookingInfo();   // 8
+        BookingPreviewDto.BookingInfo bookingInfo = new BookingPreviewDto.BookingInfo();
         bookingInfo.setBookingId(booking.getId());
         bookingInfo.setBookedAt(booking.getBookedAt());
         bookingInfo.setTravelAt(booking.getTravelAt());
@@ -66,7 +66,7 @@ public class BookingMapper {
         bookingInfo.setFinalCost(booking.getFinalCost());
         bookingInfo.setBookingExpiresAt(booking.getBookingExpiresAt());
 
-        BookingPreviewDto.BusInfo busInfo = new BookingPreviewDto.BusInfo();    // 8
+        BookingPreviewDto.BusInfo busInfo = new BookingPreviewDto.BusInfo();
         busInfo.setBusNumber(booking.getBus().getBusNumber());
         busInfo.setBusName(booking.getBus().getBusName());
         busInfo.setBusType(booking.getBus().getBusType().getBusTypeName());
@@ -76,7 +76,7 @@ public class BookingMapper {
         busInfo.setArrivalAt(booking.getArrivalAt());
         busInfo.setBusFare(booking.getBus().getFare());
 
-        BookingPreviewDto.PassengerInfo passengerInfo = new BookingPreviewDto.PassengerInfo();  // 4
+        BookingPreviewDto.PassengerInfo passengerInfo = new BookingPreviewDto.PassengerInfo();
         passengerInfo.setName(booking.getAppUser().getName());
         passengerInfo.setEmail(booking.getAppUser().getEmail());
         passengerInfo.setMobile(booking.getAppUser().getMobile());
@@ -88,12 +88,13 @@ public class BookingMapper {
         return bookingPreviewDto;
     }
 
-    public static BookingSummaryDto bookingToBookingSummary(Booking booking) {     // 22
+
+    public static BookingSummaryDto bookingToBookingSummary(Booking booking) {
         BookingSummaryDto bookingSummary = new BookingSummaryDto();
         MasterLocation fromLocation = booking.getFromLocation();
         MasterLocation toLocation = booking.getToLocation();
 
-        BookingSummaryDto.BookingInfo bookingInfo = new BookingSummaryDto.BookingInfo();  // 10
+        BookingSummaryDto.BookingInfo bookingInfo = new BookingSummaryDto.BookingInfo();
         bookingInfo.setBookingId(booking.getId());
         bookingInfo.setBookedAt(booking.getBookedAt());
         bookingInfo.setTravelAt(booking.getTravelAt());
@@ -106,19 +107,19 @@ public class BookingMapper {
         bookingInfo.setBookingExpiresAt(booking.getBookingExpiresAt());
 
 
-        BookingSummaryDto.BusInfo busInfo =  new BookingSummaryDto.BusInfo();   // 9
+        BookingSummaryDto.BusInfo busInfo =  new BookingSummaryDto.BusInfo();
         busInfo.setBusNumber(booking.getBus().getBusNumber());
         busInfo.setBusName(booking.getBus().getBusName());
         busInfo.setBusType(booking.getBus().getBusType().getBusTypeName());
         busInfo.setFromLocation(fromLocation.getCity() + ", " + fromLocation.getState() + ", " + fromLocation.getCountry());
         busInfo.setToLocation(toLocation.getCity() + ", " + toLocation.getState() + ", " + toLocation.getCountry());
-        busInfo.setDuration(DurationFormat.durationToStr(booking.getBus().getDuration()));
+        busInfo.setDuration(DurationFormatUtils.durationToStr(booking.getBus().getDuration()));
         busInfo.setDepartureAt(booking.getDepartureAt());
         busInfo.setArrivalAt(booking.getArrivalAt());
         busInfo.setBusFare(booking.getBus().getFare());
 
 
-        BookingSummaryDto.PassengerInfo passengerInfo = new BookingSummaryDto.PassengerInfo();  // 5
+        BookingSummaryDto.PassengerInfo passengerInfo = new BookingSummaryDto.PassengerInfo();
         passengerInfo.setName(booking.getAppUser().getName());
         passengerInfo.setEmail(booking.getAppUser().getEmail());
         passengerInfo.setMobile(booking.getAppUser().getMobile());
@@ -132,12 +133,12 @@ public class BookingMapper {
     }
 
 
-    public static BookingFinalInfoDto finalBookingSummary(Booking booking) {   // 24
-        BookingFinalInfoDto finalInfoDto = new BookingFinalInfoDto();   // 12/12/6
+    public static BookingFinalInfoDto finalBookingSummary(Booking booking) {
+        BookingFinalInfoDto finalInfoDto = new BookingFinalInfoDto();
         MasterLocation fromLocation = booking.getFromLocation();
         MasterLocation toLocation = booking.getToLocation();
 
-        BookingFinalInfoDto.BookingInfo bookingInfo = new BookingFinalInfoDto.BookingInfo();  // 12
+        BookingFinalInfoDto.BookingInfo bookingInfo = new BookingFinalInfoDto.BookingInfo();
         bookingInfo.setBookingId(booking.getId());
         bookingInfo.setBookedAt(booking.getBookedAt());
         bookingInfo.setTravelAt(booking.getTravelAt());
@@ -151,7 +152,7 @@ public class BookingMapper {
         bookingInfo.setBusTicket(booking.getBusTicket());
         bookingInfo.setTransactionId(booking.getTransactionId());
 
-        BookingFinalInfoDto.BusInfo busInfo =  new BookingFinalInfoDto.BusInfo();   // 11
+        BookingFinalInfoDto.BusInfo busInfo =  new BookingFinalInfoDto.BusInfo();
         busInfo.setBusNumber(booking.getBus().getBusNumber());
         busInfo.setBusName(booking.getBus().getBusName());
         busInfo.setBusType(booking.getBus().getBusType().getBusTypeName());
@@ -162,10 +163,10 @@ public class BookingMapper {
         busInfo.setDepartureAt(booking.getDepartureAt());
         busInfo.setArrivalAt(booking.getArrivalAt());
         busInfo.setBusFare(booking.getBus().getFare());
-        busInfo.setDuration(DurationFormat.durationToStr(booking.getBus().getDuration()));
+        busInfo.setDuration(DurationFormatUtils.durationToStr(booking.getBus().getDuration()));
 
 
-        BookingFinalInfoDto.PassengerInfo passengerInfo = new BookingFinalInfoDto.PassengerInfo();  // 5
+        BookingFinalInfoDto.PassengerInfo passengerInfo = new BookingFinalInfoDto.PassengerInfo();
         passengerInfo.setName(booking.getAppUser().getName());
         passengerInfo.setEmail(booking.getAppUser().getEmail());
         passengerInfo.setMobile(booking.getAppUser().getMobile());
@@ -179,12 +180,12 @@ public class BookingMapper {
     }
 
 
-    public static ManagementBookingDataDto bookingToManagementBookingDataDto(Booking booking) {    // 32
+    public static ManagementBookingDataDto bookingToManagementBookingDataDto(Booking booking) {
         ManagementBookingDataDto managementBookingDataDto = new ManagementBookingDataDto();
         MasterLocation fromLocation = booking.getFromLocation();
         MasterLocation toLocation = booking.getToLocation();
 
-        ManagementBookingDataDto.BookingInfo bookingInfo = new ManagementBookingDataDto.BookingInfo();   // 15
+        ManagementBookingDataDto.BookingInfo bookingInfo = new ManagementBookingDataDto.BookingInfo();
         bookingInfo.setId(booking.getId());
         bookingInfo.setBookedAt(booking.getBookedAt());
         bookingInfo.setBookingEditedAt(booking.getUserEditedAt());
@@ -202,7 +203,7 @@ public class BookingMapper {
         bookingInfo.setCanceledAt(booking.getCanceledAt());
 
 
-        ManagementBookingDataDto.BusInfo busInfo = new ManagementBookingDataDto.BusInfo();   // 12
+        ManagementBookingDataDto.BusInfo busInfo = new ManagementBookingDataDto.BusInfo();
         busInfo.setId(booking.getBus().getId());
         busInfo.setBusNumber(booking.getBus().getBusNumber());
         busInfo.setBusName(booking.getBus().getBusName());
@@ -212,12 +213,12 @@ public class BookingMapper {
         busInfo.setDepartureAt(booking.getDepartureAt());
         busInfo.setArrivalAt(booking.getArrivalAt());
         busInfo.setBusFare(booking.getBus().getFare());
-        busInfo.setDuration(DurationFormat.durationToStr(booking.getBus().getDuration()));
+        busInfo.setDuration(DurationFormatUtils.durationToStr(booking.getBus().getDuration()));
         busInfo.setAcType(booking.getBus().getAcType().getAcTypeName());
         busInfo.setSeatType(booking.getBus().getSeatType().getSeatTypeName());
 
 
-        ManagementBookingDataDto.PassengerInfo passengerInfo = new ManagementBookingDataDto.PassengerInfo();    // 7
+        ManagementBookingDataDto.PassengerInfo passengerInfo = new ManagementBookingDataDto.PassengerInfo();
         passengerInfo.setId(booking.getAppUser().getId());
         passengerInfo.setName(booking.getAppUser().getName());
         passengerInfo.setEmail(booking.getAppUser().getEmail());
@@ -234,7 +235,7 @@ public class BookingMapper {
     }
 
 
-    public static List<ManagementBookingDataDto> bookingToManagementBookingDataDtoList(List<Booking> bookingList) {  // 32
+    public static List<ManagementBookingDataDto> bookingToManagementBookingDataDtoList(List<Booking> bookingList) {
         return bookingList.stream().map(BookingMapper::bookingToManagementBookingDataDto).toList();
     }
 
@@ -248,7 +249,6 @@ public class BookingMapper {
 
         Bus bus = booking.getBus();
         bus.setAvailableSeats(bus.getAvailableSeats() + booking.getSeatsBooked());
-
         return booking;
     }
 
@@ -262,7 +262,6 @@ public class BookingMapper {
 
         Bus bus = booking.getBus();
         bus.setAvailableSeats(bus.getAvailableSeats() + booking.getSeatsBooked());
-
         return booking;
     }
 
@@ -276,7 +275,6 @@ public class BookingMapper {
         booking.setUserEditedAt(LocalDateTime.now());
 
         Integer discount;
-
         if (appUser.getIsUser() && appUser.getRole() == Role.USER) discount = 5;
         else discount = 0;
 
@@ -288,7 +286,6 @@ public class BookingMapper {
 
         Bus bus = booking.getBus();
         bus.setAvailableSeats(bus.getAvailableSeats() - modifiedCount);
-
         return booking;
     }
 }
