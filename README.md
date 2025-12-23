@@ -192,7 +192,7 @@ src/
   <summary><b>📄 View ER Diagram (Click to Expand)</b></summary>
   <br>
   
-![BookMyRide ER Diagram]()
+![BookMyRide ER Diagram](docs/er-diagram/bookMyRide_ER.png)
 
 </details>
 
