@@ -1817,9 +1817,13 @@ Key highlights:
 &nbsp;&nbsp;&nbsp; "departureAt": "21:00:00",  
 &nbsp;&nbsp;&nbsp; "fare": 650.00  
 }  
-> 💡 Departure time must strictly follow HH:mm:ss format.  
-> 💡 Tip: Substitute placeholders with your preferred values. But remember, _**BookMyRide**_ will block entries that do not match its rules.  
-> 💡 Tip: For more info please refer the **BusDto class** under **dto package** in the application folder.  
+> 💡 Note:
+- Substitute placeholders with your preferred values. But remember, _**BookMyRide**_ will block entries that do not match its rules. 
+- Departure time must strictly follow HH:mm:ss format.
+- For more info please refer the **BusDto class** under **dto package** in the application folder.  
+ 
+> 💡 Tip: Add multiple buses (one by one) to test features like filtering and sorting in the View Buses API.
+ 
 
 #### ⚙️ How the Backend Processes This  
 **1. Authenticate and Validate Admin User**  
@@ -2203,10 +2207,11 @@ Key Functionalities:
 &nbsp;&nbsp;&nbsp; "minutes": 30,   
 &nbsp;&nbsp;&nbsp; "departureAt": "21:00:00",  
 &nbsp;&nbsp;&nbsp; "fare": 650.00  
-}  
-> 💡 Departure time must strictly follow HH:mm:ss format.  
-> 💡 Tip: Substitute these values with your preferred values. But remember, My system will block entries that do not match its rules.  
-> 💡 Tip: For more info please refer the **BusDto class** under **dto package** in the application folder.  
+} 
+> 💡 Note:
+- Substitute these values with your preferred values. But remember, My system will block entries that do not match its rules.
+- Departure time must strictly follow HH:mm:ss format.
+- For more info please refer the **BusDto class** under **dto package** in the application folder.
 
 
 #### ⚙️ Backend Processing Flow
