@@ -24,11 +24,11 @@ public class BookingDto {
     private String email;
 
     @NotBlank(message = "Mobile number is required")
-    @Pattern(regexp = RegExPatterns.MOBILE_REGEX, message = "Invalid mobile number. Officially must starts between 6-9")
+    @Pattern(regexp = RegExPatterns.MOBILE_REGEX, message = "Invalid mobile number. Officially must starts between 6-9 & following other 9 digits")
     private String mobile;
 
     @NotBlank(message = "Bus number is required")
-    @Pattern(regexp = RegExPatterns.BUS_NUMBER_REGEX, message = "Invalid bus number. Please check and try again")
+    @Pattern(regexp = RegExPatterns.BUS_NUMBER_REGEX, message = "Invalid bus number. Please provide official format like (TN01AB1234)")
     private String busNumber;
 
     @NotNull(message = "Number of seats is required")
