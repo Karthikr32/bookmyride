@@ -2958,7 +2958,7 @@ Expired or cancelled bookings exit the flow and cannot re-enter.
 
 ### Final Outcome  
 
-The Booking Workflow in BookMyRide offers a predictable, secure, and user-friendly process that balances ease-of-use with strict backend consistency. The architecture is engineered to:  
+The Booking Workflow in _**BookMyRide**_ offers a predictable, secure, and user-friendly process that balances ease-of-use with strict backend consistency. The architecture is engineered to:  
 - Prevent seat conflicts
 - Avoid stale or expired bookings
 - Maintain strict ordering of steps
@@ -2967,7 +2967,25 @@ The Booking Workflow in BookMyRide offers a predictable, secure, and user-friend
 - Ensure reliable confirmation
 - Protect all operations through concurrency & state validation mechanisms
 
-This delivers a world-class ticketing flow that mirrors real-world transport booking systems and scales reliably during peak traffic. 
+This delivers a world-class ticketing flow that mirrors real-world transport booking systems and scales reliably during peak traffic.   
+
+### Scenario Coverage & Test Data Usage  
+
+To keep the documentation clear and easy to follow, **different booking records** are used to demonstrate different workflow scenarios. Because _**BookMyRide**_ follows a strict booking lifecycle (confirmation, cancellation rules, and automatic expiry), the same booking cannot be reused to show all cases. Once a booking reaches certain states (confirmed, cancelled, or expired), some actions are no longer allowed.   
+
+For this reason, the examples in this document use **separate bookings with different request data** for each scenario:   
+- **Booking A – Smooth booking flow**  
+_(Start → Edit → Continue → Confirm → Success)_  
+
+- **Booking B – Cancellation flow**  
+_(Start → Edit → Cancel before confirmation)_  
+
+- **Booking C – Auto-expiry flow**   
+_(Start → No action → Automatically expired after the configured duration)_
+
+Sample request DTOs shown in this document use **placeholder values** for privacy. Screenshots and request/response examples use **anonymized dummy data** only for demonstration purposes.  
+
+> **Tip for readers:** When trying out these APIs, feel free to use your own sample values for fields such as name, mobile number, email, travel date, and seat count. The placeholder and dummy values in this document are for illustration only and can be replaced with any valid inputs that match the API validation rules.
 </details>  
 
 
@@ -3014,7 +3032,14 @@ The entire operation is engineered for real-time, high-concurrency environments 
 > 💡 Notes:
 - You can replace the placeholders with your details or any dummy details for testing.
 - The value given for `busNumber` is also a placeholder/dummy. Can use any bus number that you want to book. But that must present/active in DB.   
-- travelAt can be dd-MM-yyyy or dd/MM/yyyy — strict mode parsing ensures no invalid dates slip through.  
+- `travelAt` can be **dd-MM-yyyy or dd/MM/yyyy** — strict mode parsing ensures no invalid dates slip through.
+
+> **Tip:** For different workflow scenarios, you can use separate Start Booking requests with your own sample values:  
+> - **Booking A: Smooth flow**
+> - **Booking B: Cancellation flow**
+> - **Booking C: Auto-expiry flow**
+ 
+> Subsequent requests (Edit, Continue, Confirm, Cancel) should use the **booking ID** **returned** from the corresponding Start Booking request. 
 
 
 #### ⚙️ How the Backend Processes  
@@ -3861,6 +3886,9 @@ Key features:
 - **Logging & Auditing:** Captures detailed logs for booking ID, user actions, timestamps, and status changes to support traceability and regulatory compliance.  
 
 This design ensures that cancellations are **safe, consistent, and fully auditable**, preventing double cancellations, payment inconsistencies, and seat allocation errors, while maintaining a seamless user experience.   
+
+> **Note:** Use the **booking ID from Booking B**. Cancellation is allowed only before confirmation.   
+
 
 #### 📥 Request Parameter  
 | Parameter | Type | Description                                    | Required |
