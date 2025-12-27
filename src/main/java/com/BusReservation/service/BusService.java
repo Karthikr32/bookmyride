@@ -454,7 +454,7 @@ public class BusService {
                 if(pageData.isEmpty()) return new ServiceResponse<>(ResponseStatus.NOT_FOUND, "No Bus data for the given category in this page " + pageNum, new ApiPageResponse<>(pageData.getContent(), pageData.getTotalPages(), pageData.getTotalElements(), pageData.getNumber(), pageData.getSize(), pageData.isFirst(), pageData.isEmpty()));
                 return new ServiceResponse<>(ResponseStatus.SUCCESS, "Bus data found for the given category in this page " + pageNum, new ApiPageResponse<>(pageData.getContent(), pageData.getTotalPages(), pageData.getTotalElements(), pageData.getNumber(), pageData.getSize(), pageData.isFirst(), pageData.isEmpty()));
             }
-            return new ServiceResponse<>(ResponseStatus.BAD_REQUEST, "Invalid category inout. Category only allowed for AC or Non AC.");
+            return new ServiceResponse<>(ResponseStatus.BAD_REQUEST, "Invalid category input. Category only allowed for AC or Non AC.");
         }
 
         Page<BookedBusReportDto> pageData = busRepo.findByBookedBusData(startDate, endDate, pageable);
