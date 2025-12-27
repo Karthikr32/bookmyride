@@ -226,7 +226,7 @@ This comprehensive structure ensures clear understanding for developers, simplif
 
 The **Management Login API** is the secure entry point for BookMyRide’s internal administrative users, including **ADMIN, SUPER_ADMIN,** and future management roles. It provides a **strictly separated login flow from public users**, authenticates management accounts, issues JWT tokens with role and management flags, and establishes trusted sessions for all protected admin operations. With **system-generated usernames, BCrypt-encrypted passwords**, and layered request validation, the API ensures only authorized management users gain access while preventing privilege escalation, cross-domain token misuse, and brute-force or credential-stuffing attacks. On first-time startup, a default admin is created via secure bootstrap credentials, enabling immediate operational readiness. Centralizing admin authentication through this API strengthens governance, reliability, and security across the platform.  
 
-Key Features:    
+**Key Features:**      
 - Uses **Spring Security’s AuthenticationManager** to verify credentials.
 - Supports **username-only login** for management users (regular users log in using mobile number, handled automatically by custom `UserDetailsService`).
 - Secure password verification with BCrypt and Spring Security
@@ -303,26 +303,25 @@ The token must be used for all protected management operations.
 #### 📤 Success Response
 <details> 
   <summary>View screenshot</summary>
-   ![Management Login Success]()
+  <br>  
+  
+  <img src="docs/screenshots/api-1-3.JPG" width="550" alt="Management Login Success">
 </details>
 
-#### ❗ Error Response
-> 400 BAD_REQUEST — DTO Validation Failed  
+#### ❗ Error Response  
+
+**400 BAD_REQUEST — DTO Validation Failed**   
 <details> 
   <summary>View screenshot</summary>
-   ![Management Login Error]()
+   <br>  
+  <img src="docs/screenshots/api-1-1.JPG" width="550" alt="Management Login Error">
 </details>
 
-> 401 UNAUTHORIZED — Invalid Credentials  
+**401 UNAUTHORIZED — Invalid Credentials**  
  <details> 
   <summary>View screenshot</summary>
-   ![Management Login Error]()
-</details>
-
-> 404 NOT_FOUND — Username Not Found  
- <details> 
-  <summary>View screenshot</summary>
-   ![Management Login Error]()
+   <br>  
+   <img src="docs/screenshots/api-1-2.JPG" width="550" alt="Management Login Error">
 </details>
 
 #### 📊 HTTP Status Code Table  
@@ -397,17 +396,16 @@ High-risk inputs (e.g., `admin123`, `ADMIN9876`, `1234567890`) are classified vi
 **Authorized Roles:** ADMIN  
 **Authentication:** JWT Required (See **“Authentication & JWT Usage”** in Technical Architecture)  
   
-#### 📝 Description
-Updating personal profile information is a critical aspect of maintaining accurate and secure management data within the system. This endpoint allows `ADMIN`  to modify key details such as full name, email, mobile number, and gender while enforcing strict validation and uniqueness constraints.  
-The API ensures that changes are applied safely and consistently, avoiding conflicts with regular user accounts and supporting seamless auditing.  
+#### 📝 Description  
+Updating personal profile information of management user is a critical aspect of maintaining accurate, reliable, and secure management data within the system. This endpoint allows **ADMIN** users to modify essential details such as full name, email, mobile number, and gender, while enforcing **strict validation rules and uniqueness constraints** to prevent conflicts or inconsistencies across user accounts. By applying changes safely and consistently, the API preserves the integrity of the system and ensures seamless auditing of modifications. It also optimizes updates by changing only the fields that have actually been modified, while important updates, such as a full name change, automatically trigger related adjustments like updating the associated username, thereby maintaining consistency throughout the system. Overall, this endpoint provides a secure, efficient, and reliable way for administrators to keep management data accurate and up to date.   
 
-Key highlights:  
-
+**Key Highlights**:  
 - Validates the currently authenticated **Management user** using `@AuthenticationPrincipal` through `UserPrincipalValidationUtils.validateUserPrincipal()` utility.
 - Email and mobile numbers are checked against existing user accounts to avoid **duplication**.
 - Initially, the system contains dummy placeholders for the admin account. This ensures replace those dummy placeholders values with real data.
 - Only fields that have changed are modified, and full name changes trigger automatic username updates.
 - **Security Implementation:**
+ 
     - Method is protected using @PreAuthorize("hasRole('ADMIN')").
     - Currently logged-in user details are retrieved via `@AuthenticationPrincipal`.
     - This ensures only the authenticated admin can update their own profile.
@@ -447,47 +445,41 @@ Key highlights:
 
 #### 📤 Success Response  
 <details> 
-  <summary>View screenshot</summary>
-   ![Management Profile Update Success]()
+  <summary>View Full Response</summary> 
+  <br>  
+  {  <br>  
+  &nbsp;&nbsp;&nbsp; "staus": 200,  <br>       
+  &nbsp;&nbsp;&nbsp; "data": {  <br>  
+  &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; "id": 1,  <br>   
+  &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; "fullName": "John Doe",  <br>  
+  &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; "gender": "Male",  <br>  
+  &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; "username": "adm_john_606e",  <br>  
+  &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; "mobile": "8XXXXXXXXX",  <br>  
+  &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; "email": "johndoe@gmail.com",  <br>  
+  &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; "role": "Admin",  <br>  
+  &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; "passwordLastUpdatedAt": null  <br>  
+  &nbsp;&nbsp;&nbsp; },  <br>  
+  &nbsp;&nbsp;&nbsp; "message": "Profile data updated successfully. Your updated username is 'adm_john_606e'. For security purposes, Please log in again."  <br>  
+  }   
 </details>
 
 
-#### ❗ Error Responses
-> BAD_REQUEST — DTO Validation Failed  
+#### ❗ Error Responses   
+
+**BAD_REQUEST — DTO Validation Failed**  
  <details> 
   <summary>View screenshot</summary>
-   ![Management Profile Update Error]()  
+   <br>  
+     <img src="docs/screenshots/api-2-1.JPG" width="550" alt="Management Profile Update Error">
 </details>  
 
-> Invalid token / unauthorized access  
+**Access with Invalid token**   
  
 <details> 
   <summary>View screenshot</summary>
-   ![Management Profile Update Error]()  
+   <br>  
+     <img src="docs/screenshots/api-2-2.JPG" width="550" alt="Management Profile Update Error">  
 </details>  
-
-> FORBIDDEN — Role or Access Denied  
- 
-<details> 
-  <summary>View screenshot</summary>
-   ![Management Profile Update Error]()  
-</details>  
-
-> NOT_FOUND — Account Not Found  
-
-<details> 
-  <summary>View screenshot</summary>
-   ![Management Profile Update Error]()  
-</details>  
-
-
-> CONFLICT — Duplicate Email/Mobile
- 
-<details> 
-  <summary>View screenshot</summary>
-   ![Management Profile Update Error]()  
-</details>  
-
 
 #### 📊 HTTP Status Code Table
 | HTTP Code | Status Name           | Meaning               | When It Occurs                                    |
@@ -518,7 +510,8 @@ Key highlights:
           
 **5. What You Must Do Next**  
 - You must re-login using the new username to obtain a fresh valid JWT.  
-- Only after re-login can you:  
+- Only after re-login can you:
+
      - Change your password
      - Manage locations
      - Perform any admin operation
@@ -545,9 +538,9 @@ Key highlights:
 
 
 #### 📝 Description
-This API allows a Management/Admin user to change their account password securely. After login and profile updates, admins are required to update their system-generated password to a personal, secure password.  
+This API allows a **Management/Admin user** to securely change their account password, replacing any **system-generated credentials** with a personal, strong password. It validates the currently authenticated admin via **JWT**, **verifies the old password**, and enforces robust password rules for the new password. Only the updated fields are modified, and the password change is timestamped for auditing purposes. By combining authentication, **role-based access control**, and secure credential checks, the endpoint ensures that only the rightful admin can update their password while preventing unauthorized or token-only attacks, providing a reliable and auditable mechanism for maintaining account security.   
 
-Key highlights:  
+**Key Highlights:**  
 
  - Validates the authenticated admin user before making any updates.
  - Even though the user is **authenticated**, this API performs a **second-level credential verification** using Spring Security to ensure the old password is correct.
@@ -561,8 +554,7 @@ Key highlights:
 &nbsp;&nbsp;&nbsp; "oldPassword": "Your Current Password",  
 &nbsp;&nbsp;&nbsp; "newPassword": "Your New Password"  
 }  
-> 💡 Notes: Password rules are enforced using centralized validation (e.g., length, character variety).
-> 💡 Tip: Replace the placeholder values with your own details.
+> 💡 Tip: Replace the placeholder values with your own details. Remember new password must align with the system requirement. 
 
 
 #### ⚙️ How the Backend Validates This (Important) 
@@ -598,30 +590,32 @@ Key highlights:
 <details>
   <summary>View screenshot</summary>
     <br>
-![Management Password Update Success]()
+    <img src="docs/screenshots/api-3-4.JPG" width="550" alt="Management Profile Update Error">
 </details>  
 
 
-#### ❗ Error Responses
-> Wrong old password  
+#### ❗ Error Responses  
+
+**Empty/invalid new password**
 <details>
   <summary>View screenshot</summary>
     <br>
-  ![Management Profile Update Error]()
+    <img src="docs/screenshots/api-3-1.JPG" width="550" alt="Management Profile Update Error">
+</details>  
+
+**Wrong old password**  
+<details>
+  <summary>View screenshot</summary>
+    <br>  
+    <img src="docs/screenshots/api-3-2.JPG" width="550" alt="Management Profile Update Error">
 </details> 
- 
-> Empty/invalid new password
-<details>
-  <summary>View screenshot</summary>
-    <br>
-![Management Profile Update Error]()
-</details>  
+
   
-> Unauthorized (if old token invalid due to username update)  
+**Attempt without re-login**  
 <details>
   <summary>View screenshot</summary>
     <br>
-![Management Profile Update Error]()
+    <img src="docs/screenshots/api-3-3.JPG" width="550" alt="Management Profile Update Error">
 </details>  
 
 
@@ -671,10 +665,10 @@ Key highlights:
 **Authentication:** JWT Required (See **“Authentication & JWT Usage”** in Technical Architecture)  
 
   
-#### 📝 Description
-This API allows a **Management user** to fetch their current profile information. After login and optional profile updates, admins can view details such as full name, gender, email, and mobile number.
+#### 📝 Description   
+This API allows a **Management user** to fetch their current profile information. After login and optional profile updates, admins can view details such as full name, gender, email, and mobile number. The endpoint ensures that all returned data is accurate and up-to-date, reflecting any recent changes made to the profile. It also enforces strict access control, preventing unauthorized access to sensitive account information, and provides a reliable reference point for other administrative operations within the system.   
 
-Key highlights:  
+**Key Highlights:**  
 
 - Fetches the **currently authenticated Management/Admin** user's profile information.
 - This endpoint uses Spring Security’s `@AuthenticationPrincipal` to obtain the identity (UserPrincipal) of the logged-in Management user.
@@ -683,7 +677,8 @@ Key highlights:
 - This is typically the first action an authenticated admin performs after updating profile or changing password.
 
 
-#### ⚙️ Backend Processing Workflow
+#### ⚙️ Backend Processing Workflow  
+
 **1. Authenticate and Validate UserPrincipal**  
 - Extracts `UserPrincipal` from `@AuthenticationPrincipal`.
 - Validates the **JWT token** and ensures the user exists and has the **ADMIN** role via `UserPrincipalValidationUtils.validateUserPrincipal()`.
@@ -701,17 +696,24 @@ Key highlights:
 #### 📤 Success Response
 <details>
   <summary>View success response screenshot</summary>
-  <br>
-  ![Management Profile view Error]()
+  <br>  
+{    <br>   
+&nbsp;&nbsp;&nbsp; "staus": 200,   <br>  
+&nbsp;&nbsp;&nbsp; "data": {   <br>   
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; "id": 1,   <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; "fullName": "John Doe",   <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; "gender": "Male",  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; "username": "adm_john_606e",  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; "mobile": "8XXXXXXXXX",  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; "email": "johndoe@gmail.com",  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; "role": "Admin",  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; "passwordLastUpdatedAt": "2025-12-24T19:09:50.741384"  <br>  
+&nbsp;&nbsp;&nbsp; },  <br>  
+&nbsp;&nbsp;&nbsp; "message": "Management user profile loaded successfully."  <br>  
+}  
 </details>  
 
-
-#### ❗ Error Responses
-<details>
-  <summary>View error response screenshot</summary>
-    <br>
-  ![Management Profile view Error]()
-</details>  
+> Note: This endpoint does not return business-level validation errors. All failures are related to authentication, authorization, or account availability and are summarized below.  
 
 #### 📊 HTTP Status Code Table
 | HTTP Code | Status Name           | Meaning               | When It Occurs                       |
@@ -725,6 +727,7 @@ Key highlights:
 
 
 #### ⚠️ Edge Cases & Developer Notes  
+
 **1. UserPrincipal Validation**  
 - The system extracts `UserPrincipal` from the JWT token for every request. This ensures that only authenticated sessions can access sensitive endpoints.
 - `UserPrincipalValidationUtils.validateUserPrincipal()` performs a multi-step check: verifies the token is valid, confirms the user exists in the database, and ensures the account has not been deleted or disabled.
@@ -755,10 +758,10 @@ Key highlights:
 **Authentication:** JWT Required (See **“Authentication & JWT Usage”** in Technical Architecture)  
 
 
-#### 📝 Description
-This API allows a **Management/Admin user** to create a new location by adding a **City**, **State**, and **Country** in a hierarchical manner. It ensures that duplicate or conflicting entries are prevented using **multi-level validation** and database constraints.
+#### 📝 Description  
+This API allows a **Management/Admin user** to create a new location by adding a **City**, **State**, and **Country** in a hierarchical manner. It ensures that duplicate or conflicting entries are prevented using **multi-level validation** and database constraints.  
 
-Key highlights:  
+**Key Highlights:**   
 - Validates the authenticated admin user before performing any database operations.
 - Allows the authenticated **Management/Admin user** to create a complete Location set:
      - **city**
@@ -783,10 +786,12 @@ Key highlights:
 &nbsp;&nbsp;&nbsp; "state": "Tamil Nadu",  
 &nbsp;&nbsp;&nbsp; "country": "India"  
 }  
-> 💡 Tips: Also can use your own values here.
+> 💡 Tip: You may replace these values with your own, but ensure they are **hierarchically correct**  
+> (e.g., the city belongs to the given state, and the state belongs to the given country).
  
  
-#### ⚙️ How the Backend Processes This
+#### ⚙️ How the Backend Processes This  
+
 **1. Authenticate and Validate Admin User**  
  - Extracts `UserPrincipal` from `@AuthenticationPrincipal`.
  - Uses `UserPrincipalValidationUtils.validateUserPrincipal()` to ensure the user exists, is active, and has the `ADMIN` role.
@@ -820,33 +825,23 @@ Key highlights:
 
 #### 📤 Success Response
 <details> <summary>View screenshot</summary> 
-  <br>
-  ![Location Insertion Success]()
+  <br>  
+  <img src="docs/screenshots/api-5-2.JPG" width="550" alt="Location Insertion Success">
 </details>  
 
 #### ❗ Error Responses
-> Unauthorized (invalid/expired JWT)
-<details> 
-  <summary>View screenshot</summary> <br> 
-  ![Location Insertion Error]()
-</details> 
 
-> Invalid state/country enum
+**Invalid state/country enum**  
 <details> 
-  <summary>View screenshot</summary> <br> 
-  ![Location Insertion Error]()
-</details>
+  <summary>View screenshot</summary> 
+  <br>    
+    <img src="docs/screenshots/api-5-1.JPG" width="550" alt="Location Insertion Error">
+</details>  
 
-> Location already exists (main tables or MasterLocation)
+**Location already exists (main tables or MasterLocation)**  
  <details> 
-  <summary>View screenshot</summary> <br> 
-  ![Location Insertion Error]()
-</details>
-
-> Concurrent modification (Optimistic Lock)
-<details> 
-  <summary>View screenshot</summary> <br> 
-  ![Location Insertion Error]()
+  <summary>View screenshot</summary> <br>  
+  <img src="docs/screenshots/api-5-1.JPG" width="550" alt="Location Insertion Error">
 </details>
 
 
@@ -864,7 +859,7 @@ Key highlights:
 #### ⚠️ Edge Cases & Developer Notes
 **1. Hierarchical Data Integrity (Country → State → City Enforcement)**  
 
-The API enforces a strict top-down structure to maintain clean, conflict-free geographical data.
+The API enforces a strict top-down structure to maintain clean, conflict-free geographical data.  
  - A **City** cannot be created unless its State exists or is created during the same request.
  - A **State** cannot exist without a valid Country.
  - Each level is validated and resolved individually, guaranteeing **referential integrity**, and preventing corrupted structures (e.g., incorrect state–country pairing).
@@ -928,14 +923,13 @@ This combination of transaction safety + traceability + modular layering proves 
 
 
 #### 📝 Description
-This API allows a Management/Admin user to **insert multiple locations** in bulk in a hierarchical manner: Country → State → City. It is designed to handle **hundreds of entries** efficiently, validating each entry independently while ensuring **data consistency, duplicate prevention, and transaction safety**.  
+This API allows a **Management/Admin user** to insert **multiple location records** in bulk while maintaining a strict hierarchical relationship between **Country → State → City**. It is designed to efficiently handle large datasets, including hundreds of entries in a single request, by validating each location independently for correctness, duplication, and hierarchical consistency. The backend processes every entry in isolation, ensuring that invalid or duplicate records do not interrupt the insertion of valid ones. Throughout the operation, the API maintains data integrity and transaction safety, records the outcome of each entry, and returns a consolidated summary of successes and failures. This makes the endpoint especially suitable for initial system setup, large-scale location imports, or controlled data migrations where accuracy and resilience are critical.    
 
-Key highlights:  
-
+**Key Highlights:**     
 - Allows the authenticated **Management/Admin** user to insert **multiple locations** in a single request.
 - Accepts a list of `LocationEntryDto` objects, iterates through each entry, and performs hierarchical validation and insertion.
 - The backend processes **each entry independently** inside a loop — meaning one invalid location **does not stop** the others from being processed.
-- For every DTO, the service records the outcome using clearly defined prefixes:
+- For every DTO, the service records the outcome using clearly defined prefixes:  
    - **SUCCESS:** Location inserted successfully
    - **DUPLICATE_ENTRY:** Conflict found (main tables or MasterLocation)
    - **ERROR:** Unexpected issue or server-side failure 
@@ -953,16 +947,24 @@ Key highlights:
 &nbsp;&nbsp;&nbsp;&nbsp; "state": "Tamil Nadu",   
 &nbsp;&nbsp;&nbsp;&nbsp; "country": "India"  
 &nbsp;},  
+&nbsp;{  
+&nbsp;&nbsp;&nbsp;&nbsp; "city": "Madurai",  
+&nbsp;&nbsp;&nbsp;&nbsp; "state": "Tamil Nadu",   
+&nbsp;&nbsp;&nbsp;&nbsp; "country": "India"  
+&nbsp;},  
 &nbsp;{   
 &nbsp;&nbsp;&nbsp;&nbsp; "city": "Coimbatore",  
 &nbsp;&nbsp;&nbsp;&nbsp; "state": "Tamil Nadu",  
 &nbsp;&nbsp;&nbsp;&nbsp; "country": "India"  
 &nbsp;}    
 ]  
-> 💡 Each object in the list uses the same DTO rules as the single-location API. Also can use your own any other data related to location.
+> 💡 Note: Each object in the list follows the same DTO validation rules as the single-location API. You may replace the sample values with your own location data, provided the **city–state–country** hierarchy is valid.  
+
+> 💡 Tip: Use this bulk API to insert multiple locations at once and prepare data for testing features such as filtering and sorting in the **View Location Records** API.  
 
 
-#### ⚙️ How the Backend Processes This (Step-by-Step)
+#### ⚙️ How the Backend Processes This  
+
 **1. Authenticate and Validate Admin User**  
 - Extracts `UserPrincipal` from `@AuthenticationPrincipal`.
 - Uses `UserPrincipalValidationUtils.validateUserPrincipal()` to ensure the user exists, is active, and has the **ADMIN** role.
@@ -981,9 +983,9 @@ Key highlights:
 - Also checks the Master location table using `masterLocationService.cityStateCountryExists()`.
 - Sync MasterLocation table at background.
 - Duplicates are skipped and logged into the result list for reporting like:
-   - `success: Chennai-Tamil Nadu-India added`
-   - `duplicate: Mumbai-Maharashtra-India already exists`
-   - `error: Unexpected issue while saving Delhi-Delhi-India`
+  - `success: Chennai-Tamil Nadu-India added`
+  - `duplicate: Mumbai-Maharashtra-India already exists`
+  - `error: Unexpected issue while saving Delhi-Delhi-India`
  
     
 **4. Hierarchical Creation & Persistence**  
@@ -1010,37 +1012,25 @@ Key highlights:
 - Ensures maximum data insertion rate  
 
 
+#### 📤 Partial Success Response
+<details> 
+  <summary>View screenshot</summary> <br>  
+   <img src="docs/screenshots/api-6-2.JPG" width="550" alt="Location Bulk Insertion Success">
+</details>  
 
 #### 📤 Success Response
 <details> 
-  <summary>View screenshot</summary> <br>
-   ![Location Bulk Insertion Success]()
+  <summary>View screenshot</summary> <br>   
+   <img src="docs/screenshots/api-6-3.JPG" width="550" alt="Location Bulk Insertion Success">  
 </details>
 
-#### 📤 Partial Success Response
-<details> 
-  <summary>View screenshot</summary> <br>
-   ![Location Bulk Insertion Partial Success]()
-</details>
+#### ❗ Error Responses  
 
-#### ❗ Error Responses
-> Empty list or invalid structure  
+**Empty list or invalid structure**    
 <details> 
-  <summary>View screenshot</summary> <br> 
-   ![Location Bulk Insertion Error]()
-</details>  
-
-> Every element failed (but still 201 with error summary)  
-<details> 
-  <summary>View screenshot</summary> <br> 
-   ![Location Bulk Insertion Error]()
-</details>  
-
-> Unauthorized (invalid/expired JWT)  
-<details> 
-  <summary>View screenshot</summary> <br> 
-   ![Location Bulk Insertion Error]()
-</details>  
+  <summary>View screenshot</summary> <br>   
+    <img src="docs/screenshots/api-6-1.JPG" width="550" alt="Location Bulk Insertion Error">
+</details>      
 
 
 #### 📊 HTTP Status Code Table  
@@ -1105,17 +1095,34 @@ Key highlights:
 **Roles Allowed:** ADMIN  
 **Authentication:** JWT Required (See **“Authentication & JWT Usage”** in Technical Architecture)  
 
-#### 📝 Description
-This API allows `Management users` to **fetch paginated, filtered, and sorted lists of location records** (City → State → Country). It supports **dynamic filtering** by `country`, `state`, `city`, and `role` of the creator. The service ensures **input validation, enum parsing, pagination safety, sorting correctness**, and **detailed feedback** for empty or invalid queries.  
+#### 📝 Description   
+This API allows **Management users** to **fetch paginated, filtered, and sorted lists of location records** following the hierarchical structure **City → State → Country**. It is designed to provide a flexible and reliable way to query location data, supporting **dynamic filtering** by **country, state, city,** and the **role of the creator**. The backend performs rigorous **input validation**, ensures proper **enum parsing**, enforces **pagination safety**, and guarantees **sorting correctness** to maintain predictable and consistent results. Additionally, the API provides **detailed feedback** for empty queries, invalid parameters, or incorrect enum values, ensuring that users always understand why a request may fail or return no data. This makes it ideal for building dashboards, administrative panels, or any feature that requires **structured and hierarchical location data retrieval** while maintaining system integrity.   
 
-Key highlights:  
-
-**Edge-case behaviors:**  
+**Key Highlights:**    
 - Validates Admin user access using `@PreAuthorize` and `UserPrincipalValidationUtils` utility class.
 - Accepts query parameters for **page, size, sorting,** and **filtering**.
 - Uses `PaginationRequest` for **pagination input validation** and pageable construction.
 - Filters are validated against **RegEx patterns** and parsed into enums (`Country`, `State`, `Role`) where applicable.
 - Returns `ApiPageResponse` (custom class) wrapping the results along with pagination metadata.
+
+#### ⚠️ Prerequisite: Location Data Setup  
+
+Before using this API, ensure that sufficient location data (**Country → State → City**) is already present in the system. This endpoint is specifically designed to demonstrate advanced capabilities such as **filtering, sorting, pagination, and hierarchical response mapping**, which are best experienced when multiple location records exist.  
+
+If the database contains little or no location data, the API may still function correctly but will not fully showcase its intended behavior. To prepare meaningful test data, use the **Bulk Location Creation API (#6)** to insert multiple location entries before proceeding.  
+
+<details>
+<summary>View Sample Location Data (for testing)</summary>
+  <br>  
+[   <br>  
+ &nbsp;&nbsp; { "city": "Salem", "state": "Tamil Nadu", "country": "India" },  <br>  
+ &nbsp;&nbsp; { "city": "Trichy", "state": "Tamil Nadu", "country": "India" },   <br>  
+ &nbsp;&nbsp; { "city": "Thanjavur", "state": "Tamil Nadu", "country": "India" },  <br>  
+ &nbsp;&nbsp; { "city": "Erode", "state": "Tamil Nadu", "country": "India" }  <br>  
+]   
+
+> **Tip:** Insert these records using the Bulk Location Creation API (#6) to effectively test pagination, sorting, filtering, and hierarchical response behavior.
+</details>
 
 
 #### 📥 Query Parameters
@@ -1132,7 +1139,8 @@ Key highlights:
 
 > Example url to try: `/bookmyride/management/locations?page=2&size=5&country=India&sortBy=city&sortDir=desc`
 
-#### ⚙️ Backend Processing Flow
+#### ⚙️ Backend Processing Flow  
+
 **1. Pagination & Sorting Validation**  
 - Invokes `PaginationRequest.getRequestValidationForPagination()` to validate:
    - `page >= 1`
@@ -1178,24 +1186,214 @@ This design delivers a **consistent, audit-ready, and future-proof response** th
 - Non-existent filter combination → **404 Not Found**, but still provides empty page metadata.
 - Internal server exceptions → **500 Internal Server Error** (rare due to defensive validations).
 
-#### 📤 Success Response
+#### 📤 Success Response   
+
+**1. Without Query Parameter**   
 <details> 
-  <summary>View screenshot</summary>
-   ![Location View Success]()
+  <summary>View Full Response</summary>
+   <br>  
+{  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;"status": 200,  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;"data": {  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"content": [  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"city": {  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"id": 1,  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"city": "Chennai",  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"createdByName": "adm_john_606e",  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"createdByRole": "Admin",  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"createdAt": "2025-12-25T12:50:42.632823",  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"updatedByName": null,  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"updatedByRole": null,  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"updatedAt": null  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;},  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"state": {  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"id": 1,  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"state": "Tamil Nadu",  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"createdByName": "adm_john_606e",  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"createdByRole": "Admin",  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"createdAt": "2025-12-25T12:50:42.613608",  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"updatedByName": null,  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"updatedByRole": null,  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"updatedAt": null  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;},  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"country": {  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"id": 1,  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"country": "India",  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"createdByName": "adm_john_606e",  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"createdByRole": "Admin",  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"createdAt": "2025-12-25T12:50:42.484956",  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"updatedByName": null,  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"updatedByRole": null,  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"updatedAt": null  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;},  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"city": {  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"id": 2,  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"city": "Madurai",  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"createdByName": "adm_john_606e",  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"createdByRole": "Admin",  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"createdAt": "2025-12-25T12:54:03.918395",  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"updatedByName": null,  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"updatedByRole": null,  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"updatedAt": null  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;},  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"state": {  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"id": 1,  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"state": "Tamil Nadu",  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"createdByName": "adm_john_606e",  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"createdByRole": "Admin",  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"createdAt": "2025-12-25T12:50:42.613608",  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"updatedByName": null,  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"updatedByRole": null,  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"updatedAt": null  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;},  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"country": {  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"id": 1,  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"country": "India",  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"createdByName": "adm_john_606e",  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"createdByRole": "Admin",  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"createdAt": "2025-12-25T12:50:42.484956",  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"updatedByName": null,  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"updatedByRole": null,  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"updatedAt": null  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;},  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;...  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;],  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"totalPages": 1,  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"totalElements": 7,  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"currentPage": 1, <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"pageSize": 10,  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"first": true,  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"last": false  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;},  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;"message": "Data found in this page 1"  <br>  
+}   <br>   
+ 
+> **Note:** Only the first 2 entries are shown. The API returns all records in the requested page, each following the same structure with City → State → Country metadata.  
+</details>   
+
+**2. With Filter: city = Chennai, state = Tamil Nadu, country = India**   
+<details>
+  <summary>View Full Response</summary>  <br>  
+{  <br>  
+&nbsp;&nbsp;&nbsp;"status": 200,  <br>  
+&nbsp;&nbsp;&nbsp;"data": {  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"content": [  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"city": {  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"id": 1,  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"city": "Chennai",  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"createdByName": "adm_john_606e",  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"createdByRole": "Admin",  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"createdAt": "2025-12-24T19:19:08.00667",  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"updatedByName": null,  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"updatedByRole": null,  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"updatedAt": null  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;},  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"state": {  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"id": 1,  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"state": "Tamil Nadu",  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"createdByName": "adm_john_606e",  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"createdByRole": "Admin",  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"createdAt": "2025-12-24T19:19:07.9956",  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"updatedByName": null,  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"updatedByRole": null,  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"updatedAt": null  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;},  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"country": {  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"id": 1,  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"country": "India",  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"createdByName": "adm_john_606e",  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"createdByRole": "Admin",  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"createdAt": "2025-12-24T19:19:07.968385",  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"updatedByName": null,  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"updatedByRole": null,  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"updatedAt": null  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;],  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"totalPages": 1,  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"totalElements": 1,  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"currentPage": 1,  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"pageSize": 10,  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"first": true,  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"last": false  <br>  
+&nbsp;&nbsp;&nbsp;},  <br>  
+&nbsp;&nbsp;&nbsp;"message": "Data found for the given city input in this page 1"  <br>  
+}
 </details>
+
+**3. With Sorting & Filter: state = Tamil Nadu, country = India**   
+<details>
+  <summary>View Full Response</summary>  <br>  
+{  <br>  
+&nbsp;&nbsp;&nbsp;"status": 200,  <br>  
+&nbsp;&nbsp;&nbsp;"data": {  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"content": [  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{   <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"city": {  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"id": 5,  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"city": "Trichy",  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"createdByName": "adm_john_606e",  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"createdByRole": "Admin",  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"createdAt": "2025-12-24T19:33:49.399332",  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"updatedByName": null,  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"updatedByRole": null,  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"updatedAt": null  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;},  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"state": {  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"id": 1,  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"state": "Tamil Nadu",  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"createdByName": "adm_john_606e",  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"createdByRole": "Admin",  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"createdAt": "2025-12-24T19:19:07.9956",  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"updatedByName": null,  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"updatedByRole": null,  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"updatedAt": null  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;},  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"country": {  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"id": 1,  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"country": "India",  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"createdByName": "adm_john_606e",  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"createdByRole": "Admin",  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"createdAt": "2025-12-24T19:19:07.968385",  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"updatedByName": null,  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"updatedByRole": null,  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"updatedAt": null  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;},  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;...  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;],  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"totalPages": 2,  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"totalElements": 7,  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"currentPage": 1,  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"pageSize": 5,  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"first": true,  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"last": false  <br>  
+&nbsp;&nbsp;&nbsp;},  <br>  
+&nbsp;&nbsp;&nbsp;"message": "Data found for the given country & state input in this page 1"  <br>  
+}   <br>  
+ 
+> **Note:** Only the first 2 entries are shown. The API returns all records in the requested page, each following the same structure with City → State → Country metadata. 
+</details>  
 
 
 #### ❗ Error Responses
 <details> 
-  <summary>View screenshot</summary>
-   ![Location View Success]()
+  <summary>View screenshot</summary>  <br>  
+  <img src="docs/screenshots/api-7-2.JPG" width="550" alt="Location View Error">
 </details>
 
 #### 📊 HTTP Status Code Table
 | HTTP Code | Status Name       | Meaning               | When It Occurs                                |
 | --------- | ----------------- | --------------------- | --------------------------------------------- |
-| **200**       | SUCCESS           | Request succeeded     | Data found and returned successfully          |
-| **400**       | BAD_REQUESt       | Validation Failed     | Invalid ID / regex or enum fail               |
+| **200**       | SUCCESS           | Request succeeded     | Data found and returned successfully      |
+| **400**       | BAD_REQUESt       | Validation Failed     | Invalid ID / regex or enum fail           |
 
 
 #### ⚠️ Edge Cases & Developer Notes  
