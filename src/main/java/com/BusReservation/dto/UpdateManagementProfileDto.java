@@ -9,18 +9,18 @@ import lombok.Data;
 public class UpdateManagementProfileDto {
 
     @NotBlank(message = "Full name is required.")
-    @Pattern(regexp = RegExPatterns.NAME_REGEX, message = "Invalid input. Name must starts with capital letter followed by small letter. Can be single or full name.")
+    @Pattern(regexp = RegExPatterns.NAME_REGEX, message = "Invalid format. All name segments must start with an uppercase letter followed by lowercase letters.")
     private String fullName;
 
     @NotBlank(message = "Gender is required")
-    @Pattern(regexp = RegExPatterns.GENDER_REGEX, message = "Invalid input. Only male/female are accepted")
+    @Pattern(regexp = RegExPatterns.GENDER_REGEX, message = "Invalid input. Only male/female are accepted.")
     private String gender;
 
     @NotBlank(message = "Email ID is required.")
-    @Pattern(regexp = RegExPatterns.EMAIL_REGEX, message = "Invalid email, Only gmail & yahoo domains are accepted.")
+    @Pattern(regexp = RegExPatterns.EMAIL_REGEX, message = "Invalid domain format. Accepted domains: gmail.com, yahoo.com.")
     private String email;
 
     @NotBlank(message = "Mobile number is required.")
-    @Pattern(regexp = RegExPatterns.MOBILE_REGEX, message = "Invalid mobile number. Officially must starts between 6-9.")
+    @Pattern(regexp = RegExPatterns.MOBILE_REGEX, message = "Invalid length or starting digit. Expected a 10-digit number starting from 6–9.")
     private String mobile;
 }
