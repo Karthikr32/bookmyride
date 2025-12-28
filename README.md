@@ -1461,13 +1461,13 @@ It enforces strict cross-entity consistency between the 3-level relational struc
 &nbsp;&nbsp;&nbsp; "city": "Chennai",  
 &nbsp;&nbsp;&nbsp; "state": "Tamil Nadu",  
 &nbsp;&nbsp;&nbsp; "country": "India"  
-}  
-> 💡 Also can use your own values here.  
-> 💡 Uses the exact same DTO validation rules as creation APIs — including enum validation and required fields.  
+}    
+> 💡 Tip: You may replace these values with your own, but ensure they are **hierarchically correct**    
+> (e.g., the city belongs to the given state, and the state belongs to the given country).  
 
 
 
-#### ⚙️ Backend Processing Workflow (High-Density Version)
+#### ⚙️ Backend Processing Workflow  
 **1. Authorization & Management User Validation**  
 - VExtracts `UserPrincipal` via `@AuthenticationPrincipal`.
 - Uses `UserPrincipalValidationUtils.validateUserPrincipal()` to verify:      
@@ -1543,39 +1543,28 @@ If any other admin modified the location during update:
 
 #### 📤 Success Response
 <details> 
-  <summary>View screenshot</summary>
-   ![Location Update Success]()
+  <summary>View screenshot</summary>  <br>  
+   <img src="docs/screenshots/api-8-4.JPG" width="550" alt="Location Update Error">
 </details>
 
-#### ❗ Error Response
-> Invalid ID / DTO / Parsing Errors  
+#### ❗ Error Response  
+
+**Invalid ID / DTO / Parsing Errors**    
 <details> 
-  <summary>View screenshot</summary>
-   ![Location Update Error]()
+  <summary>View screenshot</summary> <br>  
+    <img src="docs/screenshots/api-8-1.JPG" width="550" alt="Location Update Error">
 </details>  
 
-> Not Found (ID or MasterLocation Missing)  
+**Not Found (ID or MasterLocation Missing)**    
 <details> 
-  <summary>View screenshot</summary>
-   ![Location Update Error]()
+  <summary>View screenshot</summary>  <br>  
+   <img src="docs/screenshots/api-8-2.JPG" width="550" alt="Location Update Error">
 </details>  
 
-> Duplicate Conflict (Hierarchy / City / MasterLocation)  
+**Duplicate Conflict (Hierarchy / City / MasterLocation)**    
 <details> 
-  <summary>View screenshot</summary>
-   ![Location Update Error]()
-</details>  
-
-> Optimistic Lock / Concurrent Modification  
-<details> 
-  <summary>View screenshot</summary>
-   ![Location Update Error]()
-</details>   
-
-> Unauthorized / Forbidden  
-<details> 
-  <summary>View screenshot</summary>
-   ![Location Update Error]()
+  <summary>View screenshot</summary>  <br>  
+   <img src="docs/screenshots/api-8-3.JPG" width="550" alt="Location Update Error">
 </details>  
 
 
@@ -1690,11 +1679,9 @@ This combination ensures a highly scalable, error-resistant update pipeline capa
 **Authentication:** JWT Required (See **“Authentication & JWT Usage”** in Technical Architecture)  
 
 #### 📝 Description  
-This API allows an authenticated Management/Admin user to permanently delete a location entry from the **hierarchical structure (City → State → Country)**.
-The deletion ensures synchronized removal across both the Management location tables and the MasterLocation global repository.  
-The API includes robust validation, optimistic locking protection, and detailed integrity checks to prevent inconsistent data states.  
+This API allows an authenticated Management/Admin user to permanently delete a location entry from the **hierarchical structure (City → State → Country)**. The deletion ensures synchronized removal across both the Management location tables and the MasterLocation global repository. The API includes robust validation, optimistic locking protection, and detailed integrity checks to prevent inconsistent data states.   
 
-Key highlights:  
+**Key Highlights:**    
 - Deletes an existing `CityEntity` and its corresponding entry in `MasterLocation`.
 - Ensures the MasterLocation reference for the city exists before deletion.
 - Fully transactional — protects against partial or inconsistent deletions.
@@ -1762,28 +1749,23 @@ This prevents race-condition-based partial deletions or inconsistent states.
 
 #### 📤 Success Response
 <details> 
-  <summary>View screenshot</summary>
-   ![Location Delete Success]()
+  <summary>View screenshot</summary>  <br>  
+   <img src="docs/screenshots/api-9-3.JPG" width="550" alt="Location Delete Success">
 </details>  
 
-#### ❗ Error Responses  
-> Invalid ID
+#### ❗ Error Responses    
+
+**Invalid ID**
 <details> 
-  <summary>View screenshot</summary>
-   ![Location Delete Error]()
+  <summary>View screenshot</summary> <br>  
+    <img src="docs/screenshots/api-9-1.JPG" width="550" alt="Location Delete Error">
 </details>  
 
-> Record Not Found (City or MasterLocation Missing)
+**Record Not Found (City or MasterLocation Missing)**  
 <details> 
-  <summary>View screenshot</summary>
-   ![Location Delete Error]()
-</details>  
-
-> Unauthorized / Access Denied
-<details> 
-  <summary>View screenshot</summary>
-   ![Location Delete Error]()
-</details>  
+  <summary>View screenshot</summary>  <br>  
+   <img src="docs/screenshots/api-9-2.JPG" width="550" alt="Location Delete Error">
+</details>     
 
 
 #### 📊 HTTP Status Code Table
@@ -1798,7 +1780,8 @@ This prevents race-condition-based partial deletions or inconsistent states.
 | **500**       | INTERNAL_SERVER_ERROR | Unexpected Error      | Unhandled system failure                    |
 
 
-#### ⚠️ Edge Cases & Developer Notes
+#### ⚠️ Edge Cases & Developer Notes  
+
 **1. MasterLocation & Management Hierarchy Synchronization**  
 - Deletion requires both:
    - `CityEntity`
@@ -1847,15 +1830,19 @@ If older data becomes corrupted or out-of-sync:
 **Roles Allowed:** ADMIN  
 **Authentication:** JWT Required (See **“Authentication & JWT Usage”** in Technical Architecture)  
 
-#### 📝 Description
-This API performs a complete hierarchical wipe of all location data stored in the system. The deletion is fully transactional, ensuring that all records are removed atomically without leaving behind partial or inconsistent data. Optimistic locking protects against concurrent admin-triggered mass deletions. Detailed audit logs are captured for accountability.
-It deletes entries across:
+#### 📝 Description  
+
+This API performs a **complete hierarchical purge** of all location-related data maintained by the system. It is designed as a **high-impact administrative operation** and permanently removes every record associated with the location domain. The deletion process is **fully transactional**, ensuring atomic execution across all related entities. Either **all records are deleted successfully**, or the operation is rolled back entirely, preventing partial or inconsistent data states. To maintain system integrity, **optimistic locking** is enforced to guard against concurrent admin-triggered deletion attempts. The operation also captures **comprehensive audit logs**, enabling traceability, compliance, and post-operation review.   
+
+This endpoint removes data across the following entities:  
 - `CityEntity`
 - `StateEntity`
 - `CountryEntity`
-- `MasterLocation` global reference table
+- `MasterLocation` (global location reference table)   
 
-#### 📥 Request Body
+> **⚠️ Note:** This action is irreversible and should only be executed in controlled scenarios such as system resets, environment cleanup, or administrative maintenance tasks.   
+
+#### 📥 Request Body  
 This endpoint **does not require any request body**.  
 
 #### ⚙️ How the Backend Processes This (Step-by-Step)  
@@ -1895,22 +1882,10 @@ If two admins attempt a full wipe simultaneously:
 
 #### 📤 Success Response
 <details> 
-  <summary>View screenshot</summary>
-   ![Location Delete All Success]()
+  <summary>View screenshot</summary>  <br>  
+    <img src="docs/screenshots/api-10-1.JPG" width="550" alt="Location Delete All Success">
 </details>    
 
-#### ❗ Error Responses  
-> Authentication / Authorization Failure
-<details> 
-  <summary>View screenshot</summary>
-   ![Location Delete All Error]()
-</details>    
-
-> Deletion failed due to id
-<details> 
-  <summary>View screenshot</summary>
-   ![Location Delete All Error]()
-</details>  
 
 #### 📊 HTTP Status Code Table
 | HTTP Code | Status                | Meaning               | When It Occurs                   |
@@ -1935,12 +1910,11 @@ The deletion process removes **City → State → Country** records in the corre
 The hierarchy and its master index are always wiped together, maintaining strict cross-table integrity.
 
 **2. Full Transactional Safety With Optimistic Lock Concurrency Control**   
-- All delete operations occur inside a **single atomic transaction**:  
+- All delete operations occur inside a **single atomic transaction**:   
     - `cityEntityRepo.deleteAll()`
     - `stateEntityRepo.deleteAll()`
     - `countryEntityRepo.deleteAll()`
     - `masterLocation deleteAll()`
-
 - If any step fails, the entire wipe is rolled back → ensuring **zero partial-deletion scenarios**. Optimistic locking protects against multi-admin conflicts:
    - First admin → deletion succeeds
    - Second admin → receives **409 CONFLICT**
@@ -1954,15 +1928,36 @@ The hierarchy and its master index are always wiped together, maintaining strict
   - Re-initializing corrupted datasets
 
 #### ➡️ What To Do Next  
-Once all location data has been fully reset and re-initialized, the next operational step for a Management user is to begin **adding Bus records** into the system.  
 
-With the Country → State → City hierarchy now clean and consistent:
+After completing the full location reset, the system contains **no active location data**. Before proceeding with any transportation-related operations, the location hierarchy must be **re-initialized**.  
+
+**1. Reload Location Data**  
+
+Use **#6. Bulk Location Creation (City + State + Country Hierarchy)** to seed the system with valid Country → State → City records. This step is mandatory, as all downstream modules rely on officially registered location entries for validation.   
+
+<details> 
+  <summary><strong>Sample Location Dataset (Quick Initialization)</strong></summary> 
+  <br>  
+[  <br>  
+&nbsp;&nbsp;&nbsp; { "city": "Chennai", "state": "Tamil Nadu", "country": "India" },  <br>  
+&nbsp;&nbsp;&nbsp; { "city": "Madurai", "state": "Tamil Nadu", "country": "India" },   <br>  
+&nbsp;&nbsp;&nbsp; { "city": "Coimbatore", "state": "Tamil Nadu", "country": "India" },   <br>  
+&nbsp;&nbsp;&nbsp; { "city": "Salem", "state": "Tamil Nadu", "country": "India" },  <br>  
+&nbsp;&nbsp;&nbsp; { "city": "Trichy", "state": "Tamil Nadu", "country": "India" },   <br>  
+&nbsp;&nbsp;&nbsp; { "city": "Thanjavur", "state": "Tamil Nadu", "country": "India" },   <br>  
+&nbsp;&nbsp;&nbsp; { "city": "Erode", "state": "Tamil Nadu", "country": "India" }   <br>  
+]   
+</details>
+
+**2. Proceed With Transportation Setup**  
+
+Once the location hierarchy is restored and synchronized with `MasterLocation`, Management users can continue with:
  - Bus registration
  - Route assignments
  - Trip creation
  - Booking workflows
 
-This ensures that the transportation module is built on a fully validated and conflict-free location foundation, allowing all downstream APIs to function reliably. 
+This ensures that the transportation module operates on a **clean, validated, and conflict-free location foundation**, allowing all dependent APIs to function reliably. 
 </details>
 
 
@@ -1977,34 +1972,30 @@ This ensures that the transportation module is built on a fully validated and co
 **Authentication:** JWT Required (See **“Authentication & JWT Usage”** in Technical Architecture)  
 
 #### 📝 Description
-This API allows an authorized **Management/Admin** user to add a **brand-new bus entry** into the enterprise bus registry. It serves as the core provisioning endpoint used to enrich the fleet with new travel buses, fully capable of:  
+This API enables an authorized **Management (ADMIN) user** to register a new bus into the system by performing comprehensive validation, normalization, and computation before persisting the record. The endpoint enforces strict **JWT-based authentication and role verification**, validates all incoming DTO attributes, resolves and validates origin and destination locations using the centralized `MasterLocation` registry, and standardizes critical domain values through enum-driven processing. During registration, the system derives AC type and seat type from the selected `BusType`, initializes seat availability based on declared capacity, converts and validates departure time into `LocalTime`, normalizes travel duration, and deterministically calculates arrival time as a function of departure and duration. All operations are executed within a transactional boundary with optimistic locking and audit logging, ensuring that every bus enters the system in a fully validated, schedule-consistent, and operationally ready state for downstream routing, trip scheduling, and booking workflows.   
 
-Key highlights:   
-  - Strict validation of Management user identity and role before any processing.
-  - Deep validation of all submitted bus attributes.
-  - Enum-driven data normalization for:  
-       - BusType (e.g., AC, Sleeper, AC_SEATER, etc..)
-       - State of registration (e.g., TAMIL_NADU, ANDRA_PRADESH, KARNATAKA, etc..)
-       - Inter-state permit status (eg., PERMITTED, NOT_PERMITTED)
-  - Location validation for both **origin (fromLocation)** and **destination (toLocation)** using centralized `MasterLocation`.
-  - Intelligent attribute derivation (AC type, seat type) based on the BusType
-  - Converts departure time from string → `LocalTime` with strict format checking.
-  - Sets available seats equal to total capacity automatically.
-  - Calculates arrival time from **departure + duration**.
-  - Audit logs all admin actions (Management ID, username, created bus details).
-  - Protected by:
-     - **JWT authentication**
-     - **Role-based access enforcement**
-     - **DTO validation**
-     - **Optimistic locking**
-     - **Transactional safety**
-     - **enterprise-grade error safety**
+**Key Highlights:**     
+- **Strict Management authorization** using JWT authentication and role-based access control.
+- **Deep DTO and domain-level validation** of all bus attributes before persistence.
+- **Enum-driven normalization** for:
+   - Bus type classification
+   - State of registration
+   - Inter-state permit status
+- **Automatic derivation of AC type and seat type** based on the resolved BusType.
+- **Centralized location validation** for fromLocation and toLocation via MasterLocation.
+- **Capacity-aware initialization**, where available seats are set equal to total capacity.
+- **Strict time parsing** and validation for departure time (LocalTime).
+- **Arrival time computation** using departure time + normalized travel duration.
+- **Transactional safety** with optimistic locking, preventing partial writes and concurrency conflicts.
+- **Comprehensive audit logging**, capturing management identity, timestamps, and created bus metadata. 
+   
+> **Prerequisite:** Valid location data must already exist in the system. Ensure locations are initialized using **Bulk Location Creation API (#6)** before registering buses.   
 
 #### 📥 Request Body (Sample)  
 {  
-&nbsp;&nbsp;&nbsp; "busNumber": "TN01CC1234",  
+&nbsp;&nbsp;&nbsp; "busNumber": "TN01CM1234",  
 &nbsp;&nbsp;&nbsp; "busName": "Chennai Express",  
-&nbsp;&nbsp;&nbsp; "busType": "Sleeper",  
+&nbsp;&nbsp;&nbsp; "busType": "Ac Sleeper",  
 &nbsp;&nbsp;&nbsp; "stateOfRegistration": "Tamil nadu",  
 &nbsp;&nbsp;&nbsp; "interStatePermitStatus": "Permitted",  
 &nbsp;&nbsp;&nbsp; "capacity": 50,  
@@ -2023,7 +2014,8 @@ Key highlights:
 > 💡 Tip: Add multiple buses (one by one) to test features like filtering and sorting in the View Buses API.
  
 
-#### ⚙️ How the Backend Processes This  
+#### ⚙️ How the Backend Processes This   
+
 **1. Authenticate and Validate Admin User**  
 
 Before the system touches any bus logic, it verifies:
@@ -2116,27 +2108,96 @@ Prevents conflicted or duplicate entries in high-concurrency admin environments.
 
 #### 📤 Success Response
 <details> 
-  <summary>View screenshot</summary>
-   ![Bus Added Success]()
+  <summary>View Full Response</summary>  <br>  
+   
+**Request Body:**  
+{  
+&nbsp;&nbsp;&nbsp; "busNumber": "TN01CM1234",  
+&nbsp;&nbsp;&nbsp; "busName": "Chennai Express",  
+&nbsp;&nbsp;&nbsp; "busType": "Ac Sleeper",  
+&nbsp;&nbsp;&nbsp; "stateOfRegistration": "Tamil nadu",  
+&nbsp;&nbsp;&nbsp; "interStatePermitStatus": "Permitted",  
+&nbsp;&nbsp;&nbsp; "capacity": 50,  
+&nbsp;&nbsp;&nbsp; "fromLocation": "Chennai",  
+&nbsp;&nbsp;&nbsp; "toLocation": "Madurai",  
+&nbsp;&nbsp;&nbsp; "hours": 6,  
+&nbsp;&nbsp;&nbsp; "minutes": 30,  
+&nbsp;&nbsp;&nbsp; "departureAt": "21:00:00",  
+&nbsp;&nbsp;&nbsp; "fare": 650.00  
+}  
+
+**Response Body:**  
+{  
+&nbsp;&nbsp;&nbsp; "code": "CREATED",  
+&nbsp;&nbsp;&nbsp; "staus": 201,  
+&nbsp;&nbsp;&nbsp; "message": "Bus ID 1 was added successfully by Management Username: 'adm_john_606e'.",  
+&nbsp;&nbsp;&nbsp; "timestamp": "2025-12-24T21:41:19.868305"  
+}
 </details>  
 
 #### ❗ Error Responses  
-> Duplicate Bus Number  
-<details> 
-  <summary>View screenshot</summary>
-   ![Bus Added Success]()
-</details>  
 
-> Invalid Enum / Time Format  
+**DTO Validation Failed**  
 <details> 
-  <summary>View screenshot</summary>
-   ![Bus Added Success]()
-</details>  
+  <summary>View Full Reponse</summary>  <br>   
+  
+  **Request Body:**  
+{  <br>
+&nbsp;&nbsp;&nbsp; "busNumber": "TN01CC123",  <br>
+&nbsp;&nbsp;&nbsp; "busName": "Chennai Express",  <br>
+&nbsp;&nbsp;&nbsp; "busType": "Sleeper",  <br>
+&nbsp;&nbsp;&nbsp; "stateOfRegistration": "Tamil nadu",  <br>
+&nbsp;&nbsp;&nbsp; "interStatePermitStatus": "Permit",  <br> 
+&nbsp;&nbsp;&nbsp; "capacity": 50,  <br>
+&nbsp;&nbsp;&nbsp; "fromLocation": "Chennai",  <br>
+&nbsp;&nbsp;&nbsp; "toLocation": "Madurai",  <br>
+&nbsp;&nbsp;&nbsp; "hours": 6,  <br>
+&nbsp;&nbsp;&nbsp; "minutes": 30,  <br>
+&nbsp;&nbsp;&nbsp; "departureAt": "21:00",  <br>
+&nbsp;&nbsp;&nbsp; "fare": 650.00  <br>
+}
 
-> Invalid/Missing Location   
+**Response Body:**  
+{  
+&nbsp;&nbsp;&nbsp; "code": "VALIDATION_FAILED",  
+&nbsp;&nbsp;&nbsp; "error": [  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; "interStatePermitStatus: Must use _ to join 2 words for internal permit field.",  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; "busNumber: Invalid bus number. Bus number must match the official pattern.",  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; "departureAt: Departure at must be in (HH:mm:ss) format.",  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; "busType: Invalid bus type, Enter the type of bus that is legally authorized in database."  
+&nbsp;&nbsp;&nbsp; ],  
+&nbsp;&nbsp;&nbsp; "status": 400,    
+&nbsp;&nbsp;&nbsp; "timestamp": "2025-12-24T21:16:35.7714254"  
+}
+</details>  
+ 
+**Invalid/Missing Location**     
 <details> 
-  <summary>View screenshot</summary>
-   ![Bus Added Success]()
+  <summary>View Full Response</summary>  <br>  
+  
+**Request body:**  
+{  
+&nbsp;&nbsp;&nbsp; "busNumber": "TN01CC1234",  
+&nbsp;&nbsp;&nbsp; "busName": "Chennai Express",  
+&nbsp;&nbsp;&nbsp; "busType": "Ac Sleeper",  
+&nbsp;&nbsp;&nbsp; "stateOfRegistration": "Tamil nadu",  
+&nbsp;&nbsp;&nbsp; "interStatePermitStatus": "Permitted",  
+&nbsp;&nbsp;&nbsp; "capacity": 50,  
+&nbsp;&nbsp;&nbsp; "fromLocation": "Chennai",  
+&nbsp;&nbsp;&nbsp; "toLocation": "Dindigul",  
+&nbsp;&nbsp;&nbsp; "hours": 6,  
+&nbsp;&nbsp;&nbsp; "minutes": 30,  
+&nbsp;&nbsp;&nbsp; "departureAt": "21:00:00",  
+&nbsp;&nbsp;&nbsp; "fare": 650.00  
+}  
+
+**Response Body:**  
+{  
+&nbsp;&nbsp;&nbsp; "code": "NOT_FOUND",  
+&nbsp;&nbsp;&nbsp; "staus": 404,  
+&nbsp;&nbsp;&nbsp; "message": "Given location 'Dindigul' is not found in MasterLocation table.",  
+&nbsp;&nbsp;&nbsp; "timestamp": "2025-12-24T21:33:06.8125247"  
+}  
 </details>  
 
 #### 📊 HTTP Status Code Table
@@ -2190,39 +2251,82 @@ Prevents conflicted or duplicate entries in high-concurrency admin environments.
 <details> 
   <summary><strong>GET</strong> <code>/management/buses</code></summary>
 
-
 #### 🛠 Endpoint Summary   
 **Method:** GET  
 **URL:** /management/buses  
 **Authorized Roles:** ADMIN  
 **Authentication:** JWT Required (See **“Authentication & JWT Usage”** in Technical Architecture)  
 
-#### 📝 Description  
-This API endpoint facilitates paginated and filtered retrieval of bus records from the system, intended exclusively for administrative purposes. It supports operational tasks such as viewing, updating, or deleting bus entries within the management dashboard.  
+#### 📝 Description   
 
-Key functionalities:  
-- **Strict Role-Based Access Control** 
-Only `ADMIN` users can access this endpoint. Unauthorized or inactive tokens result in **401** or **403** with precise error descriptions.  
+This API enables an authorized **Management (ADMIN) user** to retrieve bus entries from the system in a **paginated, filtered, and sortable** manner. It is designed to provide a comprehensive management view of the fleet, supporting operational tasks such as monitoring, updating, or preparing for deletion of bus records. The endpoint enforces strict **JWT-based authentication** and role verification, ensuring that only valid administrative users can access the data. The API implements a robust filtering and sorting pipeline that supports **keyword-based searches, enum-safe validations**, and **prefix-driven filters** (e.g., `id_`, `fare_`, `bus_`, `location_`). Date and time fields are parsed with strict format validation, while case-insensitive matching is applied to all fields except bus numbers. Bus entities are transformed into `ManagementBusDataDto` before being returned, exposing only relevant and safe fields while safeguarding sensitive operational data.  
 
-- **Pagination + Sorting**  
-Supports page-wise retrieval and sorting via a controlled whitelist of allowed fields. Prevents excessive payloads and unsafe `ORDER BY` usage.  
+**Key Highlights:**  
+- **Strict Role-Based Access Control:** Only ADMIN users allowed; unauthorized or inactive tokens return 401/403.
+- **Pagination & Sorting:** Efficient, safe, and configurable for large datasets.
+- **Advanced Filtering:** Keyword-based, regex-driven, enum-safe, and prefix-specific filters.
+- **DTO-Driven Output:** Returns only safe, relevant fields; sensitive data protected.
+- **Robust Error Handling:** Descriptive responses for invalid filters, pagination, or formatting issues.
+- **Extensible & Modular:** Filtering pipeline supports future enhancements without core changes.
+- **Enterprise-Ready:** Optimized for performance and operational reliability with large fleets.  
 
-- **Advanced Filtering System**  
-A versatile keyword parser supports:  
-    - Prefix-based filters (`id_`, `fare_`, `bus_`, `location_`)
-    - Regex-driven matching for complex formats (bus numbers, times, dates)
-    - Enum-safe validation of values such as bus type, booking status, seat type, AC/non-AC, and state of registration
-    - Case-insensitive matching for all fields except bus number
-    - Multi-format date/time parsing with strict validation  
+#### ⚠️ Prerequisites   
 
-- **DTO-Driven Output**  
-Internal bus entities are transformed into `ManagementBusDataDto`, exposing only safe, relevant fields while protecting sensitive operational data.
+Before calling this endpoint, ensure the system contains multiple bus entries to properly test pagination, search, and filtering. Since there is **no bulk bus creation API, use API #11 – Add New Bus Data** to add each bus individually. For convenience and consistent testing, you can use the following sample buses. Add them one by one via API #11 before querying this endpoint:   
 
-- **Robust Error Handling**
-Returns highly descriptive error responses for pagination, date/time formats, invalid enums, or unmatched keyword searches. 
+<details> 
+  <summary>Sample Bus Entries</summary>  <br>  
 
-- **Extensible Architecture**  
-Built using a modular filtering pipeline, enabling new filters or enum types to be added without modifying core logic.
+**Sample - 1**    
+{     
+&nbsp;&nbsp;&nbsp; "busNumber": "TN01CC1122",  
+&nbsp;&nbsp;&nbsp; "busName": "VKV Travels",  
+&nbsp;&nbsp;&nbsp; "busType": "Bharat Benz Ac",  
+&nbsp;&nbsp;&nbsp; "stateOfRegistration": "Tamil Nadu",  
+&nbsp;&nbsp;&nbsp; "interStatePermitStatus": "permitted",  
+&nbsp;&nbsp;&nbsp; "capacity": 48,  
+&nbsp;&nbsp;&nbsp; "fromLocation": "Chennai",  
+&nbsp;&nbsp;&nbsp; "toLocation": "Coimbatore",  
+&nbsp;&nbsp;&nbsp; "hours": 8,  
+&nbsp;&nbsp;&nbsp; "minutes": 55,  
+&nbsp;&nbsp;&nbsp; "departureAt": "20:00:00",  
+&nbsp;&nbsp;&nbsp; "fare": 1099  
+}  
+
+**Sample - 2**    
+{  
+&nbsp;&nbsp;&nbsp; "busNumber": "TN02MC1204",  
+&nbsp;&nbsp;&nbsp; "busName": "Krishna Travels",  
+&nbsp;&nbsp;&nbsp; "busType": "Ac seater sleeper",  
+&nbsp;&nbsp;&nbsp; "stateOfRegistration": "Tamil Nadu",  
+&nbsp;&nbsp;&nbsp; "interStatePermitStatus": "permitted",  
+&nbsp;&nbsp;&nbsp; "capacity": 46,  
+&nbsp;&nbsp;&nbsp; "fromLocation": "Madurai",  
+&nbsp;&nbsp;&nbsp; "toLocation": "Coimbatore",  
+&nbsp;&nbsp;&nbsp; "hours": 5,  
+&nbsp;&nbsp;&nbsp; "minutes": 50,  
+&nbsp;&nbsp;&nbsp; "departureAt": "22:30:00",  
+&nbsp;&nbsp;&nbsp; "fare": 599  
+}  
+
+  **Sample - 3**    
+{   
+&nbsp;&nbsp;&nbsp; "busNumber": "TN04CE2214",  
+&nbsp;&nbsp;&nbsp; "busName": "National Travels",  
+&nbsp;&nbsp;&nbsp; "busType": "Volvo Ac",  
+&nbsp;&nbsp;&nbsp; "stateOfRegistration": "Tamil Nadu",  
+&nbsp;&nbsp;&nbsp; "interStatePermitStatus": "permitted",  
+&nbsp;&nbsp;&nbsp; "capacity": 48,  
+&nbsp;&nbsp;&nbsp; "fromLocation": "Chennai",  
+&nbsp;&nbsp;&nbsp; "toLocation": "Coimbatore",  
+&nbsp;&nbsp;&nbsp; "hours": 9,  
+&nbsp;&nbsp;&nbsp; "minutes": 15,  
+&nbsp;&nbsp;&nbsp; "departureAt": "21:15:00",  
+&nbsp;&nbsp;&nbsp; "fare": 899  
+} 
+</details>    
+
+> **💡 Tip:** Copy each JSON object and submit via **API #11** individually. This will seed the system with enough data to fully experience pagination, keyword search, and sort/filter functionality in **API #12**.
 
 
 #### 📥 Query Parameters  
@@ -2300,18 +2404,283 @@ Built using a modular filtering pipeline, enabling new filters or enum types to 
 
 This structure ensures that clients receive a **single, holistic view** of a bus and its bookings in a format optimized for dashboards, reporting, and operational decision-making. The DTO design also supports easy future extension for additional attributes, filtering, or hierarchical updates without breaking existing contracts.
 
-#### 📤 Success Response
+#### 📤 Success Response  
+
+**1. Without Query Parameter**  
 <details> 
-  <summary>View screenshot</summary>
-   ![Bus View Success]()
+  <summary>View Full Response</summary>  <br>  
+{  <br>  
+&nbsp;&nbsp;"status": 200,  <br>  
+&nbsp;&nbsp;"data": {  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;"content": [  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"bus": {  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"id": 1,  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"busNumber": "TN01CM1234",  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"busName": "Chennai Express",  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"busType": "A/C Sleeper",  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"acType": "AC",  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"seatType": "SLEEPER",  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"stateOfRegistration": "Tamil Nadu",  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"interStatePermitStatus": "Permitted",  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"capacity": 50,  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"availableSeats": 50,  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"fromLocation": "Chennai, Tamil Nadu, India",  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"toLocation": "Madurai, Tamil Nadu, India",  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"duration": "06h 30m",  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"busFare": 650.00,  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"createdBy": {  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"id": 1,  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"username": "adm_john_606e",  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"mobile": "8XXXXXXXXX",  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"role": "Admin",  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"actionAt": "2025-12-25T13:19:13.235605"  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;},  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"updatedBy": null  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;},  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"bookings": []  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;},  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"bus": {  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"id": 2,  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"busNumber": "TN01CC1122",  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"busName": "VKV Travels",  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"busType": "Bharat Benz A/C Sleeper (2+1)",  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"acType": "AC",  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"seatType": "SLEEPER",  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"stateOfRegistration": "Tamil Nadu",  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"interStatePermitStatus": "Permitted",  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"capacity": 48,  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"availableSeats": 48,  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"fromLocation": "Chennai, Tamil Nadu, India",  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"toLocation": "Coimbatore, Tamil Nadu, India",  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"duration": "08h 55m",  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"busFare": 1099.00,  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"createdBy": {  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"id": 1,  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"username": "adm_john_606e",  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"mobile": "8XXXXXXXXX",  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"role": "Admin",  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"actionAt": "2025-12-25T13:35:40.310603"  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;},  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"updatedBy": null  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;},  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"bookings": []  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;},  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;...  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;],  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;"totalPages": 1,  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;"totalElements": 4,  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;"currentPage": 1,  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;"pageSize": 10,  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;"first": true,  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;"last": false  <br>  
+&nbsp;&nbsp;},  <br>  
+&nbsp;&nbsp;"message": "The available Bus data list in this page 1"  <br>  
+}
+</details>   
+
+**2. With Filter: page=1, size=10, sortBy=id, sortDir=desc, keyword=25/12/2025**  
+<details> 
+  <summary>View Full Response</summary>  <br>  
+{  <br>  
+&nbsp;&nbsp;"status": 200,  <br>  
+&nbsp;&nbsp;"data": {  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;"content": [  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"bus": {  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"id": 4,  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"busNumber": "TN04CE2214",  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"busName": "National Travels",  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"busType": "Volvo A/C Premium Seater / Sleeper",  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"acType": "AC",  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"seatType": "SEATER_SLEEPER",  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"stateOfRegistration": "Tamil Nadu",  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"interStatePermitStatus": "Permitted",  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"capacity": 48,  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"availableSeats": 48,  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"fromLocation": "Chennai, Tamil Nadu, India",  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"toLocation": "Coimbatore, Tamil Nadu, India",  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"duration": "09h 15m",  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"busFare": 899.00,  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"createdBy": {  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"id": 1,  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"username": "adm_john_606e",  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"mobile": "8XXXXXXXXX",  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"role": "Admin",  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"actionAt": "2025-12-25T13:36:02.643373"  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;},  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"updatedBy": null  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;},  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"bookings": []  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;},  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"bus": {  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"id": 3,  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"busNumber": "TN02MC1204",  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"busName": "Krishna Travels",  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"busType": "A/C Seater / Sleeper",  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"acType": "AC",  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"seatType": "SEATER_SLEEPER",  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"stateOfRegistration": "Tamil Nadu",  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"interStatePermitStatus": "Permitted",  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"capacity": 46,  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"availableSeats": 46,  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"fromLocation": "Madurai, Tamil Nadu, India",  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"toLocation": "Coimbatore, Tamil Nadu, India",  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"duration": "05h 50m",  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"busFare": 599.00,  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"createdBy": {  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"id": 1,  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"username": "adm_john_606e",  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"mobile": "8XXXXXXXXX",  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"role": "Admin",  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"actionAt": "2025-12-25T13:35:51.782188"  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;},  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"updatedBy": null  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;},  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"bookings": []  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;...  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;],  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;"totalPages": 1,  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;"totalElements": 4,  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;"currentPage": 1,  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;"pageSize": 10,  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;"first": true,  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;"last": false  <br>  
+&nbsp;&nbsp;},  <br>  
+&nbsp;&nbsp;"message": "The available Bus data for the given Date in this page 1"  <br>  
+}  
+</details>    
+
+**3. With Filter: page=1, size=10, sortBy=id, sortDir=asc, keyword=sleeper**  
+<details> 
+  <summary>View Full Response</summary>  <br>  
+{  <br>  
+&nbsp;&nbsp;"status": 200,  <br>  
+&nbsp;&nbsp;"data": {  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;"content": [  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"bus": {  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"id": 1,  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"busNumber": "TN01CM1234",  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"busName": "Chennai Express",  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"busType": "A/C Sleeper",  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"acType": "AC",  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"seatType": "SLEEPER",  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"stateOfRegistration": "Tamil Nadu",  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"interStatePermitStatus": "Permitted",  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"capacity": 50,  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"availableSeats": 50,  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"fromLocation": "Chennai, Tamil Nadu, India",  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"toLocation": "Madurai, Tamil Nadu, India",  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"duration": "06h 30m",  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"busFare": 650.00,  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"createdBy": {  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"id": 1,  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"username": "adm_john_606e",  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"mobile": "8XXXXXXXXX",  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"role": "Admin",  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"actionAt": "2025-12-25T13:19:13.235605"  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;},  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"updatedBy": null  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;},  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"bookings": []  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;},    <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"bus": {  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"id": 2,  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"busNumber": "TN01CC1122",  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"busName": "VKV Travels",  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"busType": "Bharat Benz A/C Sleeper (2+1)",  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"acType": "AC",  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"seatType": "SLEEPER",  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"stateOfRegistration": "Tamil Nadu",  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"interStatePermitStatus": "Permitted",  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"capacity": 48,  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"availableSeats": 48,  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"fromLocation": "Chennai, Tamil Nadu, India",  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"toLocation": "Coimbatore, Tamil Nadu, India",  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"duration": "08h 55m",  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"busFare": 1099.00,  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"createdBy": {  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"id": 1,  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"username": "adm_john_606e",  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"mobile": "8XXXXXXXXX",  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"role": "Admin",  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"actionAt": "2025-12-25T13:35:40.310603"  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;},  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"updatedBy": null  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;},  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"bookings": []  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;...  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;],  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;"totalPages": 1,  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;"totalElements": 4,  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;"currentPage": 1,  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;"pageSize": 10,  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;"first": true,  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;"last": false  <br>  
+&nbsp;&nbsp;},  <br>  
+&nbsp;&nbsp;"message": "Bus data found for the given Bus Type in this page 1"  <br>  
+}  
+</details>   
+
+**4. With Filter: page=1, size=10, sortBy=id, sortDir=asc, keyword=bus_Chennai express**  
+<details> 
+  <summary>View Full Response</summary>  <br>   
+{  <br>  
+&nbsp;&nbsp;"status": 200,  <br>  
+&nbsp;&nbsp;"data": {  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;"content": [  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"bus": {  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"id": 1,  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"busNumber": "TN01CM1234",  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"busName": "Chennai Express",  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"busType": "A/C Sleeper",  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"acType": "AC",  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"seatType": "SLEEPER",  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"stateOfRegistration": "Tamil Nadu",  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"interStatePermitStatus": "Permitted",  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"capacity": 50,  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"availableSeats": 50,  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"fromLocation": "Chennai, Tamil Nadu, India",  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"toLocation": "Madurai, Tamil Nadu, India",  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"duration": "06h 30m",  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"busFare": 650.00,  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"createdBy": {  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"id": 1,  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"username": "adm_john_606e",  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"mobile": "8XXXXXXXXX",  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"role": "Admin",  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"actionAt": "2025-12-25T13:19:13.235605"  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;},  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"updatedBy": null  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;},  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"bookings": []  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;],  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;"totalPages": 1,  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;"totalElements": 1,  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;"currentPage": 1,  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;"pageSize": 10,  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;"first": true,  <br>  
+&nbsp;&nbsp;&nbsp;&nbsp;"last": false  <br>  
+&nbsp;&nbsp;},  <br>  
+&nbsp;&nbsp;"message": "Bus data found for the given Bus Name in this page 1"  <br>  
+}  
 </details>  
 
 #### ❗ Error Responses  
-> Duplicate Bus Number  
+
+**Validation Failed**   
 <details> 
-  <summary>View screenshot</summary>
-   ![Bus View Error]()
-</details>  
+  <summary>View screenshot</summary>  <br>  
+    <img src="docs/screenshots/api-12-1.JPG" width="550" alt="Bus View Error">
+</details>   
   
 
 #### 📊 HTTP Status Code Table
@@ -2373,17 +2742,17 @@ This structure ensures that clients receive a **single, holistic view** of a bus
 **Authentication:** JWT Required (See **“Authentication & JWT Usage”** in Technical Architecture)  
 
 
-#### 📝 Description
-This endpoint allows **Management/Admin** to update an existing bus entry with new operational data such as bus number, type, registration state, permit status, timing, locations, and fare. It enforces **strict validation, robust enum parsing, safe location checks**, and **optimistic locking** to maintain data consistency.  
+#### 📝 Description  
+This API enables an authorized **Management/Admin user** to update an existing bus entry in the system while performing **comprehensive validation, normalization, and recalculation** before persisting changes. It goes beyond simple field updates by ensuring strict JWT-based authentication, role verification, and **full DTO validation**, while maintaining referential and operational integrity of all dependent attributes.   
 
-Key Functionalities:  
-- **Role-Secured Update:** Only ADMIN users may modify bus records.
-- **Strict ID & DTO Validation:** Ensures data integrity and avoids malformed updates.
-- **Deep Enum & Location Parsing:** Prevents invalid bus types, states, or city mappings.
-- **Departure Time Validation (STRICT):** Accepts only HH:mm:ss format.
-- **Optimistic Locking Protection:** Prevents overwriting changes made by other admins.
-- **Atomic Update via Mapper:** Ensures consistent transformation and recalculation of dependent fields such as duration, arrival time, AC/seat type, and availability.
-- **Clear Response Messaging:** Provides granular **400/404/409 responses** for each failure type.
+During the update process, the system:  
+- Validates the **bus ID** and confirms that the record exists.
+- Performs **deep enum parsing** for fields like BusType, State of Registration, and PermitStatus to prevent invalid or non-standard inputs.
+- Resolves and verifies **origin and destination locations** against the centralized MasterLocation registry to ensure route consistency.
+- Validates **departure time** strictly in `HH:mm:ss` format, normalizes travel duration, and recalculates **arrival time** automatically.
+- Intelligently derives or recalculates **AC type, seat type, and available seats** based on the updated BusType and capacity.
+- Executes updates **transactionally** with **optimistic locking** to prevent overwriting concurrent changes by other admins.
+- Records **audit logs** capturing the admin identity, timestamps, and the exact changes made to the bus entity.   
 
 #### 📥 Request Parameter
 | Parameter | Type | Description                                         | Required |
@@ -2393,22 +2762,22 @@ Key Functionalities:
 
 #### 📥 Request Body
 {  
-&nbsp;&nbsp;&nbsp; "busNumber": "TN01CC1234",  
+&nbsp;&nbsp;&nbsp; "busNumber": "TN01CM1234",  
 &nbsp;&nbsp;&nbsp; "busName": "Chennai Express",  
-&nbsp;&nbsp;&nbsp; "busType": "Sleeper",  
+&nbsp;&nbsp;&nbsp; "busType": "Ac Sleeper",  
 &nbsp;&nbsp;&nbsp; "stateOfRegistration": "Tamil nadu",  
 &nbsp;&nbsp;&nbsp; "interStatePermitStatus": "Permitted",  
 &nbsp;&nbsp;&nbsp; "capacity": 50,  
 &nbsp;&nbsp;&nbsp; "fromLocation": "Chennai",  
 &nbsp;&nbsp;&nbsp; "toLocation": "Madurai",  
 &nbsp;&nbsp;&nbsp; "hours": 6,  
-&nbsp;&nbsp;&nbsp; "minutes": 30,   
+&nbsp;&nbsp;&nbsp; "minutes": 45,   
 &nbsp;&nbsp;&nbsp; "departureAt": "21:00:00",  
-&nbsp;&nbsp;&nbsp; "fare": 650.00  
-} 
+&nbsp;&nbsp;&nbsp; "fare": 679  
+}  
 > 💡 Note:
 - Substitute these values with your preferred values. But remember, My system will block entries that do not match its rules.
-- Departure time must strictly follow HH:mm:ss format.
+- Departure time must strictly follow `HH:mm:ss` format.
 - For more info please refer the **BusDto class** under **dto package** in the application folder.
 
 
@@ -2478,7 +2847,7 @@ This avoids ambiguous updates and ensures admins don't update deleted or nonexis
 
 **8. Entity Update via Mapper (Business Cascade Update)**  
 
-The BusMapper.updateExistingByDto() method executes a structured, field-by-field transformation from DTO to entity, implementing business cascade updates while maintaining a single source of truth for mappings.
+The `BusMapper.updateExistingByDto()` method executes a structured, field-by-field transformation from DTO to entity, implementing business cascade updates while maintaining a single source of truth for mappings.
  - Maps core fields including `busNumber`, `busName`, `fare`, and `capacity` directly from the DTO.
  - Re-derives `AC type` and seat type based on the resolved `BusType` enum value.
  - Applies updated `fromLocation` and `toLocation` values from the validated DTO.
@@ -2491,35 +2860,107 @@ This separation ensures clean decoupling of data transformation from business lo
 
 #### 📤 Success Response
 <details> 
-  <summary>View screenshot</summary>
-   ![Bus Update Success]()
+  <summary>View Full Response</summary>  <br>  
+
+**Request Body:**  
+{  <br>
+&nbsp;&nbsp;&nbsp; "busNumber": "TN01CM1234",  <br>
+&nbsp;&nbsp;&nbsp; "busName": "Chennai Express",  <br>
+&nbsp;&nbsp;&nbsp; "busType": "Ac Sleeper",  <br>
+&nbsp;&nbsp;&nbsp; "stateOfRegistration": "Tamil nadu",  <br>
+&nbsp;&nbsp;&nbsp; "interStatePermitStatus": "Permitted",  <br>
+&nbsp;&nbsp;&nbsp; "capacity": 50,  <br>
+&nbsp;&nbsp;&nbsp; "fromLocation": "Chennai",  <br>
+&nbsp;&nbsp;&nbsp; "toLocation": "Madurai",  <br>
+&nbsp;&nbsp;&nbsp; "hours": 6,  <br>
+&nbsp;&nbsp;&nbsp; "minutes": 45,  <br>
+&nbsp;&nbsp;&nbsp; "departureAt": "21:10:00",  <br>
+&nbsp;&nbsp;&nbsp; "fare": 679  <br>
+}  
+
+**Response Body:**  
+{  <br>
+&nbsp;&nbsp;&nbsp; "code": "SUCCESS",  <br>
+&nbsp;&nbsp;&nbsp; "staus": 200,  <br>
+&nbsp;&nbsp;&nbsp; "message": "Bus ID 1 was added successfully by Management Username: 'adm_john_606e'.",  <br>
+&nbsp;&nbsp;&nbsp; "timestamp": "2025-12-25T14:25:07.9215598"  <br>
+}
 </details>
 
-#### ❗ Error Response  
-> Invalid ID  
+#### ❗ Error Response   
+
+**Invalid ID**  
 <details> 
-  <summary>View screenshot</summary>
-   ![Bus Update Error]()
+  <summary>View screenshot</summary>  <br>  
+   <img src="docs/screenshots/api-13-1.JPG" width="550" alt="Bus Update Error">
 </details>  
 
-> Not Found (ID or MasterLocation Missing)  
+**ID Not Found**  
 <details> 
-  <summary>View screenshot</summary>
-   ![Bus Update Error]()
+  <summary>View screenshot</summary>  <br>  
+   <img src="docs/screenshots/api-13-2.JPG" width="550" alt="Bus Update Error">
 </details>  
 
-> Duplicate Conflict 
+**DTO Failure**  
 <details> 
-  <summary>View screenshot</summary>
-   ![Bus Update Error]()
-</details>  
+  <summary>View Full Response</summary>  <br>  
   
-> Unauthorized / Forbidden  
-<details> 
-  <summary>View screenshot</summary>
-   ![Bus Update Error]()
+**Request Body:**  
+{  <br>
+&nbsp;&nbsp;&nbsp; "busNumber": "TN01CM1234",  <br>
+&nbsp;&nbsp;&nbsp; "busName": "Chennai Express",  <br>
+&nbsp;&nbsp;&nbsp; "busType": "Sleeper",  <br>
+&nbsp;&nbsp;&nbsp; "stateOfRegistration": "Tamil nadu",  <br>
+&nbsp;&nbsp;&nbsp; "interStatePermitStatus": "Permit",  <br>
+&nbsp;&nbsp;&nbsp; "capacity": 50,  <br>
+&nbsp;&nbsp;&nbsp; "fromLocation": "Chennai",  <br>
+&nbsp;&nbsp;&nbsp; "toLocation": "Madurai",  <br>
+&nbsp;&nbsp;&nbsp; "hours": 6,  <br>
+&nbsp;&nbsp;&nbsp; "minutes": 45,  <br>
+&nbsp;&nbsp;&nbsp; "departureAt": "21:00:00",  <br>
+&nbsp;&nbsp;&nbsp; "fare": 679  <br>
+}  
+
+**Response Body:**  
+{  <br>
+&nbsp;&nbsp;&nbsp; "code": "VALIDATION_FAILED",  <br>
+&nbsp;&nbsp;&nbsp; "error": [  <br>
+&nbsp;&nbsp;&nbsp; "interStatePermitStatus: Must use _ to join 2 words for internal permit field.",  <br>
+&nbsp;&nbsp;&nbsp; "busType: Invalid bus type, Enter the type of bus that is legally authorized in database."  <br>
+&nbsp;&nbsp;&nbsp; ],  <br>
+&nbsp;&nbsp;&nbsp; "status": 400,  <br>
+&nbsp;&nbsp;&nbsp; "timestamp": "2025-12-25T14:23:03.7777899"  <br>
+}
 </details>  
 
+**Not Found / Invalid Location Data**  
+<details> 
+  <summary>View Full Response</summary>  <br>  
+  
+**Request Body:**  
+{  <br>
+&nbsp;&nbsp;&nbsp; "busNumber": "TN01CM1234",  <br>
+&nbsp;&nbsp;&nbsp; "busName": "Chennai Express",  <br>
+&nbsp;&nbsp;&nbsp; "busType": "Ac Sleeper",  <br>
+&nbsp;&nbsp;&nbsp; "stateOfRegistration": "Tamil nadu",  <br>
+&nbsp;&nbsp;&nbsp; "interStatePermitStatus": "Permitted",  <br>
+&nbsp;&nbsp;&nbsp; "capacity": 50,  <br>
+&nbsp;&nbsp;&nbsp; "fromLocation": "Chennai",  <br>
+&nbsp;&nbsp;&nbsp; "toLocation": "Maduri",  <br>
+&nbsp;&nbsp;&nbsp; "hours": 6,  <br>
+&nbsp;&nbsp;&nbsp; "minutes": 45,  <br>
+&nbsp;&nbsp;&nbsp; "departureAt": "21:00:00",  <br>
+&nbsp;&nbsp;&nbsp; "fare": 679  <br>
+}   
+
+**Response Body:**  
+{  <br>
+&nbsp;&nbsp;&nbsp; "code": "NOT_FOUND",  <br>
+&nbsp;&nbsp;&nbsp; "staus": 404,  <br>
+&nbsp;&nbsp;&nbsp; "message": "Given location 'Maduri' is not found in MasterLocation table.",  <br>
+&nbsp;&nbsp;&nbsp; "timestamp": "2025-12-25T14:20:20.7478864"  <br>
+}   
+</details>  
 
 #### HTTP Status Code Table
 | HTTP Code | Status Name       | Meaning               | When It Occurs                                |
@@ -2534,6 +2975,7 @@ This separation ensures clean decoupling of data transformation from business lo
 
 
 #### ⚠️ Edge Cases & Developer Notes  
+
 **1. Enum Parsing Edge Cases**  
 
 String-based enums like busType, stateOfRegistration, and permitStatus handle diverse user input errors through structured validation. The system trims whitespace, normalizes casing, and rejects partial matches or aliases, providing detailed feedback on invalid values and valid alternatives to aid developers in debugging client issues.  
@@ -2543,9 +2985,9 @@ String-based enums like busType, stateOfRegistration, and permitStatus handle di
 
 **2. Location Validation Sensitivity**  
 
-Route definitions enforce referential integrity by cross-referencing fromLocation and toLocation against MasterLocation table entries exclusively. This rejects malformed, deprecated, or case-mismatched locations, safeguarding the scheduling engine from ghost routes that disrupt booking flows.  
- - Rejects locations absent from MasterLocation, mismatched city/state combinations, inconsistent casing, and deprecated/removed entries.
- - Ensures fromLocation ≠ toLocation and prevents unrelated location pairs that break pricing models and cancellation tracking.
+Route definitions enforce referential integrity by cross-referencing `fromLocation` and `toLocation` against `MasterLocation` table entries exclusively. This rejects malformed, deprecated, or case-mismatched locations, safeguarding the scheduling engine from ghost routes that disrupt booking flows.  
+ - Rejects locations absent from `MasterLocation`, mismatched city/state combinations, inconsistent casing, and deprecated/removed entries.
+ - Ensures `fromLocation` ≠ `toLocation` and prevents unrelated location pairs that break pricing models and cancellation tracking.
  - Critical for maintaining valid route graphs used in seat aggregation, analytics, and real-time operations.
 
 
@@ -2566,9 +3008,9 @@ Updating `capacity` triggers `availableSeats = capacity` reset to reflect new bu
 **5. Optimistic Locking & Audit Integrity**   
 
 Version-based optimistic locking detects concurrent admin updates, while audit fields capture all changes for traceability. Combined with internal error handling, this maintains data consistency and compliance across multi-admin environments.  
-- Race condition: Admin A (v1) vs Admin B (saves v2) → Admin A gets 409 CONFLICT with refresh instruction.
-- Records updatedAt, updatedBy, and affected bus ID for fraud detection, accountability, and audits.
-- Catches repository/mapper failures as 500 INTERNAL_SERVER_ERROR with masked details to prevent info leaks.
+- Race condition: Admin A (v1) vs Admin B (saves v2) → Admin A gets **409 CONFLICT** with refresh instruction.
+- Records `updatedAt`, `updatedBy`, and affected bus ID for **fraud detection, accountability**, and **audits**.
+- Catches repository/mapper failures as **500 INTERNAL_SERVER_ERROR** with masked details to prevent info leaks.
 </details>  
 
 
@@ -2601,6 +3043,7 @@ Key Functionalities:
 
 
 #### ⚙️ Backend Processing Flow  
+
 **1. Security & Authorization Gate**  
 
 Every delete request first passes through a multi-step security pipeline:  
@@ -2658,29 +3101,25 @@ Any unexpected internal error triggers a rollback and returns **500 Internal Ser
 
 #### 📤 Success Response
 <details> 
-  <summary>View screenshot</summary>
-   ![Bus Delete Success]()
-</details>
-
-#### ❗ Error Response  
-> Invalid ID  
-<details> 
-  <summary>View screenshot</summary>
-   ![Bus Delete Error]()
+  <summary>View screenshot</summary>  <br>  
+    <img src="docs/screenshots/api-14-3.JPG" width="550" alt="Bus Delete Success">
 </details>   
 
-> Bus Not Found
-<details> 
-  <summary>View screenshot</summary>
-   ![Bus Delete Error]()
-</details> 
+> **💡 Tip for Testing #15:** If you deleted a bus and want it to appear again in the Public Bus Search API (#15), re-create it using **#11 Add New Bus Data** with the same details.
 
-> Unauthorized / Forbidden
-<details> 
-  <summary>View screenshot</summary>
-   ![Bus Delete Error]()
-</details> 
+#### ❗ Error Response    
 
+**Invalid ID**  
+<details> 
+  <summary>View screenshot</summary>  <br>  
+    <img src="docs/screenshots/api-14-1.JPG" width="550" alt="Bus Delete Error">
+</details>   
+
+**Bus ID Not Found**
+<details> 
+  <summary>View screenshot</summary>  <br>  
+    <img src="docs/screenshots/api-14-2.JPG" width="550" alt="Bus Delete Error">
+</details>  
 
 #### 📊 HTTP Status Code Table
 | HTTP Code | Status Name           | Meaning                 | When It Occurs                   |
