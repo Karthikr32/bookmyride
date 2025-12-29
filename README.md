@@ -5503,36 +5503,32 @@ This architecture is intentionally geared toward **enterprise-grade observabilit
 
 The **User Registration / Sign-Up API** is responsible for creating new customer accounts and upgrading existing guest users to full registered users within the **_BookMyRide_** platform. This API plays a core role in user identity management, ensuring that every customer can transition smoothly from lightweight guest usage to a fully authenticated, privilege-enabled account. Designed with a premium experience in mind, this endpoint supports both first-time users and returning customers who previously used the system as guests.  
 
-BookMyRide implements a **tiered user architecture**, allowing different levels of access depending on each user’s account type. By default, new visitors enter the system as **Guest Users**, giving them the freedom to browse services and make bookings without upfront registration. However, their abilities remain restricted until they choose to sign up as **Registered Users**, unlocking essential features that enhance the long-term booking experience. This API is responsible for bridging this gap—converting temporary guest accounts into full-featured user profiles when needed.  
+_**BookMyRide**_ implements a **tiered user architecture**, allowing different levels of access depending on each user’s account type. By default, new visitors enter the system as **Guest Users**, giving them the freedom to browse services and make bookings without upfront registration. However, their abilities remain restricted until they choose to sign up as **Registered Users**, unlocking essential features that enhance the long-term booking experience. This API is responsible for bridging this gap—converting temporary guest accounts into full-featured user profiles when needed.  
 
-**User Type Capabilities**  
+**User Type Capabilities:**  
 
 1️⃣ **Guest Users (Non-Registered Customers)**  
 - **Guest users** can make bookings without needing an account, enabling fast first-time usage.
 - However, they cannot:
-    - View profile
-    - Update profile
-    - Change password
-    - View booking history
-    - Receive loyalty or discount benefits  
+  - View profile
+  - Update profile
+  - Change password
+  - View booking history
+  - Receive loyalty or discount benefits  
 
 2️⃣ **Registered Users (USER Role)**  
 - After signing up, customers gain full access to premium features, including:
- 
-    ✔ View & edit profile  
-    ✔ Change password   
-    ✔ View current & past bookings  
-    ✔ Receive **5% discount** on every booking (details in Booking API)   
+  - View & edit profile
+  - Change password
+  - View current & past bookings
+  - Receive **5% discount** on every booking (details in Booking API)   
 
 This API handles **all scenarios**:  
+1. **Brand new user signs up** → Creates a new USER
+2. **Existing Guest User signs up** → Guest is upgraded to USER
+3. **Existing registered User signs up** → Sign-up is blocked  
 
-**1. Brand new user signs up** → Creates a new USER  
-
-**2. Existing Guest User signs up** → Guest is upgraded to USER  
-
-**3. Existing registered User signs up** → Sign-up is blocked   
-
-💡 Note: Upon successful registration or guest upgrade, a JWT token is generated and returned in the data field of the response. Clients must use this token in the `Authorization: Bearer <JWT_TOKEN>` header for all subsequent protected API requests.   
+> 💡 **Note:** Upon successful registration or guest upgrade, a JWT token is generated and returned in the data field of the response. Clients must use this token in the `Authorization: Bearer <JWT_TOKEN>` header for all subsequent protected API requests.   
 
 
 #### 📥 Request Body  
@@ -5540,8 +5536,9 @@ This API handles **all scenarios**:
 &nbsp;&nbsp;&nbsp; "mobile": "Your Mobile Number",   
 &nbsp;&nbsp;&nbsp; "password": "MySecurePassword123"    
 }  
-> 💡 Tips: You can replace the above values with your own existing or new mobile number & password. My system will handle this gracefully.  
-> 💡 Note: If you give the mobile number that **already registered** as `Management` user account return **403** with message.     
+> 💡 **Tip:** Replace the sample values with any valid mobile number and password. The system automatically handles both new registrations and existing user logins based on the provided credentials.
+
+> ⚠️ **Note:** If the provided mobile number is already registered under a **Management** account, the request will be rejected with a **403 Forbidden** response and an appropriate error message.    
 
 #### ⚙️ Backend Processing Flow  
 
@@ -5555,20 +5552,19 @@ This API handles **all scenarios**:
 - This ensures blacklisted or restricted numbers cannot register, maintaining system security.   
 
 **3. Check Existing AppUser Record (Most Important flow)**  
-- The system then checks if the mobile number already exists in the application’s user table using `Optional<AppUser> existedAppUser = appUserService.fetchByMobile(...)`. Based on the query result, the flow splits into three distinct scenarios:  
-
-**1. Existing USER**    
+- The system then checks if the mobile number already exists in the application’s user table using `Optional<AppUser> existedAppUser = appUserService.fetchByMobile(...)`. Based on the query result, the flow splits into three distinct scenarios:
+ 
+**I. Existing USER**    
 - **Condition:** Mobile number exists and the account is already a fully registered `USER`.
 - **Action**: Reject the sign-up attempt.
 - **Response**: Returns **403 FORBIDDEN** with message.  
 
 This prevents duplicate accounts and ensures data integrity.  
 
-**2 Existing GUEST**  
+**II. Existing GUEST**  
 - **Condition:** Mobile number exists and the account is a `GUEST` (role = `GUEST`, `isUser = false`).
 - **Action:** Upgrade the guest account to a fully registered `USER`.
-- **Upgrade Steps:**
-  
+- **Upgrade Steps:**  
      1. Promote role → `USER`
      2. Encode and set password
      3. Mark profile as completed
@@ -5577,11 +5573,10 @@ This prevents duplicate accounts and ensures data integrity.
 - **Response:** Returns **200 OK** with message + newly generted JWT token.
 - **Important to note:** Guest data, including booking history, saved trips, and personal information, is preserved during the upgrade.  
 
-**3 Completely New User**  
+**III. Completely New User**  
 - **Condition:** Mobile number does not exist in `AppUser` table/database.
 - **Action:** Create a new `AppUser` record.
 - **Initialization Steps:**  
-
      1. Assign role → `USER`
      2. Set `isUser = true` and `isProfileCompleted = false` because there are some more information is missing that can fill through making a booking or update profile API.
      3. Generate placeholder name/email using `MockDataUtils` utils
@@ -5599,16 +5594,16 @@ After a successful registration or guest upgrade, the system generates a **JWT t
 - The newly registered or upgraded user is considered fully authenticated immediately.
 - The token can be used to access all customer-specific endpoints without requiring an additional login.  
 
-**Note:** Management users follow a separate authentication flow and are not handled by this endpoint. Their token creation logic is documented in the Admin Authentication API.    
+> **Note:** Management users follow a separate authentication flow and are not handled by this endpoint. Their token creation logic is documented in the Admin Authentication API.    
 
 **5. Summary Of Logic Flow**  
 | Scenario          | Condition                  | Action             | Response        |
 | ----------------- | -------------------------- | ------------------ | --------------- |
-| New Mobile        | Not found in AppUser       | Create new USER    | 201 CREATED     |
-| Existing Guest    | Exists as GUEST            | Upgrade to USER    | 200 OK          |
-| Existing USER     | Exists as USER             | Block registration | 403 FORBIDDEN   |
-| Restricted Mobile | Exists in Management Layer | Block registration | 403 FORBIDDEN   |
-| Invalid Request   | Fails validation           | Return errors      | 400 BAD_REQUEST |
+| **New Mobile**        | Not found in AppUser       | Create new USER    | **201 CREATED**     |
+| **Existing Guest**    | Exists as GUEST            | Upgrade to USER    | **200 OK**          |
+| **Existing USER**     | Exists as USER             | Block registration | **403 FORBIDDEN**   |
+| **Restricted Mobile** | Exists in Management Layer | Block registration | **403 FORBIDDEN**   |
+| **Invalid Request**   | Fails validation           | Return errors      | **400 BAD_REQUEST** |
 
 
 #### 📤 Success Response    
@@ -5880,23 +5875,16 @@ The generated JWT token includes:
 
 #### 📝 Description  
 
-The View **User Profile API** allows a fully authenticated user to retrieve their personal profile information after logging into the system. This endpoint is designed to serve as the central reference point for user-specific details and is typically called immediately after login, after profile update, or during user dashboard initialization.  
+The **View User Profile API** allows a fully authenticated user to retrieve their personal account information using a valid JWT token. This endpoint is protected and can only be accessed by users with the **USER** role, ensuring profile data is exposed strictly to its rightful owner. The API is typically invoked immediately after login, during dashboard initialization, or following a profile update to keep client-side state in sync. Once the token is validated, the system fetches the user’s profile data and maps it to a `UserProfileDto`, exposing only safe-to-consume fields. Sensitive attributes such as password hashes, internal flags, audit logs, and system metadata are intentionally excluded to preserve security and API stability. The response enables personalized UI rendering, profile completeness checks, and conditional feature access based on account status.    
 
-From a business standpoint, this API ensures users have full visibility of their account details, such as:  
-- Personal identification information (Name, Gender)
-- Contact information (Email, Mobile)
-- Account metadata (Role, Profile Status)
-- Security metadata (Password last updated timestamp)
-- Engagement metrics (Total booking count)   
-
-The `UserProfileDto` intentionally includes only safe-to-expose fields, excluding:   
-- Password hashes
-- Account flags
-- Audit logs
-- System metadata
-- Internal relations  
-
-This protects sensitive DB structure and ensures the API contract remains stable and front-end-friendly. And allows to build a personalized experience, validate user identity, show profile progress bars, and enable conditional UI logic (e.g., disabling booking features until the profile is completed).  
+**Key Features:**   
+- **JWT-Protected Access:** Requires a valid JWT token in the Authorization header.
+- **Role-Based Restriction:** Accessible only to users with the `USER` role.
+- **Central Profile Endpoint:** Used after login, profile updates, and dashboard initialization.
+- **Safe DTO Exposure:** Returns only client-safe fields via `UserProfileDto`.
+- **Sensitive Data Shielding:** Excludes passwords, audit logs, and internal system metadata.
+- **UI Enablement:** Supports personalization and conditional UI logic.
+ 
 
 #### ⚙️ Backend Processing Workflow  
 
@@ -5929,29 +5917,25 @@ Only after passing this validation is the authenticated `AppUser` entity retriev
 
 #### 📤 Success Response  
 <details> 
-  <summary>View screenshot</summary>
-   ![User Profile View Success]()
+  <summary>View screenshot</summary>  <br>  
+    <img src="docs/screenshots/api-24-3.JPG" width="550" alt="User Profile View Success">
 </details>  
 
 
-#### ❗ Error Response 
-> Missing/Invalid/Expired JWT token.
+#### ❗ Error Response   
+
+**Missing / Invalid / Expired JWT Token**
 <details> 
-  <summary>View screenshot</summary>
-   ![User Profile View Error]()
+  <summary>View screenshot</summary>  <br>  
+    <img src="docs/screenshots/api-24-1.JPG" width="550" alt="User Profile View Error">
 </details>  
 
-> Profile not completed Or invalid role trying to access this endpoint.  
+**Profile Not Completed**  
 <details> 
-  <summary>View screenshot</summary>
-   ![User Profile View Error]()
+  <summary>View screenshot</summary>  <br>  
+    <img src="docs/screenshots/api-24-2.JPG" width="550" alt="User Profile View Error">
 </details>  
 
-> User does not exist in DB
-<details> 
-  <summary>View screenshot</summary>
-   ![User Profile View Error]()
-</details>    
 
 #### 📊 HTTP Status Code Table  
 | HTTP Code | Status Name           | Meaning               | When It Occurs                     |
@@ -6083,12 +6067,14 @@ This endpoint supports **_BookMyRide_**’s Smart Signup Architecture, where use
 - Mobile number cannot be changed. Because mobile is the primary unique identity in **_BookMyRide_**.
 - Apply updates using shared method, then save and return updated profile DTO.  
 
-Key highligths:  
-- Consistent validation
-- Email uniqueness handling for both new and existing users
-- Atomic update operations
-- Proper marking of completed profiles
-- Clean mapping to DTOs for frontend use  
+**Key Highlights:**    
+- **Unified Validation Strategy:** Ensures consistent field-level validation for both first-time and existing profile updates.
+- **Email Uniqueness Enforcement:** Applies global email uniqueness checks while safely allowing controlled updates for existing users.
+- **Atomic Profile Updates:** Executes all profile modifications within a single transactional operation to maintain data integrity.
+- **Profile Completion Lifecycle Handling:** Automatically transitions first-time users to a completed profile state upon successful update.
+- **Immutable Identity Protection:** Prevents modification of the mobile number, preserving it as the system’s primary user identifier.
+- **DTO-Centric Response Mapping:** Returns a clean and stable `UserProfileDto` optimized for front-end consumption.
+ 
 
 #### 📥 Request Body  
 {  
@@ -6120,14 +6106,14 @@ Key highligths:
 
 The system enforces email uniqueness before applying updates via JPA method `appUserRepo.existsByEmail()`. Behavior differs depending on the user state:  
 
-**New Users (isProfileCompleted = false)**  
+**I. New Users (isProfileCompleted = false)**  
 - Placeholder profile values exist (name, email, gender)
 - Email must be unique globally → otherwise **409 CONFLICT**
 - On successful update:
     - `isProfileCompleted` is set to true
     - Placeholders are replaced with actual user data  
 
-**Existing Users (Profile Completed)**  
+**II. Existing Users (Profile Completed)**  
 - Email changes are allowed only if unique or same as the current email (case-insensitive)
 - Conflicting emails → **409 CONFLICT**
 - Mobile number is immutable to preserve system integrity  
@@ -6148,35 +6134,53 @@ This ensures system-wide uniqueness while supporting legitimate updates.
 
  #### 📤 Success Response  
 <details> 
-  <summary>View screenshot</summary>
-   ![User Profile Update Success]()
+  <summary>View Full Response</summary>  <br>  
+
+ **Request Body:**  
+{<br>
+&nbsp;&nbsp;&nbsp; "name": "Jennie",<br>
+&nbsp;&nbsp;&nbsp; "gender": "Female",<br>
+&nbsp;&nbsp;&nbsp; "email": "jennie@gmail.com"<br>
+}  
+
+**Response Body:**  
+{<br>
+&nbsp;&nbsp;&nbsp; "staus": 200,<br>
+&nbsp;&nbsp;&nbsp; "data": {<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; "id": 4,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; "name": "Jennie",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; "email": "jennie@gmail.com",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; "mobile": "6XXXXXXXXX",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; "gender": "Female",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; "role": "User",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; "profileStatus": "Completed",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; "passwordLastUpdatedAt": null,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; "totalBookingsCount": 0<br>
+&nbsp;&nbsp;&nbsp; },<br>
+&nbsp;&nbsp;&nbsp; "message": "Your profile updated successfully."<br>
+}
 </details>  
 
 
-#### ❗ Error Response 
-> From DTO validation or enum parsing.
-<details> 
-  <summary>View screenshot</summary>
-   ![User Profile Update Error]()
-</details>  
+#### ❗ Error Response   
 
-> Email already exists for another user.  
+**Access Denied By Role (If JWT Tampered)**  
 <details> 
-  <summary>View screenshot</summary>
-   ![User Profile Update Error]()
-</details>  
-
-> Access denied by role (if tampered JWT)
-<details> 
-  <summary>View screenshot</summary>
-   ![User Profile Update Error]()
+  <summary>View screenshot</summary>  <br>  
+    <img src="docs/screenshots/api-25-1.JPG" width="550" alt="User Profile Update Error">
 </details> 
 
-> User account missing in DB (stale token)  
+**DTO Validation / Enum Parsing Failure**
 <details> 
-  <summary>View screenshot</summary>
-   ![User Profile Update Error]()
-</details>  
+  <summary>View screenshot</summary>  <br>  
+    <img src="docs/screenshots/api-25-2.JPG" width="550" alt="User Profile Update Error">
+</details> 
+
+**Duplicate Email ID**  
+<details> 
+  <summary>View screenshot</summary>  <br>  
+    <img src="docs/screenshots/api-25-3.JPG" width="550" alt="User Profile Update Error">
+</details>   
 
 
 #### 📊 HTTP Status Code Table  
@@ -6220,7 +6224,6 @@ My signup system is intentionally frictionless:
     
  - **Users then update profile:** Using this API or also can making thier 1st booking. This is a brilliant real-world UX technique — reduce friction, then progressively collect data.  
 
-
 **4. Why Profile Completion Check at Service Layer Is Crucial**  
 
 My intention enforces: `if (!appUser.getIsProfileCompleted()) {}`, That ensures:
@@ -6249,9 +6252,9 @@ Profile updates are applied through a centralized method (`applyProfileUpdates`)
 
 #### 📝 Description   
 
-The **Change Password API** enables authenticated users to securely update their account credentials, combining strong verification, modern hashing techniques, and audit-ready tracking to protect against unauthorized access and maintain system integrity. This endpoint ensures that password changes are safe, verifiable, and aligned with production-grade security standards.  
+The **Change Password API** enables authenticated users to securely update their account credentials, combining strong verification, modern hashing techniques, and audit-ready tracking to protect against unauthorized access and maintain system integrity. This endpoint is strictly protected by JWT-based authentication and is accessible only to users with the **USER** role. As part of a defense-in-depth security strategy, the API enforces current password verification before allowing any password modification, even for active and valid sessions. This prevents unauthorized changes in scenarios involving stolen tokens or compromised devices. Upon successful validation, the new password is securely hashed using BCrypt, the user record is updated atomically, and the `passwordLastUpdatedAt` timestamp is refreshed. This ensures traceability, compliance readiness, and consistent enforcement of production-grade security standards across the platform.   
 
-Key Features:  
+**Key Features:**    
 - **Two-step verification:** Requires the current password for proof-of-ownership, even for authenticated sessions.
 - **Secure hashing:** New passwords are hashed using BCrypt before storage.
 - **Audit-ready tracking:** Updates `passwordLastUpdatedAt` timestamp for compliance and monitoring.
@@ -6263,7 +6266,7 @@ Key Features:
 &nbsp;&nbsp;&nbsp; "oldPassword": "Your_Current_Password",  
 &nbsp;&nbsp;&nbsp; "newPassword": "Your_New_Password"  
 }  
-> 💡 Notes:
+> 💡 Note:
 - `oldPassword` must match the current password stored in the system.
 - `newPassword` must comply with centralized password rules (length, character variety).  
 
@@ -6320,29 +6323,24 @@ This make ensures:
 
  #### 📤 Success Response  
 <details> 
-  <summary>View screenshot</summary>
-   ![User Password Update Success]()
+  <summary>View screenshot</summary>  <br>  
+    <img src="docs/screenshots/api-26-3.JPG" width="550" alt="User Password Update Success">
 </details>  
 
 
 #### ❗ Error Response 
-> DTO constraints or weak password
+
+**DTO Constraints**  
 <details> 
-  <summary>View screenshot</summary>
-   ![User Password Update Error]()
+  <summary>View screenshot</summary>  <br>  
+    <img src="docs/screenshots/api-26-1.JPG" width="550" alt="User Password Update Error">
 </details>  
 
-> Old password incorrect  
+**Old Password Incorrect / Weak**  
 <details> 
-  <summary>View screenshot</summary>
-   ![User Password Update Error]()
+  <summary>View screenshot</summary>  <br>  
+    <img src="docs/screenshots/api-26-2.JPG" width="550" alt="User Password Update Error">
 </details>  
-
-> User not found
-<details> 
-  <summary>View screenshot</summary>
-   ![User Password Update Error]()
-</details> 
 
 
 #### 📊 HTTP Status Code Table  
@@ -6390,9 +6388,9 @@ This make ensures:
 
 #### 📝 Description  
 
-The **View Own Bookings API** enables authenticated passengers to securely access their complete booking history, including upcoming trips, past journeys, and cancelled records. Designed for real-world, high-traffic user dashboards, this endpoint provides a **structured, paginated**, and **privacy-focused** data flow that exposes only the passenger’s own records. Its response model cleanly separates booking details and bus information, ensuring predictable rendering across modern web and mobile UIs while maintaining strong access control and data-ownership guarantees.  
+The **View Own Bookings API** allows registered passengers with the **USER** role to access their complete booking history, including upcoming trips, past journeys, and cancelled bookings. Designed for the **User Dashboard**, it provides **paginated, structured,** and **privacy-focused responses** that expose only the authenticated user’s records. This API enables a seamless, personalized experience by giving users clear visibility into their travel history, fare details, route information, and ticket statuses. Its nested DTO structure separates booking and bus details, allowing frontends to efficiently render trip summaries, tables, or timelines. With consistent pagination and strict privacy controls, it ensures a reliable and scalable dashboard experience even for users with extensive booking histories.  
 
-Key Features:  
+**Key Features:**  
 - **Full booking visibility:** Access past bookings, upcoming trips, and cancelled journeys.
 - **Secure user-scoped data:** Strictly returns bookings belonging to the authenticated passenger (`USER` role).
 - **Structured DTO response:** Clear separation of `BookingInfo` and `BusInfo` for **frontend-friendly** rendering.
@@ -6472,30 +6470,70 @@ This structure avoids flat, unorganized JSON blobs and instead delivers a **clea
 - This ensures that the frontend receives a **complete paginated envelope**, allowing infinite-scroll, page-navigation, and timeline-style booking history experiences without additional API calls.
  
 
- #### 📤 Success Response  
+ #### 📤 Success Response    
+
+**1. If No Booking History**  
 <details> 
-  <summary>View screenshot</summary>
-   ![User Booking View Success]()
+  <summary>View screenshot</summary>  <br>  
+    <img src="docs/screenshots/api-27-1.JPG" width="550" alt="User Booking View Success">
 </details>   
 
-> User has no bookings
+**2. With Filter: page=1, size=10, sortBy=id, sortDir=desc**
 <details> 
-  <summary>View screenshot</summary>
-   ![User Booking View Success]()
-</details>  
+  <summary>View screenshot</summary>  <br>  
 
-#### ❗ Error Response 
-> Invalid pagination inputs  
-<details> 
-  <summary>View screenshot</summary>
-   ![User Booking View Error]()
-</details>  
+**Response Body:**  
+{<br>
+&nbsp;&nbsp;&nbsp;&nbsp;"staus": 200,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;"data": {<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"content": [<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"booking": {<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"id": 2,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"seatsBooked": 4,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"bookedAt": "2025-12-25T22:47:46.562626",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"travelAt": "2025-12-28",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"departureAt": "2025-12-28T22:30:00",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"arrivalAt": "2025-12-29T04:20:00",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"busTicket": null,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"transactionId": null,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"bookingStatus": "Cancelled",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"paymentStatus": "Not Paid",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"paymentMethod": "None",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"totalCost": 2396.00,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"discount": "0%",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"discountAmount": 0.00,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"finalCost": 2396.00,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"cancelledAt": "2025-12-25T22:55:03.702696"<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;},<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"bus": {<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"busNumber": "TN02MC1204",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"busName": "Krishna Travels",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"busType": "A/C Seater / Sleeper",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"fromLocation": "Madurai, Tamil Nadu, India",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"toLocation": "Coimbatore, Tamil Nadu, India",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"busFare": 599.00<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;],<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"totalPages": 1,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"totalElements": 1,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"currentPage": 1,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"pageSize": 10,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"first": true,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"last": false<br>
+&nbsp;&nbsp;&nbsp;&nbsp;},<br>
+&nbsp;&nbsp;&nbsp;&nbsp;"message": "Here’s your booking history. You can view, manage your upcoming trips here."<br>
+}
+</details>   
 
-> User token expired / invalid    
+#### ❗ Error Response  
+
+**Invalid Pagination Inputs**  
 <details> 
-  <summary>View screenshot</summary>
-   ![User Booking View Error]()
-</details>  
+  <summary>View screenshot</summary>  <br>  
+    <img src="docs/screenshots/api-27-2.JPG" width="550" alt="User Booking View Error">
+</details>     
 
 
 #### 📊 HTTP Status Code Table  
@@ -6549,13 +6587,13 @@ This structure avoids flat, unorganized JSON blobs and instead delivers a **clea
 
 #### 📝 Description  
 
-This API functions as the centralized passenger directory for the system’s management layer, providing authorized Admin-level users with full visibility into all registered and guest passengers. It is purpose-built for operational dashboards, administrative audits, user-behavior analysis, fraud detection, and large-scale data intelligence workflows. Designed for high-volume environments, the API ensures predictable and secure execution through strict validation, typed parsing, and deterministic request handling.  
+This API functions as the **centralized passenger directory** for the system’s management layer, providing authorized **Management-level users** with full visibility into all registered and guest passengers. It is purpose-built for operational dashboards, administrative audits, user-behavior analysis, fraud detection, and large-scale data intelligence workflows. Designed for high-volume environments, the API ensures predictable and secure execution through strict validation, typed parsing, and deterministic request handling.  
 
-The endpoint supports rich passenger inspection with optional booking activity, backed by stable pagination, multi-field sorting, and a precise prefix-based search engine. Its structured DTO responses prevent overexposure of internal models while maintaining clarity and performance for high-volume environments. A major strength of this API is its collision-free filtering engine, which guarantees that every request resolves to exactly one definitive query path. This ensures consistent performance, avoids ambiguity, and maintains predictable runtime behavior even under heavy administrative workloads. Access is strictly restricted — only Management level authorities are permitted; passenger-level users are fully blocked to protect sensitive operational data.  
+The endpoint supports rich passenger inspection with optional booking activity, backed by **stable pagination, multi-field sorting**, and a precise **prefix-based search engine**. Its **structured DTO** responses prevent overexposure of internal models while maintaining clarity and performance for high-volume environments. A major strength of this API is its collision-free filtering engine, which guarantees that every request resolves to exactly one definitive query path. This ensures consistent performance, avoids ambiguity, and maintains predictable runtime behavior even under heavy administrative workloads. Access is strictly restricted — only Management level authorities are permitted; passenger-level users are fully blocked to protect sensitive operational data.  
 
-Overall, the API delivers high integrity, strong observability, and operational efficiency, making it an essential component for system-wide monitoring, audits, and intelligence-driven workflows.    
+Overall, the API delivers high integrity, strong observability, and operational efficiency, making it an essential component for system-wide monitoring, audits, and intelligence-driven workflows.   
 
-Key Features:
+**Key Features:**  
 - **Full pagination** structure using `ApiPageResponse` for scalable navigation across large passenger datasets.
 - Deterministic filter resolution (one code path, one repo call)
 - Precise **prefix-based search engine** enabling fast, unambiguous lookups.
@@ -6664,30 +6702,226 @@ Upon successful processing, the API returns an HTTP **200 OK** response using th
 - Its layered, modular design ensures clarity, extensibility, and forward compatibility — enabling future fields or metadata to be introduced with zero impact to existing consumers & avoid overexposure of internal booking models while still providing a complete operational snapshot.   
 
 
-#### 📤 Success Response  
+#### 📤 Success Response   
+
+**1. Without Query Parameter**  
 <details> 
-  <summary>View screenshot</summary>
-   ![Management Passenger's info View Success]()
+  <summary>View Full Response</summary>  <br>  
+
+**Response Body:**  
+{<br>
+&nbsp;&nbsp;&nbsp;&nbsp;"staus": 200,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;"data": {<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"content": [<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"passenger": {<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"id": 1,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"name": "Karthik",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"email": "karthik1234@gmail.com",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"mobile": "9XXXXXXXXX",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"gender": "Male",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"role": "Guest",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"profileStatus": "Not Registered",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"registerAt": null,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"profileLastUpdate": null,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"totalBookingsCount": 1<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;},<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"bookings": [<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"bookingId": 1,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"busId": 2,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"busNumber": "TN01CC1122",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"busName": "VKV Travels",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"bookedAt": "2025-12-25T19:47:22.500933",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"seatsBooked": 4,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"travelAt": "2025-12-26",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"departureAt": "2025-12-26T20:00:00",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"arrivalAt": "2025-12-27T04:55:00",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"busTicket": "TK01bf66ba47",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"transactionId": "TNX01195601920dd5517",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"bookingStatus": "Confirmed",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"paymentStatus": "Paid",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"paymentMethod": "UPI",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"finalCost": 4396.00<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;]<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;},<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"passenger": {<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"id": 2,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"name": "Arnold John",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"email": "arnoldjohn@gmail.com",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"mobile": "6XXXXXXXXX",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"gender": "Male",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"role": "User",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"profileStatus": "Completed",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"registerAt": "2025-12-26T12:04:00.594203",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"profileLastUpdate": null,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"totalBookingsCount": 1<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;},<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"bookings": [ ... ]<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;],<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"totalPages": 1,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"totalElements": 4,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"currentPage": 1,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"pageSize": 10,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"first": true,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"last": false<br>
+&nbsp;&nbsp;&nbsp;&nbsp;},<br>
+&nbsp;&nbsp;&nbsp;&nbsp;"message": "The available users data list in this page 1"<br>
+}
+</details>    
+
+**2. With Filter: page=1, size=10, sortBy=id, sortDir=desc, keyword=mobile_90XXXXXXXX**  
+<details> 
+  <summary>View Full Response</summary>  <br>  
+
+**Response Body:**  
+{<br>
+&nbsp;&nbsp;&nbsp;&nbsp;"staus": 200,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;"data": {<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"content": [<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"passenger": {<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"id": 1,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"name": "Karthik",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"email": "karthik1234@gmail.com",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"mobile": "90XXXXXXXX",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"gender": "Male",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"role": "Guest",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"profileStatus": "Not Registered",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"registerAt": null,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"profileLastUpdate": null,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"totalBookingsCount": 1<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;},<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"bookings": [<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"bookingId": 1,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"busId": 2,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"busNumber": "TN01CC1122",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"busName": "VKV Travels",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"bookedAt": "2025-12-25T19:47:22.500933",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"seatsBooked": 4,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"travelAt": "2025-12-26",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"departureAt": "2025-12-26T20:00:00",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"arrivalAt": "2025-12-27T04:55:00",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"busTicket": "TK01bf66ba47",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"transactionId": "TNX01195601920dd5517",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"bookingStatus": "Confirmed",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"paymentStatus": "Paid",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"paymentMethod": "UPI",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"finalCost": 4396.00<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;]<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;],<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"totalPages": 1,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"totalElements": 1,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"currentPage": 1,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"pageSize": 10,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"first": true,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"last": false<br>
+&nbsp;&nbsp;&nbsp;&nbsp;},<br>
+&nbsp;&nbsp;&nbsp;&nbsp;"message": "The users data found for the given Mobile Number in this page 1"<br>
+}
 </details>   
 
-#### ❗ Error Response 
-> Invalid pagination inputs  
+**3. With Filter: page=1, size=10, sortBy=name, sortDir=asc, keyword=guest**  
 <details> 
-  <summary>View screenshot</summary>
-   ![Management Passenger's info View Error]()
+  <summary>View Full Response</summary>  <br>  
+
+ **Response Body:**  
+{<br>
+&nbsp;&nbsp;&nbsp;&nbsp;"staus": 200,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;"data": {<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"content": [<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"passenger": {<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"id": 3,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"name": "Anitha",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"email": "anitha@gmail.com",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"mobile": "7XXXXXXXXX",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"gender": "Female",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"role": "Guest",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"profileStatus": "Not Registered",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"registerAt": null,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"profileLastUpdate": null,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"totalBookingsCount": 1<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;},<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"bookings": [<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"bookingId": 3,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"busId": 3,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"busNumber": "TN02MC1204",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"busName": "Krishna Travels",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"bookedAt": "2025-12-25T23:00:01.897106",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"seatsBooked": 2,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"travelAt": "2025-12-29",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"departureAt": "2025-12-29T22:30:00",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"arrivalAt": "2025-12-30T04:20:00",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"busTicket": null,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"transactionId": null,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"bookingStatus": "Expired",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"paymentStatus": "Not Paid",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"paymentMethod": "None",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"finalCost": 1198.00<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;]<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;},<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"passenger": {<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"id": 1,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"name": "Karthik",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"email": "karthik1234@gmail.com",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"mobile": "9XXXXXXXXX",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"gender": "Male",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"role": "Guest",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"profileStatus": "Not Registered",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"registerAt": null,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"profileLastUpdate": null,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"totalBookingsCount": 1<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;},<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"bookings": [<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"bookingId": 1,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"busId": 2,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"busNumber": "TN01CC1122",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"busName": "VKV Travels",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"bookedAt": "2025-12-25T19:47:22.500933",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"seatsBooked": 4,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"travelAt": "2025-12-26",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"departureAt": "2025-12-26T20:00:00",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"arrivalAt": "2025-12-27T04:55:00",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"busTicket": "TK01bf66ba47",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"transactionId": "TNX01195601920dd5517",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"bookingStatus": "Confirmed",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"paymentStatus": "Paid",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"paymentMethod": "UPI",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"finalCost": 4396.00<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;]<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;],<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"totalPages": 1,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"totalElements": 2,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"currentPage": 1,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"pageSize": 10,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"first": true,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"last": false<br>
+&nbsp;&nbsp;&nbsp;&nbsp;},<br>
+&nbsp;&nbsp;&nbsp;&nbsp;"message": "Users data found for the given Role in this page 1"<br>
+} 
 </details>  
 
-> Invalid Keyword Format    
-<details> 
-  <summary>View screenshot</summary>
-   ![Management Passenger's info View Error]()
-</details> 
+#### ❗ Error Response  
 
-> Unauthorized Access     
+**Invalid Keyword Input**  
 <details> 
-  <summary>View screenshot</summary>
-   ![Management Passenger's info View Error]()
+  <summary>View screenshot</summary>  <br>  
+    <img src="docs/screenshots/api-28-2.JPG" width="550" alt="Management Passenger's info View Error">
 </details>  
+
 
 #### 📊 HTTP Status Code Table  
 | Code    | Status       | Meaning           | When Triggered             |
