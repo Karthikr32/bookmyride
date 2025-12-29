@@ -3169,18 +3169,20 @@ Deciding which one to use while under process:
 **Authorized Roles:** PUBLIC    
 
 #### 📝 Description  
-This API endpoint powers the **core discovery engine** of the bus reservation system, enabling seamless bus availability queries across **all user categories**—guests passengers, registered passengers, and management authorities. Users specify **from & to locations**, **travel dates**, and optional filters like,  
-   - AC type(AC/NON-AC)
-   - Seat type(SEATER/SLEEPER) preferences
-   - Departure time windows (e.g., 06:00–12:00)
-   - Sorting by fare, departure time, or bus ID.
+This API provides a **publicly accessible bus discovery and availability view**, allowing any client to search buses by route and travel date **without authentication or role context**. It serves as a read-only entry point into the system’s scheduling and availability data, supporting controlled filtering and sorting for refined discovery. The endpoint enforces strict validation and semantic correctness to ensure that all queries are meaningful, future-oriented, and safe to execute. Search execution follows deterministic query pathways, guaranteeing predictable and explainable results. Responses are curated for external consumption, exposing only travel-relevant information while preserving temporal accuracy based on the requested travel date.  
     
-As a **business-critical interface** feeding search pipelines, booking workflows, and fare comparisons, it enforces strict parameter validation, deterministic filter logic, and uniform response contracts for functional accuracy and operational predictability.  
+As a **business-critical interface** feeding search pipelines, booking workflows, and fare comparisons, it enforces strict parameter validation, deterministic filter logic, and uniform response contracts for functional accuracy and operational predictability.    
 
-Key highlights:  
-- **Universal Consistency:** Identical response structure, error semantics, and query behavior across guest/registered/management users.
-- **Deterministic Filtering:** Every filter combination maps to traceable repository calls, eliminating unpredictable results.
-- **Zero-Ambiguity Rules:** Fully defined business logic ensures schedule accuracy, fare integrity, and reliable booking handoffs.
+**Key Highlights:**  
+- **Public & Unauthenticated Access:** Accessible without JWT or role checks, providing a universal discovery view for any client.
+- **Read-Only Discovery Interface:** Exposes availability data strictly for viewing and comparison purposes.
+- **Strict Semantic Validation:** Ensures all inputs are structurally and logically valid before processing.
+- **Deterministic Filtering:** Each filter combination resolves through a predefined execution path, ensuring predictable outcomes.
+- **Temporal Integrity:** Availability and schedules are always evaluated against the requested future travel date.
+- **Performance-Safe Sorting:** Restricts sorting to approved, indexed fields to protect query stability and performance.
+- **Stable User-Facing Responses:** Returns clean, consistent DTOs without exposing internal or system-only attributes.   
+
+> 💡 Testing Prerequisite: This endpoint returns results only when active bus records exist for the given route and travel date. If no buses are returned during testing, ensure that bus data has been created using #11 Add New Bus Data and has not been removed via management actions.  
 
 
 #### 📥 Query Parameters
@@ -3354,23 +3356,148 @@ For example query like `filterBusByLocationWithBothTypeAndTime()`, `filterBusByA
 - Used `ApiResponse` with this format is stable, predictable, and easy for clients to consume.  
 
 
-#### 📤 Success Response
-<details> 
-  <summary>View screenshot</summary>
-   ![Bus Public View Success]()
-</details>
+#### 📤 Success Response   
 
-#### ❗ Error Response 
-> Invaid input for page, size
+**1. With Filter: from=Chennai, to=Coimbatore, travelDate=26/12/2025**
 <details> 
-  <summary>View screenshot</summary>
-   ![Bus Public View Error]()
-</details> 
+  <summary>View Full Response</summary>  <br>  
+{  <br>
+&nbsp;&nbsp;&nbsp; "staus": 200,  <br>
+&nbsp;&nbsp;&nbsp; "data": [  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; {  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; "travelAt": "2025-12-26",  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; "busNumber": "TN01CC1122",  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; "busName": "VKV Travels",  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; "busType": "Bharat Benz A/C Sleeper (2+1)",  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; "capacity": 48,  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; "availableSeats": 48,  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; "fromLocation": "Chennai, Tamil Nadu, India",  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; "toLocation": "Coimbatore, Tamil Nadu, India",  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; "duration": "08h 55m",  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; "departureAt": "2025-12-26T20:00:00",  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; "arrivalAt": "2025-12-27T04:55:00",  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; "fare": 1099.00  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; },  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; {  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; "travelAt": "2025-12-26",  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; "busNumber": "TN04CE2214",  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; "busName": "National Travels",  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; "busType": "Volvo A/C Premium Seater / Sleeper",  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; "capacity": 48,  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; "availableSeats": 48,  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; "fromLocation": "Chennai, Tamil Nadu, India",  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; "toLocation": "Coimbatore, Tamil Nadu, India",  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; "duration": "09h 15m",  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; "departureAt": "2025-12-26T21:15:00",  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; "arrivalAt": "2025-12-27T06:30:00",  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; "fare": 899.00  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; }  <br>
+&nbsp;&nbsp;&nbsp; ],  <br>
+&nbsp;&nbsp;&nbsp; "message": "Bus data found for the given locations."  <br>
+}
+</details>  
 
-> No bus data found
+**2. With Filter: sortBy=fare, sortDir=asc, from=Chennai, to=Coimbatore, travelDate=26/12/2025**  
 <details> 
-  <summary>View screenshot</summary>
-   ![Bus Public View Error]()
+  <summary>View Full Response</summary>  <br>  
+{  <br>
+&nbsp;&nbsp;"staus": 200,  <br>
+&nbsp;&nbsp;"data": [  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;{  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"travelAt": "2025-12-26",  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"busNumber": "TN04CE2214",  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"busName": "National Travels",  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"busType": "Volvo A/C Premium Seater / Sleeper",  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"capacity": 48,  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"availableSeats": 48,  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"fromLocation": "Chennai, Tamil Nadu, India",  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"toLocation": "Coimbatore, Tamil Nadu, India",  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"duration": "09h 15m",  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"departureAt": "2025-12-26T21:15:00",  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"arrivalAt": "2025-12-27T06:30:00",  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"fare": 899.00  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;},  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;{  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"travelAt": "2025-12-26",  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"busNumber": "TN01CC1122",  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"busName": "VKV Travels",  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"busType": "Bharat Benz A/C Sleeper (2+1)",  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"capacity": 48,  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"availableSeats": 48,  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"fromLocation": "Chennai, Tamil Nadu, India",  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"toLocation": "Coimbatore, Tamil Nadu, India",  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"duration": "08h 55m",  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"departureAt": "2025-12-26T20:00:00",  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"arrivalAt": "2025-12-27T04:55:00",  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"fare": 1099.00  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;}  <br>
+&nbsp;&nbsp;],  <br>
+&nbsp;&nbsp;"message": "Bus data found for the given locations."  <br>
+}  
+</details>  
+
+**3. With Filter: sortBy=departureAt, sortDir=asc, from=Chennai, to=Coimbatore, travelDate=26/12/2025, acType=ac, seatType=seater**
+<details> 
+  <summary>View Full Response</summary>  <br>  
+{  <br>
+&nbsp;&nbsp;"staus": 200,  <br>
+&nbsp;&nbsp;"data": [  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;{  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"travelAt": "2025-12-26",  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"busNumber": "TN04CE2214",  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"busName": "National Travels",  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"busType": "Volvo A/C Premium Seater / Sleeper",  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"capacity": 48,  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"availableSeats": 48,  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"fromLocation": "Chennai, Tamil Nadu, India",  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"toLocation": "Coimbatore, Tamil Nadu, India",  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"duration": "09h 15m",  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"departureAt": "2025-12-26T21:15:00",  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"arrivalAt": "2025-12-27T06:30:00",  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"fare": 899.00  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;}  <br>
+&nbsp;&nbsp;],  <br>
+&nbsp;&nbsp;"message": "Bus data found for the given AC and Seat Type."  <br>
+}  
+</details>  
+
+**3. With Filter: sortBy=departureAt, sortDir=asc, from=Chennai, to=Coimbatore, travelDate=26/12/2025, acType=ac, seatType=seater, timeRange=19-20**
+<details> 
+  <summary>View Full Response</summary>  <br>  
+{  <br>
+&nbsp;&nbsp;"staus": 200,  <br>
+&nbsp;&nbsp;"data": [  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;{  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"travelAt": "2025-12-26",  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"busNumber": "TN01CC1122",  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"busName": "VKV Travels",  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"busType": "Bharat Benz A/C Sleeper (2+1)",  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"capacity": 48,  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"availableSeats": 48,  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"fromLocation": "Chennai, Tamil Nadu, India",  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"toLocation": "Coimbatore, Tamil Nadu, India",  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"duration": "08h 55m",  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"departureAt": "2025-12-26T20:00:00",  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"arrivalAt": "2025-12-27T04:55:00",  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"fare": 1099.00  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;}  <br>
+&nbsp;&nbsp;],  <br>
+&nbsp;&nbsp;"message": "Bus data found for the given AC Type and Departure Time"  <br>
+}
+</details>  
+  
+#### ❗ Error Response   
+
+**No Presence of Essential Params**
+<details> 
+  <summary>View screenshot</summary>  <br>   
+    <img src="docs/screenshots/api-15-1.JPG" width="550" alt="Bus Public View Error">
+</details>   
+
+**Invalid Date / Past Date**  
+<details> 
+  <summary>View screenshot</summary>  <br>   
+    <img src="docs/screenshots/api-15-2.JPG" width="550" alt="Bus Public View Error">
 </details>   
 
 
@@ -3637,38 +3764,32 @@ Sample request DTOs shown in this document use **placeholder values** for privac
 **Authorized Roles:** PUBLIC(Both Registered & Non-Registered Users)       
 
 #### 📝 Description  
-This API is the **Step 1** of the Booking Workflow initializes a brand-new booking for a selected bus, creates or updates the passenger profile, ensures seat availability, and securely locks the requested seats. A booking created through this endpoint enters the system in a PENDING state and becomes the foundation for subsequent operations:  
-- Edit Booking (Optional)
-- Continue Booking
-- Confirm Booking  
 
-Key highlights:  
-- Strict DTO validation for all booking inputs
-- Robust date format parsing (dd-MM-yyyy or dd/MM/yyyy) with strict resolver
-- Automatic user creation or profile update (based on mobile number)
-- Bus existence validation using canonical busNumber
-- Seat availability check + immediate seat locking
-- Centralized discount calculation
-- Travel/arrival time computation using schedule metadata
-- Booking expiration timestamp setup (10-minute hold window)
-- Optimistic locking to prevent seat conflicts during high traffic
-- Fully atomic booking creation using transactional boundaries
-- Returns a full Booking Preview object, ready for Review/Continue  
+This API initiates a **new booking workflow** for a selected bus, creating or updating the passenger profile, verifying seat availability, and securely locking requested seats in real-time. It serves as the **first step in the booking process**, producing a PENDING booking that can be subsequently reviewed, edited, or confirmed. The endpoint is **publicly accessible** to any guest or registered user, while the system enforces **booking eligibility** by validating the mobile number to block ineligible accounts. Designed for **high-concurrency environments**, it guarantees atomic seat allocation, prevents conflicts through optimistic locking, and provides a fully curated **Booking Preview** ready for continuation. All inputs are strictly validated, and the system ensures temporal accuracy, discount calculations, and schedule consistency as part of the booking initialization.
 
-The entire operation is engineered for real-time, high-concurrency environments where multiple users may attempt to book the last few seats simultaneously.
+**Key Highlights:**  
+- **Public Access:** Can be called without authentication by any guest or registered user.
+- **Passenger Validation & Eligibility:** Automatic profile creation/update; ineligible accounts are blocked to prevent unauthorized booking.
+- **Strict Input Validation:** Ensures all booking parameters are structurally and semantically correct.
+- **Seat Availability & Locking:** Immediate verification and secure locking to prevent double-booking.
+- **Atomic & Transactional:** Booking creation is fully atomic, with optimistic locking to handle high concurrency.
+- **Time & Schedule Integrity:** Travel and arrival times computed based on canonical schedule metadata.
+- **Booking Expiration:** Automatically sets a 10-minute hold window for pending bookings.
+- **Booking Preview DTO:** Returns a user-ready preview object for review and continuation.
+- **Discounts & Fare Calculations:** Centralized calculation ensures consistent and accurate pricing.  
 
 #### 📥 Request Body  
 {  
 &nbsp;&nbsp;&nbsp; "name": "Your Name",  
 &nbsp;&nbsp;&nbsp; "mobile": "Your Mobile Number",   
 &nbsp;&nbsp;&nbsp; "email": "Your email ID",  
-&nbsp;&nbsp;&nbsp; "busNumber": "TN01CC1234",  
+&nbsp;&nbsp;&nbsp; "busNumber": "TN01CC1222",  
 &nbsp;&nbsp;&nbsp; "seatsBooked": 2,  
-&nbsp;&nbsp;&nbsp; "travelAt": "17-12-2024"  
+&nbsp;&nbsp;&nbsp; "travelAt": "26-12-2025"  
 }  
 > 💡 Notes:
 - You can replace the placeholders with your details or any dummy details for testing.
-- The value given for `busNumber` is also a placeholder/dummy. Can use any bus number that you want to book. But that must present/active in DB.   
+- Can use the denoted bus number or replace any bus number that you want to book. But that must present/active in DB.   
 - `travelAt` can be **dd-MM-yyyy or dd/MM/yyyy** — strict mode parsing ensures no invalid dates slip through.
 
 > **Tip:** For different workflow scenarios, you can use separate Start Booking requests with your own sample values:  
@@ -3789,22 +3910,102 @@ This preview serves as the **starting point of the booking workflow**, giving th
 
 #### 📤 Success Response
 <details> 
-  <summary>View screenshot</summary>
-   ![Booking Preview Success]()
+  <summary>View Full Response</summary>  <br>  
+
+**Request Body**   
+{  <br>
+&nbsp;&nbsp;&nbsp; "name": "Karthik",  <br>
+&nbsp;&nbsp;&nbsp; "mobile": "90XXXXXXX",  <br>
+&nbsp;&nbsp;&nbsp; "email": "karthik1234@gmail.com",  <br>
+&nbsp;&nbsp;&nbsp; "gender" : "Male",  <br>
+&nbsp;&nbsp;&nbsp; "busNumber": "TN01CC1122",  <br>
+&nbsp;&nbsp;&nbsp; "seatsBooked": 2,  <br>
+&nbsp;&nbsp;&nbsp; "travelAt": "26-12-2025"  <br>
+}  
+
+**Response Body:**   
+{  <br>
+&nbsp;&nbsp;&nbsp; "staus": 201,  <br>
+&nbsp;&nbsp;&nbsp; "data": {  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; "booking": {  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; "bookingId": 1,  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; "bookedAt": "2025-12-25T19:47:22.500933",  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; "travelAt": "2025-12-26",  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; "discount": "0%",  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; "discountAmount": 0.00,  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; "totalCost": 2198.00,  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; "finalCost": 2198.00,  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; "bookingExpiresAt": "2025-12-25T19:57:22.5030805"  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; },  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; "bus": {  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; "busNumber": "TN01CC1122",  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; "busName": "VKV Travels",  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; "busType": "Bharat Benz A/C Sleeper (2+1)",  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; "fromLocation": "Chennai, Tamil Nadu, India",  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; "toLocation": "Coimbatore, Tamil Nadu, India",  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; "departureAt": "2025-12-26T20:00:00",  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; "arrivalAt": "2025-12-27T04:55:00",  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; "busFare": 1099.00  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; },  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; "passenger": {  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; "name": "Karthik",  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; "email": "karthik1234@gmail.com",  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; "mobile": "90XXXXXXXX",  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; "seatsBooked": 2  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; }  <br>
+&nbsp;&nbsp;&nbsp; },  <br>
+&nbsp;&nbsp;&nbsp; "message": "Booking created successfully in BookMyRide. Please click 'Continue' to review your trip."  <br>
+}
 </details>
 
-#### ❗ Error Response 
-> Invaid input
+#### ❗ Error Response  
+
+**Invaid input**
 <details> 
-  <summary>View screenshot</summary>
-   ![Booking Preview Error]()
+  <summary>View Full Response</summary>  <br>  
+  
+**Request Body:**  
+{  <br>
+&nbsp;&nbsp;&nbsp; "name": "Karthik",  <br>
+&nbsp;&nbsp;&nbsp; "mobile": "90XXXXXXX",  <br>
+&nbsp;&nbsp;&nbsp; "email": "karthik1234@gmail.com",  <br>
+&nbsp;&nbsp;&nbsp; "gender" : "Male",  <br>
+&nbsp;&nbsp;&nbsp; "busNumber": "TN01CC1123",  <br>
+&nbsp;&nbsp;&nbsp; "seatsBooked": 0,  <br>
+&nbsp;&nbsp;&nbsp; "travelAt": "22-12-2025"  <br>
+}  
+
+**Response Body:**  
+{  <br>
+&nbsp;&nbsp;&nbsp; "code": "VALIDATION_FAILED",  <br>
+&nbsp;&nbsp;&nbsp; "error": [  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; "seatsBooked: Seats for Booking should be minimum 1",  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; "mobile: Invalid mobile number. Officially must starts between 6-9 & following other 9 digits"  <br>
+&nbsp;&nbsp;&nbsp; ],  <br>
+&nbsp;&nbsp;&nbsp; "status": 400,  <br>
+&nbsp;&nbsp;&nbsp; "timestamp": "2025-12-25T19:35:28.5661916"  <br>
+}  
 </details> 
 
-> No bus data found
+**Invalid Date / Past Date Input**  
 <details> 
-  <summary>View screenshot</summary>
-   ![Booking Preview Error]()
-</details>     
+  <summary>View screenshot</summary>  <br>  
+    <img src="docs/screenshots/api-16-2.JPG" width="550" alt="Booking Preview Error">
+</details>
+
+
+**No bus data found**  
+<details> 
+  <summary>View screenshot</summary>  <br>  
+    <img src="docs/screenshots/api-16-3.JPG" width="550" alt="Booking Preview Error">
+</details>
+
+
+**Mobile Number Conflicts**  
+<details> 
+  <summary>View screenshot</summary>  <br>  
+    <img src="docs/screenshots/api-16-4.JPG" width="550" alt="Booking Preview Error">
+</details>
 
 #### 📊 HTTP Status Code Table   
 | HTTP Code | Status                | Meaning                                 | When It Occurs                                     |
@@ -3859,9 +4060,9 @@ This preview serves as the **starting point of the booking workflow**, giving th
 
 #### 📝 Description  
 
-This API handles the optional **Edit** step in the **booking workflow (Start → Edit → Continue → Confirm)**, allowing users to adjust passenger details, travel date, and seat count while strictly enforcing validation, status checks `Booking Status = PENDING & Payment Status = UNPAID`, expiration rules, and seat availability; it ensures safe concurrent updates through optimistic locking and transactions, recalculates fare and discounts, auto-refreshes passenger data, and returns an updated Booking Preview reflecting all modifications.
+This API handles the optional **Edit** step in the **booking workflow (Start → Edit → Continue → Confirm)**, allowing users to adjust passenger details, travel date, and seat count while strictly enforcing validation, status checks `Booking Status = PENDING & Payment Status = UNPAID`, expiration rules, and seat availability; it ensures safe concurrent updates through **optimistic locking** and **transactions**, recalculates fare and discounts, auto-refreshes passenger data, and returns an updated Booking Preview reflecting all modifications.  
 
-Key highlights:  
+**Key Highlights:**    
 - Only bookings in **PENDING + UNPAID** status can be edited.
 - Strict DTO validation for all editable fields.
 - Robust date format parsing (`dd-MM-yyyy` or `dd/MM/yyyy`).
@@ -3879,10 +4080,9 @@ Key highlights:
 &nbsp;&nbsp;&nbsp; "seatsBooked": 4,  
 &nbsp;&nbsp;&nbsp; "travelAt": "20-12-2024"  
 }  
-> 💡 Notes:
-- Ypu can replace the placeholders with your details or any dummy details for testing.
-- Editing can only done at/for same bus.   
-- travelAt can be dd-MM-yyyy or dd/MM/yyyy — strict mode parsing ensures no invalid dates slip through. 
+> 💡 Note:
+- You can replace the placeholders with your details or any dummy details for testing.
+- `travelAt` can be **dd-MM-yyyy or dd/MM/yyyy** — strict mode parsing ensures no invalid dates slip through. 
 
 
 #### ⚙️ How the Backend Processes  
@@ -3919,10 +4119,10 @@ This editing feature is **rejected** for:
 
 | Status     | Reason                                       |
 | ---------- | -------------------------------------------- |
-| `PROCESSING` | Already moved to payment; no changes allowed |
-| `CONFIRMED`  | Booking is final & immutable                 |
-| `CANCELLED`  | Closed booking cannot be edited              |
-| `EXPIRED`    | Auto-expired; seats already released         |  
+| **PROCESSING** | Already moved to payment; no changes allowed |
+| **CONFIRMED**  | Booking is final & immutable                 |
+| **CANCELLED**  | Closed booking cannot be edited              |
+| **EXPIRED**    | Auto-expired; seats already released         |  
 
 Each invalid state returns → **403 FORBIDDEN** with contextual messages.
 
@@ -4003,45 +4203,90 @@ This response serves as the **post-edit recalculated snapshot**, ensuring the cl
 
 #### 📤 Success Response
 <details> 
-  <summary>View screenshot</summary>
-   ![Booking Edit Success]()
+  <summary>View Full Response</summary>  <br>  
+
+**Request Body:**    
+{  <br>
+&nbsp;&nbsp;&nbsp; "name": "Karthik",  <br>
+&nbsp;&nbsp;&nbsp; "mobile": "90XXXXXXXX",  <br>
+&nbsp;&nbsp;&nbsp; "email": "karthik1234@gmail.com",  <br>
+&nbsp;&nbsp;&nbsp; "gender" : "Male",  <br>
+&nbsp;&nbsp;&nbsp; "seatsBooked": 4,  <br>
+&nbsp;&nbsp;&nbsp; "travelAt": "26-12-2025"  <br>
+}  
+
+**Response Body:**  
+{  <br>
+&nbsp;&nbsp;&nbsp; "staus": 200,  <br>
+&nbsp;&nbsp;&nbsp; "data": {  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; "booking": {  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; "bookingId": 1,  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; "bookedAt": "2025-12-25T19:47:22.500933",  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; "travelAt": "2025-12-26",  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; "discount": "0%",  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; "discountAmount": 0.00,  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; "totalCost": 4396.00,  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; "finalCost": 4396.00,  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; "bookingExpiresAt": "2025-12-25T19:57:22.503081"  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; },  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; "bus": {  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; "busNumber": "TN01CC1122",  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; "busName": "VKV Travels",  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; "busType": "Bharat Benz A/C Sleeper (2+1)",  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; "fromLocation": "Chennai, Tamil Nadu, India",  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; "toLocation": "Coimbatore, Tamil Nadu, India",  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; "departureAt": "2025-12-26T20:00:00",  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; "arrivalAt": "2025-12-27T04:55:00",  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; "busFare": 1099.00  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; },  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; "passenger": {  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; "name": "Karthik",  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; "email": "karthik1234@gmail.com",  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; "mobile": "90XXXXXXXX",  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; "seatsBooked": 4  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; }  <br>
+&nbsp;&nbsp;&nbsp; },  <br>
+&nbsp;&nbsp;&nbsp; "message": "Booking ID 1 has been updated successfully."  <br>
+}
 </details>
 
-#### ❗ Error Response 
-> Invaid booking id
+#### ❗ Error Response  
+
+**Booking ID Not Found**
 <details> 
-  <summary>View screenshot</summary>
-   ![Booking Edit Error]()
+  <summary>View screenshot</summary>  <br>  
+    <img src="docs/screenshots/api-17-1.JPG" width="550" alt="Booking Edit Error">
 </details> 
 
-> No booking data found
+**DTO Validation Failed**  
 <details> 
-  <summary>View screenshot</summary>
-   ![Booking Edit Error]()
+  <summary>View Full Response</summary>  <br>  
+
+**Request Body:**  
+{  <br>
+&nbsp;&nbsp;&nbsp; "name": "Karthik",  <br>
+&nbsp;&nbsp;&nbsp; "mobile": "9XXXXXXXXX",  <br>
+&nbsp;&nbsp;&nbsp; "email": "karthik1234l.com",  <br>
+&nbsp;&nbsp;&nbsp; "gender" : "Male",  <br>
+&nbsp;&nbsp;&nbsp; "seatsBooked": 4,  <br>
+&nbsp;&nbsp;&nbsp; "travelAt": "26-12-2025"  <br>
+}
+
+**Response Body:**
+{  <br>
+&nbsp;&nbsp;&nbsp; "code": "VALIDATION_FAILED",  <br>
+&nbsp;&nbsp;&nbsp; "error": [  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; "email: Invalid email, Only gmail & yahoo domains are accepted"  <br>
+&nbsp;&nbsp;&nbsp; ],  <br>
+&nbsp;&nbsp;&nbsp; "status": 400,  <br>
+&nbsp;&nbsp;&nbsp; "timestamp": "2025-12-25T19:50:20.9469179"  <br>
+}
 </details>  
 
-> Seat conflict or insufficient seats
+**Attempt To Edit After Expiry / Other Booking Statuses**  
 <details> 
-  <summary>View screenshot</summary>
-   ![Booking Edit Error]()
-</details> 
-
-> Attempt to edit after expiry  
-<details> 
-  <summary>View screenshot</summary>
-   ![Booking Edit Error]()
-</details> 
-
-> Attempt to edit confirmed/cancelled/processing booking
-<details> 
-  <summary>View screenshot</summary>
-   ![Booking Edit Error]()
-</details> 
-
-> Validation errors
-<details> 
-  <summary>View screenshot</summary>
-   ![Booking Edit Error]()
+  <summary>View screenshot</summary>  <br>  
+    <img src="docs/screenshots/api-17-3.JPG" width="550" alt="Booking Edit Error">
 </details> 
 
 
@@ -4130,7 +4375,7 @@ It ensures that the booking lifecycle remains stable, auditable, and tamper-proo
 
 This API represents the **Continue booking** step in the **booking workflow (Start → Edit → Continue → Confirm)** where a user advances a **PENDING + UNPAID** booking to the **PROCESSING** stage in preparation for payment. It ensures that only eligible, unexpired bookings proceed while maintaining full transactional safety, backend consistency, and precise user feedback. This API validates booking existence, checks for expiration, updates booking and payment statuses, resets transactional fields, and handles automatic seat release for expired bookings. Concurrent modifications are safely managed through optimistic locking, and immutable or already processed bookings are strictly blocked, making this step essential for preserving the integrity of the booking lifecycle.  
 
-Key highlights:  
+**Key Highlights:**    
 - Validates booking existence and eligibility before proceeding.
 - Checks for booking expiration and handles expired bookings safely.
 - Resets transactional fields such as `busTicket` and `transactionId.
@@ -4147,7 +4392,8 @@ It guarantees **transactional safety, backend consistency, and precise user feed
 | Parameter | Type | Description                                | Required |
 | --------- | ---- | ------------------------------------------ | -------- |
 | `id`      | Long | ID of the booking to find & do continue proccess . Must be positive. | Yes      |
-> 💡 Notes:  
+
+> 💡 Note:  
 - The id is the booking ID obtained from Start Booking or Edit Booking.
 - Booking must be **PENDING + UNPAID**; otherwise, the API returns **FORBIDDEN**.
 
@@ -4165,11 +4411,11 @@ The system fetches the booking by ID and evaluates its status:
  
 | Booking Status | Payment Status | Expired?    | Outcome                      |
 | -------------- | -------------- | ----------- | ---------------------------- |
-| PENDING        | UNPAID         | Not Expired | Eligible to continue         |
-| PROCESSING     | Any            | Any         | Forbidden; already processed |
-| CANCELLED      | Any            | Any         | Forbidden; cancelled         |
-| EXPIRED        | Any            | Any         | Forbidden; expired           |
-| CONFIRMED      | Any            | Any         | Forbidden; already confirmed |
+| **PENDING**        | UNPAID         | Not Expired | Eligible to continue         |
+| **PROCESSING**     | Any            | Any         | Forbidden; already processed |
+| **CANCELLED**      | Any            | Any         | Forbidden; cancelled         |
+| **EXPIRED**        | Any            | Any         | Forbidden; expired           |
+| **CONFIRMED**      | Any            | Any         | Forbidden; already confirmed |
 
 If the booking is **not found** → `404 NOT_FOUND`.  
 
@@ -4212,34 +4458,63 @@ This DTO serves as the **intermediate, payment-ready snapshot** of the booking, 
 
 #### 📤 Success Response
 <details> 
-  <summary>View screenshot</summary>
-   ![Booking Continue Success]()
+  <summary>View Full Response</summary>  <br>  
+
+**Request URL:** `/public/bookings/1/continue`
+  
+**Response Body:**  
+{  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;"staus": 200,  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;"data": {  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"booking": {  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"bookingId": 1,  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"bookedAt": "2025-12-25T19:47:22.500933",  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"travelAt": "2025-12-26",  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"bookingStatus": "Processing",  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"paymentStatus": "Pending",  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"discount": "0%",  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"discountAmount": 0.00,  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"totalCost": 4396.00,  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"finalCost": 4396.00,  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"bookingExpiresAt": "2025-12-25T19:57:22.503081"  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;},  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"bus": {  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"busNumber": "TN01CC1122",  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"busName": "VKV Travels",  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"busType": "Bharat Benz A/C Sleeper (2+1)",  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"duration": "08h 55m",  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"fromLocation": "Chennai, Tamil Nadu, India",  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"toLocation": "Coimbatore, Tamil Nadu, India",  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"departureAt": "2025-12-26T20:00:00",  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"arrivalAt": "2025-12-27T04:55:00",  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"busFare": 1099.00  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;},  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"passenger": {  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"name": "Karthik",  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"email": "karthik1234@gmail.com",  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"mobile": "90XXXXXXXX",  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"gender": "Male",  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"seatsBooked": 4  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;},  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;"message": "Here is your updated booking summary. Please proceed to payment to confirm your reservation."  <br>
+}   
 </details>
 
-#### ❗ Error Response 
-> Invaid booking id
-<details> 
-  <summary>View screenshot</summary>
-   ![Booking Continue Error]()
-</details> 
+#### ❗ Error Response  
 
-> No booking data found
+**No Booking Data Found**
 <details> 
-  <summary>View screenshot</summary>
-   ![Booking Continue Error]()
+  <summary>View screenshot</summary>  <br>  
+     <img src="docs/screenshots/api-18-1.JPG" width="550" alt="Booking Continue Error">
 </details>  
 
-> Access denied for this stage
+**Attempt For The Expired/Other Booking Statuses**
 <details> 
-  <summary>View screenshot</summary>
-   ![Booking Continue Error]()
-</details> 
+  <summary>View screenshot</summary>  <br>  
+     <img src="docs/screenshots/api-18-2.JPG" width="550" alt="Booking Continue Error">
+</details>   
 
-> Request timeout
-<details> 
-  <summary>View screenshot</summary>
-   ![Booking Continue Error]()
-</details> 
 
 #### 📊 HTTP Status Code Table
 | HTTP Code | Status                | When It Occurs                                              | Message                                                                                                     |
@@ -4295,7 +4570,7 @@ This DTO serves as the **intermediate, payment-ready snapshot** of the booking, 
 #### 📝 Description  
 The **Confirm Booking API** represents the final step in the **booking workflow (Start → Edit (optional) → Continue → Confirm)**, allowing users to **finalize a PROCESSING booking, complete payment, and receive a bus ticket and transaction ID**. It ensures that only eligible bookings are confirmed while maintaining **full transactional integrity, backend consistency, and accurate user feedback**. The API validates booking existence, checks eligibility, verifies the chosen payment method, performs expiration checks, updates booking and payment statuses, generates a unique `busTicket` and `transactionId`, clears `bookingExpiresAt`, and returns a detailed **Booking Final Info DTO**. Concurrent modifications are safely managed via optimistic locking, and immutable, canceled, expired, or already confirmed bookings are strictly blocked, making this step essential for the integrity of the booking lifecycle.  
 
-Key highlights:  
+**Key Highlights:**   
 - Validates booking existence and eligibility for confirmation.
 - Verifies the selected payment method (Card, UPI, Bank Transfer, Net Banking, QR Code)
 - Performs expiration checks and marks expired bookings as EXPIRED.
@@ -4311,7 +4586,8 @@ Key highlights:
 | Parameter | Type | Description                                | Required |
 | --------- | ---- | ------------------------------------------ | -------- |
 | `id`      | Long | ID of the booking to find & do confirm proccess . Must be positive. | Yes      |
-> 💡 Notes:  
+
+> 💡 Note:  
 - The id is the booking ID obtained from Start Booking or Edit Booking.
 - Booking must be **PROCESSING + PENDING**; otherwise, the API returns **FORBIDDEN**.    
 
@@ -4320,7 +4596,7 @@ Key highlights:
 {  
 &nbsp;&nbsp;&nbsp; "paymentMethod": "Your Option",   
 }   
-> 💡 Tips: Only UPI or Card or QR Code or Bank Transfer, Net Banking are allowed. You can any of these values.  
+> 💡 Tips: Only UPI or Card or QR Code or Bank Transfer, Net Banking are allowed. You can use any of these values.  
 
 #### ⚙️ How the Backend Processes  
 
@@ -4344,11 +4620,11 @@ The system retrieves the booking by ID and evaluates its current state to determ
 
 | Booking Status | Payment Status | Expired?    | Outcome                       |
 | -------------- | -------------- | ----------- | ----------------------------- |
-| PROCESSING     | PENDING        | Not Expired | Eligible for confirmation     |
-| PENDING        | Any            | Any         | Forbidden; cannot confirm yet |
-| CANCELLED      | Any            | Any         | Forbidden; cancelled          |
-| EXPIRED        | Any            | Any         | Forbidden; expired            |
-| CONFIRMED      | Any            | Any         | Forbidden; already confirmed  |
+| **PROCESSING**     | PENDING        | Not Expired | Eligible for confirmation     |
+| **PENDING**        | Any            | Any         | Forbidden; cannot confirm yet |
+| **CANCELLED**      | Any            | Any         | Forbidden; cancelled          |
+| **EXPIRED**        | Any            | Any         | Forbidden; expired            |
+| **CONFIRMED**      | Any            | Any         | Forbidden; already confirmed  |
 
 If the booking does not exist → **404 NOT_FOUND** or If the booking fails any eligibility requirement → **403 FORBIDDEN** with a context-specific message explaining why confirmation is not allowed.  
 
@@ -4389,34 +4665,72 @@ Once the booking is successfully confirmed, the system maps the persisted entity
 
 #### 📤 Success Response
 <details> 
-  <summary>View screenshot</summary>
-   ![Booking Continue Success]()
+  <summary>View Full Response</summary>  <br>  
+
+**Request URL:** `/public/bookings/1/confirm`  
+
+**Response Body**  
+{  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;"staus": 200,  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;"data": {  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"booking": {  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"bookingId": 1,  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"bookedAt": "2025-12-25T19:47:22.500933",  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"travelAt": "2025-12-26",  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"bookingStatus": "Confirmed",  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"paymentStatus": "Paid",  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"paymentMethod": "UPI",  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"busTicket": "TK01bf66ba47",  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"transactionId": "TNX01195601920dd5517",  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"discount": "0%",  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"discountAmount": 0.00,  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"totalCost": 4396.00,  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"finalCost": 4396.00  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;},  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"bus": {  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"busNumber": "TN01CC1122",  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"busName": "VKV Travels",  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"busType": "Bharat Benz A/C Sleeper (2+1)",  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"acType": "A/C",  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"seatType": "Sleeper",  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"duration": "08h 55m",  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"fromLocation": "Chennai, Tamil Nadu, India",  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"toLocation": "Coimbatore, Tamil Nadu, India",  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"departureAt": "2025-12-26T20:00:00",  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"arrivalAt": "2025-12-27T04:55:00",  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"busFare": 1099.00  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;},  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"passenger": {  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"name": "Karthik",  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"email": "karthik1234@gmail.com",  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"mobile": "90XXXXXXXX",  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"gender": "Male",  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"seatsBooked": 4  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;},  <br>
+&nbsp;&nbsp;&nbsp;&nbsp;"message": "Payment successful! Your booking has been confirmed. Thank you for choosing BookMyRide."  <br>
+}   
 </details>
 
 #### ❗ Error Response 
-> Invaid booking id
+
+**Invaid Booking ID**
 <details> 
-  <summary>View screenshot</summary>
-   ![Booking Continue Error]()
+  <summary>View screenshot</summary>  <br>  
+    <img src="docs/screenshots/api-19-1.JPG" width="550" alt="Booking Confirm Error">
 </details> 
 
-> No booking data found
+**No Booking Data Found**
 <details> 
-  <summary>View screenshot</summary>
-   ![Booking Continue Error]()
+  <summary>View screenshot</summary>  <br>  
+    <img src="docs/screenshots/api-19-2.JPG" width="550" alt="Booking Confirm Error">
+</details> 
+
+**Access Denied For This Stage**
+<details> 
+  <summary>View screenshot</summary>  <br>  
+    <img src="docs/screenshots/api-19-3.JPG" width="550" alt="Booking Confirm Error">
 </details>  
-
-> Access denied for this stage
-<details> 
-  <summary>View screenshot</summary>
-   ![Booking Continue Error]()
-</details> 
-
-> Request timeout
-<details> 
-  <summary>View screenshot</summary>
-   ![Booking Continue Error]()
-</details> 
 
 
 #### 📊 HTTP Status Code Table  
@@ -4515,7 +4829,7 @@ These logs support operational monitoring, fraud detection, reconciliation workf
 
 The **Cancel Booking API** enables users to safely cancel a booking that has not yet been confirmed, ensuring transactional integrity and accurate seat management. This endpoint allows bookings in **PENDING** or **PROCESSING** status to be reverted, automatically releasing reserved seats, clearing transactional fields, and providing precise feedback to the user.  
 
-Key features:  
+**Key Highlights:**    
 - **Booking Validation:** Ensures the booking exists before proceeding.
 - **Eligibility Check:** Confirms that only bookings eligible for cancellation (not CONFIRMED, EXPIRED, or already CANCELLED) can be reverted.
 - **Concurrency Management:** Handles optimistic lock conflicts gracefully in case of simultaneous modifications.
@@ -4530,8 +4844,9 @@ This design ensures that cancellations are **safe, consistent, and fully auditab
 #### 📥 Request Parameter  
 | Parameter | Type | Description                                    | Required |
 | --------- | ---- | ---------------------------------------------- | -------- |
-| `id`        | Long | ID of the booking to cancel. Must be positive. | Yes      |
-> 💡 Notes:
+| `id`      | Long | ID of the booking to cancel. Must be positive. | Yes      |
+
+> 💡 Note:
 - Only bookings in **PENDING** or **PROCESSING** status are eligible for cancellation.
 - Once a booking is either **CONFIRMED**, **CANCELLED**, or **EXPIRED**, for those cancellation is forbidden.
 
@@ -4548,11 +4863,11 @@ Retrieves the booking from the repository using `bookingRepo.findById(bookingId)
 
 | Booking Status | Payment Status | Outcome                                         |
 | -------------- | -------------- | ----------------------------------------------- |
-| PENDING        | UNPAID         | Eligible for cancellation                       |
-| PROCESSING     | PENDING        | Eligible for cancellation                       |
-| CONFIRMED      | PAID           | Forbidden; cannot cancel confirmed bookings     |
-| CANCELLED      | Any            | Forbidden; already cancelled                    |
-| EXPIRED        | Any            | Forbidden; expired bookings cannot be cancelled |
+| **PENDING**        | UNPAID         | Eligible for cancellation                       |
+| **PROCESSING**     | PENDING        | Eligible for cancellation                       |
+| **CONFIRMED**      | PAID           | Forbidden; cannot cancel confirmed bookings     |
+| **CANCELLED**      | Any            | Forbidden; already cancelled                    |
+| **EXPIRED**        | Any            | Forbidden; expired bookings cannot be cancelled |
 
 Booking not found → **404 NOT_FOUND** & Ineligible booking → **403 FORBIDDEN** with contextual message: "You can only cancel bookings that haven’t been confirmed yet. Booking ID X is no longer eligible for cancellation."  
 
@@ -4585,34 +4900,29 @@ For eligible bookings, the system performs atomic updates within a transactional
 
 #### 📤 Success Response
 <details> 
-  <summary>View screenshot</summary>
-   ![Booking Cancel Success]()
-</details>
-
-#### ❗ Error Response 
-> Invaid booking id
-<details> 
-  <summary>View screenshot</summary>
-   ![Booking Cancel Error]()
+  <summary>View screenshot</summary>  <br>  
+    <img src="docs/screenshots/api-20-4.JPG" width="550" alt="Booking Cancel Success">
 </details> 
 
-> No booking data found
+#### ❗ Error Response   
+
+**Invaid Booking ID**
 <details> 
-  <summary>View screenshot</summary>
-   ![Booking Cancel Error]()
+  <summary>View screenshot</summary>  <br>  
+    <img src="docs/screenshots/api-20-1.JPG" width="550" alt="Booking Cancel Error">
 </details>  
 
-> Access denied for this stage
+**No Booking Data Found**
 <details> 
-  <summary>View screenshot</summary>
-   ![Booking Cancel Error]()
+  <summary>View screenshot</summary>  <br>  
+    <img src="docs/screenshots/api-20-2.JPG" width="550" alt="Booking Cancel Error">
 </details> 
 
-> Request timeout
+**Access Denied**
 <details> 
-  <summary>View screenshot</summary>
-   ![Booking Continue Error]()
-</details>   
+  <summary>View screenshot</summary>  <br>  
+    <img src="docs/screenshots/api-20-3.JPG" width="550" alt="Booking Cancel Error">
+</details>  
 
 
 #### 📊 HTTP Status Code Table 
@@ -4674,7 +4984,7 @@ A key strength of this API is its **collision-free filter resolution strategy**,
 
 Overall, the endpoint delivers **high integrity, high observability, and high performance**, making it essential for system-wide operational monitoring, auditing, and analytical workloads.  
 
-Key Features:  
+**Key Features:**    
 - Full pagination for efficient navigation of large booking datasets.
 - Role-secured visibility restricted to Admin-level users only.
 - Rich filtering and search patterns supporting a wide range of operational queries.
@@ -4684,7 +4994,8 @@ Key Features:
 - Deterministic, collision-free filter resolution for consistent and optimized performance.
 - Optimized for daily transaction review, audits, customer support investigations, fraud detection, peak-travel monitoring, and revenue/cost analytics.  
 
-#### 🔍 Search & Filter Logic Summary  
+#### 🔍 Search & Filter Logic Summary   
+
 This API operates in two clear modes, ensuring efficient, predictable, and conflict-free search behavior:  
 - **1. Default Fetch (No Keyword Provided)** When no keyword is supplied, the API returns **all bookings** in a **fully paginated, sorted**, and **structured format**. This is ideal for general browsing, auditing, and dashboard views.
 - **2. Keyword-Based Filtered Search** When a keyword is present, the API switches to a **prefix-driven filtering engine**. This system ensures **no ambiguity, no filter collisions**, and **no overlapping search paths**, producing clean and deterministic results every time.  
@@ -4723,6 +5034,7 @@ All search inputs undergo strict, centralized regex validation. This ensures:
 
 
 #### ⚙️ Backend Processing Flow   
+
 **1. Centralized Input Validation & Safety Gate**      
 
 All requests pass through a strict validation layer `PaginationRequest.getRequestValidationForPagination()`, checking:  
@@ -4805,30 +5117,319 @@ On successful retrieval, the API returns an HTTP **200 OK** response using the `
 - Its layered design is fully extensible, allowing new attributes or metadata to be added in the future without breaking existing clients.
   
 
-#### 📤 Success Response
-<details> 
-  <summary>View screenshot</summary>
-   ![Booking View Success]()
-</details>
+#### 📤 Success Response  
 
-#### ❗ Error Response 
-> Invaid pagination input
+**1.  Without Query Parameter**
 <details> 
-  <summary>View screenshot</summary>
-   ![Booking View Error]()
-</details> 
-
-> Invaid keyword input
-<details> 
-  <summary>View screenshot</summary>
-   ![Booking Cancel Error]()
+  <summary>View Full Response</summary>  <br>  
+  
+**Response Body**  
+{<br>
+&nbsp;&nbsp;&nbsp;&nbsp;"staus": 200,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;"data": {<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"content": [<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"booking": {<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"id": 1,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"bookedAt": "2025-12-25T19:47:22.500933",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"travelAt": "2025-12-26",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"bookingStatus": "Confirmed",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"paymentStatus": "Paid",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"paymentMethod": "UPI",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"busTicket": "TK01bf66ba47",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"transactionId": "TNX01195601920dd5517",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"discount": "0%",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"discountAmount": 0.00,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"totalCost": 4396.00,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"finalCost": 4396.00,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"bookingEditedAt": "2025-12-25T19:51:02.699653",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"bookingExpiresAt": null,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"canceledAt": null<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;},<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"bus": {<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"id": 2,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"busNumber": "TN01CC1122",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"busName": "VKV Travels",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"busType": "Bharat Benz A/C Sleeper (2+1)",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"acType": "A/C",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"seatType": "Sleeper",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"duration": "08h 55m",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"fromLocation": "Chennai, Tamil Nadu, India",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"toLocation": "Coimbatore, Tamil Nadu, India",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"departureAt": "2025-12-26T20:00:00",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"arrivalAt": "2025-12-27T04:55:00",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"busFare": 1099.00<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;},<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"passenger": {<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"id": 1,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"name": "Karthik",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"email": "karthik1234@gmail.com",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"mobile": "9XXXXXXXXX",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"gender": "Male",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"role": "Guest",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"seatsBooked": 4<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;...<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;],<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"totalPages": 1,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"totalElements": 3,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"currentPage": 1,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"pageSize": 10,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"first": true,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"last": false<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;},<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"message": "The available Booking data list in this page 1"<br>
+&nbsp;&nbsp;&nbsp;&nbsp;}<br>
+}
 </details>  
 
-> Access denied for this stage
+**2. With Filter: page=1, size=10, sortBy=id, sortDir=asc, keyword=bus_VKV Travels**  
 <details> 
-  <summary>View screenshot</summary>
-   ![Booking Cancel Error]()
+  <summary>View Full Response</summary>  <br>  
+
+ **Response Body:**  
+{<br>
+&nbsp;&nbsp;&nbsp;&nbsp;"staus": 200,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;"data": {<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"content": [<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"booking": {<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"id": 1,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"bookedAt": "2025-12-25T19:47:22.500933",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"travelAt": "2025-12-26",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"bookingStatus": "Confirmed",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"paymentStatus": "Paid",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"paymentMethod": "UPI",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"busTicket": "TK01bf66ba47",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"transactionId": "TNX01195601920dd5517",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"discount": "0%",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"discountAmount": 0.00,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"totalCost": 4396.00,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"finalCost": 4396.00,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"bookingEditedAt": "2025-12-25T19:51:02.699653",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"bookingExpiresAt": null,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"canceledAt": null<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;},<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"bus": {<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"id": 2,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"busNumber": "TN01CC1122",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"busName": "VKV Travels",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"busType": "Bharat Benz A/C Sleeper (2+1)",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"acType": "A/C",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"seatType": "Sleeper",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"duration": "08h 55m",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"fromLocation": "Chennai, Tamil Nadu, India",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"toLocation": "Coimbatore, Tamil Nadu, India",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"departureAt": "2025-12-26T20:00:00",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"arrivalAt": "2025-12-27T04:55:00",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"busFare": 1099.00<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;},<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"passenger": {<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"id": 1,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"name": "Karthik",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"email": "karthik1234@gmail.com",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"mobile": "9XXXXXXXXX",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"gender": "Male",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"role": "Guest",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"seatsBooked": 4<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;],<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"totalPages": 1,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"totalElements": 1,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"currentPage": 1,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"pageSize": 10,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"first": true,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"last": false<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;},<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"message": "Booking data found for the given Bus Name in this page 1"<br>
+&nbsp;&nbsp;&nbsp;&nbsp;}<br>
+}
+</details>   
+
+**3. With Filter: page=1, size=10, sortBy=id, sortDir=desc, keyword=25-12-2025**  
+<details> 
+  <summary>View Full Response</summary>  <br>  
+
+ **Response Body:**  
+{<br>
+&nbsp;&nbsp;&nbsp;&nbsp;"staus": 200,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;"data": {<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"content": [<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"booking": {<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"id": 3,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"bookedAt": "2025-12-25T23:00:01.897106",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"travelAt": "2025-12-29",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"bookingStatus": "Expired",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"paymentStatus": "Not Paid",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"paymentMethod": "None",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"busTicket": null,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"transactionId": null,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"discount": "0%",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"discountAmount": 0.00,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"totalCost": 1198.00,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"finalCost": 1198.00,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"bookingEditedAt": null,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"bookingExpiresAt": "2025-12-25T23:10:01.897106",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"canceledAt": null<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;},<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"bus": {<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"id": 3,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"busNumber": "TN02MC1204",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"busName": "Krishna Travels",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"busType": "A/C Seater / Sleeper",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"acType": "A/C",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"seatType": "Seater / Sleeper",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"duration": "05h 50m",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"fromLocation": "Madurai, Tamil Nadu, India",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"toLocation": "Coimbatore, Tamil Nadu, India",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"departureAt": "2025-12-29T22:30:00",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"arrivalAt": "2025-12-30T04:20:00",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"busFare": 599.00<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;},<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"passenger": {<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"id": 3,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"name": "Anitha",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"email": "anitha@gmail.com",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"mobile": "7XXXXXXXXX",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"gender": "Female",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"role": "Guest",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"seatsBooked": 2<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;},<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"booking": {<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"id": 2,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"bookedAt": "2025-12-25T22:47:46.562626",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"travelAt": "2025-12-28",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"bookingStatus": "Cancelled",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"paymentStatus": "Not Paid",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"paymentMethod": "None",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"busTicket": null,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"transactionId": null,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"discount": "0%",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"discountAmount": 0.00,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"totalCost": 2396.00,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"finalCost": 2396.00,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"bookingEditedAt": null,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"bookingExpiresAt": "2025-12-25T22:57:46.562626",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"canceledAt": "2025-12-25T22:55:03.702696"<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;},<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"bus": {<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"id": 3,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"busNumber": "TN02MC1204",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"busName": "Krishna Travels",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"busType": "A/C Seater / Sleeper",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"acType": "A/C",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"seatType": "Seater / Sleeper",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"duration": "05h 50m",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"fromLocation": "Madurai, Tamil Nadu, India",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"toLocation": "Coimbatore, Tamil Nadu, India",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"departureAt": "2025-12-28T22:30:00",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"arrivalAt": "2025-12-29T04:20:00",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"busFare": 599.00<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;},<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"passenger": {<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"id": 2,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"name": "Arnold John",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"email": "arnoldjohn@gmail.com",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"mobile": "6XXXXXXXXX",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"gender": "Male",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"role": "Guest",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"seatsBooked": 4<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;...<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;],<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"totalPages": 1,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"totalElements": 3,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"currentPage": 1,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"pageSize": 10,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"first": true,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"last": false<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;},<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"message": "The Booking data found for the given Date 2025-12-25 in this page 1"<br>
+} 
+</details>  
+
+**4. With Filter: page=1, size=10, sortBy=id, sortDir=desc, keyword=Cancelled**  
+<details> 
+  <summary>View Full Response</summary>  <br>  
+
+**Response Body:**  
+{<br>
+&nbsp;&nbsp;&nbsp;&nbsp;"staus": 200,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;"data": {<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"content": [<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"booking": {<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"id": 2,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"bookedAt": "2025-12-25T22:47:46.562626",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"travelAt": "2025-12-28",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"bookingStatus": "Cancelled",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"paymentStatus": "Not Paid",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"paymentMethod": "None",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"busTicket": null,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"transactionId": null,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"discount": "0%",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"discountAmount": 0.00,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"totalCost": 2396.00,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"finalCost": 2396.00,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"bookingEditedAt": null,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"bookingExpiresAt": "2025-12-25T22:57:46.562626",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"canceledAt": "2025-12-25T22:55:03.702696"<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;},<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"bus": {<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"id": 3,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"busNumber": "TN02MC1204",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"busName": "Krishna Travels",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"busType": "A/C Seater / Sleeper",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"acType": "A/C",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"seatType": "Seater / Sleeper",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"duration": "05h 50m",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"fromLocation": "Madurai, Tamil Nadu, India",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"toLocation": "Coimbatore, Tamil Nadu, India",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"departureAt": "2025-12-28T22:30:00",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"arrivalAt": "2025-12-29T04:20:00",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"busFare": 599.00<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;},<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"passenger": {<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"id": 2,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"name": "Arnold John",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"email": "arnoldjohn@gmail.com",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"mobile": "6XXXXXXXXX",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"gender": "Male",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"role": "Guest",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"seatsBooked": 4<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;],<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"totalPages": 1,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"totalElements": 1,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"currentPage": 1,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"pageSize": 10,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"first": true,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"last": false<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;},<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"message": "Booking data found for the given Booking Status in this page 1"<br>
+}
+</details>
+
+#### ❗ Error Response  
+
+**Invaid Pagination Input**
+<details> 
+  <summary>View screenshot</summary>  <br>  
+    <img src="docs/screenshots/api-21-2.JPG" width="550" alt="Booking View Error">
 </details> 
+
+**Invaid Keyword Input**
+<details> 
+  <summary>View screenshot</summary>  <br>  
+    <img src="docs/screenshots/api-21-3.JPG" width="550" alt="Booking View Error">
+</details>  
 
 #### 📊 HTTP Status Code Table  
 | HTTP Code | Status Name           | Meaning               | When It Occurs                                   |
@@ -5010,38 +5611,34 @@ After a successful registration or guest upgrade, the system generates a **JWT t
 | Invalid Request   | Fails validation           | Return errors      | 400 BAD_REQUEST |
 
 
-#### 📤 Success Response  
-> New User register 
-<details> 
-  <summary>View screenshot</summary>
-   ![User Auth Success]()
-</details>  
+#### 📤 Success Response    
 
-> Guest → User Upgrade
+**New User Register**   
 <details> 
-  <summary>View screenshot</summary>
-   ![User Auth Success]()
-</details>  
-
-
-#### ❗ Error Response 
-> DTO Validation Failed
-<details> 
-  <summary>View screenshot</summary>
-   ![User Auth Error]()
+  <summary>View screenshot</summary>  <br>  
+    <img src="docs/screenshots/api-22-4.JPG" width="550" alt="User Auth Success">
 </details> 
 
-> Mobile Restricted by Management
+**Guest → User Upgrade**  
 <details> 
-  <summary>View screenshot</summary>
-   ![User Auth Error]()
-</details>  
+  <summary>View screenshot</summary>  <br>  
+    <img src="docs/screenshots/api-22-3.JPG" width="550" alt="User Auth Success">
+</details> 
 
-> Already Registered User
+
+#### ❗ Error Response  
+
+**DTO Validation Failed**
 <details> 
-  <summary>View screenshot</summary>
-   ![User Auth Error]()
-</details>  
+  <summary>View screenshot</summary>  <br>  
+    <img src="docs/screenshots/api-22-1.JPG" width="550" alt="User Auth Error">
+</details> 
+
+**Management USER's Mobile Number Strictly Restricted**
+<details> 
+  <summary>View screenshot</summary>  <br>  
+    <img src="docs/screenshots/api-22-2.JPG" width="550" alt="User Auth Error">
+</details> 
 
 #### 📊 HTTP Status Code Table
 | HTTP Code | Status Name           | Meaning               | When It Occurs                                   |
@@ -5115,7 +5712,7 @@ Once validated, the system checks the user’s eligibility, blocking Guest or un
 
 Upon successful login, a JWT token containing the user’s mobile number, role, and an isLoginFlow = true flag is returned in the data field, and this token must be included in the Authorization: Bearer <JWT_TOKEN> header for all subsequent protected API requests.  
 
-Key Features:  
+**Key Features:**    
 - **No Pre-Authentication Required:** Can be called by unauthenticated users or users requesting a fresh JWT token.
 - **DTO Validation:** Uses `@Valid` and `BindingResult` to ensure payload integrity.
 - **Structured Validation Messages:** Utility classes format errors clearly for client consumption.
@@ -5138,7 +5735,7 @@ Key Features:
 **1. DTO + Input Validation**  
 
 The request payload is validated using Spring’s `@Valid` annotation combined with `BindingResult`. If validation errors are detected, the system immediately responds with:  
-  - HTTP 400 Bad Request
+  - HTTP **400 Bad Request**
   - Detailed validation messages highlighting the invalid or missing fields   
 
 This ensures that null, empty, or malformed mobile numbers and password fields are caught before reaching the authentication layer.  
@@ -5180,41 +5777,36 @@ All errors are returned in a consistent JSON structure (ApiResponse) for clear c
 
 #### 📤 Success Response  
 <details> 
-  <summary>View screenshot</summary>
-   ![User Auth Login Success]()
+  <summary>View screenshot</summary>  <br>  
+    <img src="docs/screenshots/api-23-5.JPG" width="550" alt="User Login Success">
 </details>  
 
+#### ❗ Error Response  
 
-#### ❗ Error Response 
-> DTO Validation Failed
+**DTO Validation Failed**  
 <details> 
-  <summary>View screenshot</summary>
-   ![User Auth Login Error]()
-</details> 
-
-> Mobile belongs to management user
-<details> 
-  <summary>View screenshot</summary>
-   ![User Auth Login Error]()
+  <summary>View screenshot</summary>  <br>  
+    <img src="docs/screenshots/api-23-1.JPG" width="550" alt="User Login Error">
 </details>  
 
-> User not registered
+**Mobile belongs to Management user**
 <details> 
-  <summary>View screenshot</summary>
-   ![User Auth Login Error]()
+  <summary>View screenshot</summary>  <br>  
+    <img src="docs/screenshots/api-23-2.JPG" width="550" alt="User Login Error">
 </details>  
 
-> Guest role attempting login
+**Invalid Mobile / Password**  
 <details> 
-  <summary>View screenshot</summary>
-   ![User Auth Login Error]()
+  <summary>View screenshot</summary>  <br>  
+    <img src="docs/screenshots/api-23-3.JPG" width="550" alt="User Login Error">
 </details>  
 
-> Wrong password
+**Guest User Attempting Login**  
 <details> 
-  <summary>View screenshot</summary>
-   ![User Auth Login Error]()
+  <summary>View screenshot</summary>  <br>  
+    <img src="docs/screenshots/api-23-4.JPG" width="550" alt="User Login Error">
 </details>  
+
 
 #### 📊 HTTP Status Code Table
 | HTTP Code | Status Name           | Meaning                      | When It Occurs                 |
