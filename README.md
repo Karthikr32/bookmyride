@@ -425,31 +425,25 @@ Updating personal profile information of management user is a critical aspect of
 | **500**       | INTERNAL_SERVER_ERROR | Unexpected Error      | Any unexpected server-side error                  |  
 
 #### ⚠️ Edge Cases & Developer Notes  
-**1. Username Auto-Generation on Full Name Change**   
-- When the full name is updated, a new username is automatically generated. The response includes a notification prompting the admin to re-login, ensuring continuous secure access.  
+**1. Username & Identity Management**  
+- Updating the full name auto-generates a new username.
+- Admins are prompted to re-login to ensure JWTs remain valid.
+- Only after re-login can admin operations (password change, location management, protected resource access) be performed.
 
-**2. Strict Separation Between Management and Regular Users**  
-- The system enforces strict uniqueness of management credentials, preventing accidental overlaps with regular user accounts. This maintains secure and organized data management across all user types.  
+**2. Role & Access Enforcement**  
+- ADMIN-only endpoints prevent unauthorized profile updates.
+- Strict separation between management and regular users avoids credential overlaps.
+- Invalid or expired tokens result in immediate request rejection.
 
-**3. Selective Field Updates and Timestamping**  
-- Only fields that differ from existing values are updated, avoiding unnecessary writes. `profileUpdatedAt` is recorded to support auditing and track profile modifications efficiently.  
+**3. Field Validation & Auditing**  
+- Only modified fields are updated to prevent unnecessary writes.
+- `profileUpdatedAt` timestamps support auditing and tracking of profile changes.
+- Gender and role values are restricted to predefined enums; invalid inputs return **400 Bad Request** with clear messages.
 
-**4. Gender & Role Enforcement**  
-- Gender values are restricted to predefined enums such as MALE, FEMALE, and OTHER. Invalid entries result in a 400 Bad Request with a descriptive error message.
-- Only ADMIN users are authorized to update their profile via this endpoint. Non-ADMIN or invalid token attempts are blocked immediately to maintain strict access control.   
-**5. What You Must Do Next**  
-- You must re-login using the new username to obtain a fresh valid JWT.  
-- Only after re-login can you:  
-    - Change your password
-    - Manage locations
-    - Perform any admin operation
-    - Access any protected resource
-      
- **6. Why This Matters**  
- This mechanism guarantees that:  
- - Token is always tied to the current, correct username.
- - Admin account cannot be used with outdated JWTs.
- - System integrity remains strong even after identity updates.  
+**4. System Integrity Guarantee**  
+- Ensures JWTs are always tied to the current username.
+- Prevents usage of outdated tokens after identity changes.
+- Maintains overall system security and consistent account management.
 </details>  
 
 ### 🔑 3. Change Password (Management user)
@@ -479,7 +473,7 @@ This API allows a **Management/Admin user** to securely change their account pas
 }  
 > 💡 **Tip:** Replace the placeholder values with your own details. Remember new password must align with the system requirement. 
 
-#### ⚙️ How the Backend Validates This (Important) 
+#### ⚙️ How the Backend Validates This 
 **1. Authenticate and Validate UserPrincipal**  
  - Extracts UserPrincipal from `@AuthenticationPrincipal`; returns **401 Unauthorized** ("Invalid token. Please try after re-login.") if null/expired.
  - Fetches live `Management` account via `managementService.fetchById(userPrincipal.getId())`; returns **404 Not Found** ("Account not found or no longer exists") if deleted/stale, blocking compromised tokens.​
@@ -537,25 +531,28 @@ This API allows a **Management/Admin user** to securely change their account pas
 | **403**       | FORBIDDEN             | Access Denied         | User does not have ADMIN role        |
 | **500**       | INTERNAL_SERVER_ERROR | Unexpected Error      | Unexpected failure during processing |  
 
-#### ⚠️ Critical Notes & Security Flow  
-**1. Old Password Verification**  
-- Malicious actors with stolen JWT tokens attempt password overwrite without knowing current credentials. The `AuthenticationManager.authenticate()` with `UsernamePasswordAuthenticationToken` catches `BadCredentialsException`, returning **401 Unauthorized** ("Invalid credentials. Given old password is incorrect.")—blocks token-only attacks.
-- Username changes or account modifications since token issuance trigger `UsernameNotFoundException` → **404 Not Found**.  
+#### ⚠️ Edge Cases & Developer Notes    
+**1. Token-Only Attack Prevention**
+- Even if JWT is stolen, old password verification blocks unauthorized password changes.
+- Stale tokens for deleted or modified accounts → **404 Not Found**.
 
-**2. Strong Password Enforcement**  
-- Weak submissions (blank, short, simple patterns) via `ChangeManagementPasswordDto` fail `@Valid` + `BindingResult` checks, returning **400 Bad Request** with detailed error list from `BindingResultUtils.getListOfStr()` utility class.
-- Centralized validation logic in DTO annotations ensures consistency across endpoints; easily extensible for regex complexity, history checks, or breached password screening in production.  
+**2. Strong Password Enforcement**
+- DTO-level validation prevents weak passwords (blank, short, simple patterns).
+- Centralized annotations allow future extensions: regex complexity, history checks, breached password screening.
 
-**3. UserPrincipal Validation**  
-- Null/expired JWT → 401 ("Invalid token. Please try after re-login."). Stale tokens for deleted accounts → 404 ("Account not found..."). Non-ADMIN roles → 403 ("Access denied for this role.").
-- `UserPrincipalValidationUtils.validateUserPrincipal()` is reusable across sensitive endpoints, providing early exit with validated `Management` object—reduces controller bloat and enforces defense-in-depth.
+**3. Audit & Compliance**
+- `passwordLastUpdatedAt` ensures tracking for security audits.
+- Only updated after successful validation and password change.
 
-**4. Role-Based Access Control**  
-- Standard users exploit endpoint via valid **JWT** → blocked by `management.getRole() != Role.ADMIN` check in utility, returning **403 Forbidden**.
-- **Granular RBAC** prevents privilege escalation; extend to enum hierarchies or permission matrices for microservices scaling.
+**4. Granular RBAC & Access Control**
+- ADMIN-only enforcement prevents privilege escalation.
+- Can be extended for microservices with role hierarchies or permission matrices.
 
-**3. Timestamps for Auditing**
-- Compliance audits require change history; `managementService.changeNewPassword()` updates `passwordLastUpdatedAt` timestamp on success.
+**5. Enterprise Benefits**
+- **Zero Trust:** JWT + old password + role + DB verification
+- **Audit-Ready:** Consistent error codes, timestamping, no sensitive leaks
+- **Scalable:** Utilities reusable across endpoints
+- **Production Note:** Rate limiting, MFA, and session invalidation recommended
 </details>
 
 ### 👤 4. View Profile (Management/Admin)
@@ -623,22 +620,27 @@ This API allows a **Management user** to fetch their current profile information
 | **500**       | INTERNAL_SERVER_ERROR | Unexpected Error      | Unexpected failure during processing |  
 
 #### ⚠️ Edge Cases & Developer Notes  
-**1. UserPrincipal Validation**  
-- The system extracts `UserPrincipal` from the JWT token for every request. This ensures that only authenticated sessions can access sensitive endpoints.
-- `UserPrincipalValidationUtils.validateUserPrincipal()` performs a multi-step check: verifies the token is valid, confirms the user exists in the database, and ensures the account has not been deleted or disabled.
-- This prevents unauthorized access from stale tokens, deleted accounts, or tokens from compromised sessions. Even if a token is valid structurally, it won’t grant access if the underlying account is no longer active.
+**1. Token & Session Validation**  
+- Every request relies on a valid UserPrincipal extracted from the JWT.
+- Protects against stale or compromised tokens: even structurally valid JWTs won’t work if the account is deleted, disabled, or modified.
+- Prevents unauthorized access and ensures only active sessions can reach sensitive endpoints.
 
-**2. Role-Based Access Control (RBAC)**  
-- The endpoint is strictly limited to `ADMIN` users.
-- The validation utility checks the role of the authenticated user. Any mismatch results in a **403 Forbidden**, ensuring that standard users—even with a valid JWT—cannot access administrative profile data.
+**2. Strict Role Enforcement**  
+- Endpoint is ADMIN-only. Centralized role checks block privilege escalation, ensuring standard users—even with valid JWTs—cannot access admin data.
+- Easily extendable for future role hierarchies or permission matrices in microservices.
 
-**3. DTO Mapping & Data Privacy**  
-- The `ManagementMapper.managementToDto()` converts the internal entity into a safe DTO for exposure. Sensitive fields such as `password`, internal system IDs, or audit metadata are excluded from the API response.
-- This approach balances transparency for front-end integration while maintaining security and privacy standards.
+**3. Data Privacy & Safe DTO Mapping**  
+- Management entity is mapped to a DTO before returning.
+- Sensitive fields like passwords, internal IDs, or audit metadata are never exposed.
+- Maintains transparency for frontend consumption while adhering to security and privacy standards.
 
-**4. Scalability & Reusability**  
-- By centralizing validation in `UserPrincipalValidationUtils`, the system reduces duplicate checks across multiple endpoints.
-- This design makes it easy to extend future features, such as additional profile fields, audit logging, or multi-factor authentication hooks.
+**4. Scalability, Reuse & Audit-Readiness**  
+- Validation and mapping logic is centralized via UserPrincipalValidationUtils and ManagementMapper.
+- Reduces duplicate code, ensures consistent behavior across endpoints, and allows easy extension for:
+   - Additional profile fields
+   - Audit logging
+   - MFA hooks or advanced security features
+- Supports audit-ready practices with standardized responses and controlled data exposure. 
 </details>  
 
 ### 🗺️ 5. Create New Location (City + State + Country Hierarchy)
@@ -804,7 +806,6 @@ This API allows a **Management/Admin user** to insert **multiple location record
  &nbsp;&nbsp; { "city": "Coimbatore", "state": "Tamil Nadu", "country": "India" },<br>
 ]   
 > 💡 **Note:** Each object in the list follows the same DTO validation rules as the single-location API. You may replace the sample values with your own location data, provided the **city–state–country** hierarchy is valid.  
-
 > 💡 **Tip:** Use this bulk API to insert multiple locations at once and prepare data for testing features such as filtering and sorting in the **View Location Records** API.  
 
 #### ⚙️ How the Backend Processes This  
@@ -846,11 +847,6 @@ This API allows a **Management/Admin user** to insert **multiple location record
 - Returns **201 Created** if all entries succeed.
 - Returns **206 Partial Content** with details of skipped or failed entries if some entries could not be inserted.
 - Uses `@Transactional` to ensure that each entry’s creation is **atomic**; failures in one entry do not roll back successful insertions.  
- 
-**7. No Early Return / No Loop Breaks**    
-- Every input is processed
-- No failures stop the batch
-- Ensures maximum data insertion rate  
 
 #### 📤 Partial Success Response
 <details> 
@@ -881,40 +877,35 @@ This API allows a **Management/Admin user** to insert **multiple location record
 | **403**       | FORBIDDEN             | Access Denied         | User lacks ADMIN role                            |
 | **500**       | INTERNAL_SERVER_ERROR | Unexpected Error      | Any unhandled server-side exception              |  
 
-#### ⚠️ Edge Cases & Developer Notes
-**1. Hierarchical Data Integrity (Country → State → City Enforcement)**  
-- The API enforces a strict **top-down structure**.
-- Each DTO entry is checked: **City cannot exist without State**, and **State cannot exist without Country**.
-- Even in bulk operations, this ensures **referential integrity**, preventing incomplete or invalid location hierarchies.
-- Long-term data consistency is guaranteed; avoids “**partial trees**” in production.
+#### ⚠️ Edge Cases & Developer Notes   
+1. **Bulk Insert Strategy & Performance Considerations**  
+- Designed for **large-scale location imports** (hundreds or thousands of entries).  
+- Shows how to **batch without overloading DB connections** and avoid memory issues.  
+- Explains trade-offs: e.g., why we process sequentially instead of using parallel threads to prevent deadlocks.  
 
-**2. Advanced Duplicate Prevention (Management + Master Repository Check)**   
-- Every entry is checked against **two sources**:
-    - Management’s own hierarchical tables.
-    - Master location table shared across the application.
-- This Prevents:
-    - Same location inserted by two admins seconds apart.
-    - City duplication under different states.
-    - Cross-module inconsistencies.
-- Results list contains detailed messages for skipped entries.  
- 
-**3. Concurrency Protection with Optimistic Locking**  
-- Handles **simultaneous insertions** by multiple admins or other management users.
-- If Admin A inserts a location at the same time as Admin B:
-    - One succeeds.
-    - The other receives **duplicate conflict** and is skipped.
-- Ensures **atomic, conflict-free inserts** even at scale (600+ cities).  
+2. **Error Reporting & Admin Feedback**  
+- Each entry generates a **detailed status**: success, duplicate, or error.  
+- Helps admins **quickly identify problematic entries** without manually checking the database.  
+- Useful for operational efficiency in production environments.  
 
-**4. Enum Parsing & Input Normalization Pipeline**  
-- Country and State strings are validated using `ParsingEnumUtils` utility class for enum parsing across my system.
-- Ensures only **recognized values** pass through.
-- Guards business logic from invalid inputs and misspellings or dirty data's.
-- Supports controlled future expansion of countries/states.  
+3. **Data Hygiene & Normalization Lessons**  
+- Enforces controlled data input: trimming spaces, parsing enums, and validating known values.  
+- Prevents future data inconsistencies that could break analytics or integrations.  
+- Explains why strict input normalization upfront saves time and prevents silent bugs.  
 
-**5. Transactional Safety, Audit Logging & Scalability**  
-- Each entry creation is **transactional**. Failures in one entry do not rollback the others.
-- Logs every successful insertion with **Management ID, username, and full location details**.
-- Designed for **real-world production usage** and massive datasets.
+4. **Partial Success Philosophy**  
+- Batch inserts do **not roll back entirely** on failure; instead, they continue to process remaining entries.  
+- Balances **operational resilience vs strict ACID rules** — ensures admins maximize inserted data while maintaining clarity on failures.  
+
+5. **Scalability & Maintenance Insights**  
+- Centralized utilities (ParsingEnumUtils, MasterLocationService) reduce duplicate logic.  
+- Future-proofed design: easy to add new countries, states, or validation rules without touching core loops.  
+- Explains **design reasoning**, not just mechanics.  
+
+6. **Operational Edge Cases to Consider**  
+- Admins may submit repeated city-state-country combos → system logs as duplicate.  
+- Concurrent submissions → optimistic locking ensures one success, others skipped gracefully.  
+- Midnight / timestamp edge cases in audits: e.g., massive bulk insert at day-end for reporting.
 </details>  
 
 ### 🧾 7. View Location Records (Filter + Sorting + Pagination)
@@ -1161,7 +1152,7 @@ This design delivers a **consistent, audit-ready, and future-proof response** th
 **Roles Allowed:** ADMIN  
 
 #### 📝 Description
-This endpoint updates the complete hierarchical Location structure—**City** → **State** → **Country**—using a single validated DTO. The update process is entity-aware and selective, meaning each layer (`CountryEntity`, `StateEntity`, `CityEntity`, and `MasterLocation`) is updated **only when its incoming value differs**, ensuring minimal writes and preserving high data integrity.
+This endpoint **updates** the complete hierarchical Location structure—**City** → **State** → **Country**—using a single validated DTO. The update process is entity-aware and selective, meaning each layer (`CountryEntity`, `StateEntity`, `CityEntity`, and `MasterLocation`) is updated **only when its incoming value differs**, ensuring minimal writes and preserving high data integrity.
 
 It enforces strict cross-entity consistency between the 3-level relational structure and MasterLocation by performing:
 - Performs **strict enum parsing** for both `State` and `Country` with descriptive error feedback.
@@ -1186,7 +1177,7 @@ It enforces strict cross-entity consistency between the 3-level relational struc
 &nbsp;&nbsp;&nbsp; "country": "India"  
 }    
 > 💡 **Tip:** You may replace these values with your own, but ensure they are **hierarchically correct**    
-> (e.g., the city belongs to the given state, and the state belongs to the given country).  
+(e.g., the city belongs to the given state, and the state belongs to the given country).  
 
 #### ⚙️ Backend Processing Workflow  
 **1. Authorization & Management User Validation**  
@@ -1543,19 +1534,7 @@ This endpoint removes data across the following entities:
 - Therefore it Guarantees:
    - No leftover city/state/country entries
    - No orphaned global locations
-   - Full dataset reset
-
-**4. Concurrency Protection (Optimistic Locking)**  
-
-If two admins attempt a full wipe simultaneously:
-- First wipe succeeds
-- Second receives -> **409 CONFLICT** with message “All location data was already deleted by other authority.”
-- This could prevents:
-    - Duplicate operations
-    - Race-condition induced partial deletions
-    - Unnecessary system load
-- Finally logs that include Logs include: **Management ID, Username, Time of deletion and Action description**.
-- Ensures traceability for all large-scale destructive operations.  
+   - Full dataset reset  
 
 #### 📤 Success Response
 <details> 
@@ -1883,12 +1862,7 @@ This ensures only valid authority accounts can register a new bus.
 - This removes ambiguity around day rollovers, invalid time formats, and timing misalignment in timetable generation.
 - By controlling time calculations internally, the system maintains reliable departure–arrival consistency essential for fare calculations, ticket availability windows, and real-time journey tracking.  
 
-**5. Robust Duplicate & Concurrency Protection via Pre-Checks + Optimistic Locking**  
-- The system performs a fast **duplicate bus-number check** before deeper validations to save substantial processing cost.
-- For high-concurrency admin environments, optimistic locking prevents race conditions where two managers attempt to register similar buses.
-- One insertion succeeds while others fail cleanly with a conflict response, ensuring that the fleet registry remains free from duplicates and unresolved partial writes.  
-
-**6. Transactional Atomicity, Audit Logging & Strict Referential Integrity**  
+**5. Transactional Atomicity, Audit Logging & Strict Referential Integrity**  
 - All write operations occur within a single transactional boundary, guaranteeing atomic persistence—either all components of a bus entry are stored, or none are.
 - Each successful insertion logs management identity and bus ID, forming a consistent audit trail essential for operations, troubleshooting, and compliance.
 - Dependence on MasterLocation and strict mapping rules ensures no orphaned references or mismatched relationships appear even if the platform grows with new modules or more complex fleet management features.
@@ -2144,31 +2118,26 @@ This structure ensures that clients receive a **single, holistic view** of a bus
 - Enum validation uses reflection-based valueOf() with fallback to contains() for partial AC/Non-AC detection.
 - Location_ prefix performs existence check against MasterLocation before query execution (prevents ghost location queries).  
 
-**2. Pagination & Sorting Security**  
-- Negative/zero page/size values **blocked** at validation gate (no database roundtrip).
-- Whitelisted `sortBy`prevents `ORDER BY` injection attempts on unindexed fields.
-- Max size limit prevents memory-heavy queries.  
-
-**3. Date & Time Safety Measures**  
+**2. Date & Time Safety Measures**  
 - **STRICT resolver rejects 30/02/2025, 2025-13-01, or 24:00 time inputs**.
 - Timezone-agnostic `LocalTime/LocalDate` processing prevents DST schedule corruption.
 - Cross-field date filtering (`createdAt` vs `departureAt.date`) uses temporal range expansion (±1 day tolerance).
 
-**4. Performance & Scalability Considerations**  
+**3. Performance & Scalability Considerations**  
 - Composite indexes recommended: (`busType`, `stateOfRegistration`, `departureAt`) for common admin filters. Query timeout set to 30s prevents long-running regex scans on massive datasets.
 - Response caching disabled due to real-time availableSeats mutation by booking engine.  
 
-**5. DTO Security & Compliance**  
+**4. DTO Security & Compliance**  
 - Excludes operational fields & Sensitive fields for future safety precision.
 - `availableSeats = capacity – bookedSeats` computed on demand.
 - Audit logging captures adminId, full keyword, page/sort params, execution time, result count.
 
-**6. Extensibility Architecture**   
+**5. Extensibility Architecture**   
 - New filters added via FilterStrategy interface (prefixHandler, regexHandler) without core logic changes.
 - Enum expansion handled automatically through reflection scanning.
 - Pagination metadata supports client-side caching strategies (ETag, Last-Modified headers recommended).   
  
-**7. Error Transparency & Debugging**   
+**6. Error Transparency & Debugging**   
 - Distinguishes parsing failures (400) from business logic failures (404). Structured error payloads include validation path, expected format, and correction hints.
 - Slow query logging (>500ms) with execution plan capture for index optimization.
 </details>  
@@ -2517,13 +2486,9 @@ This ensures that only authenticated, authorized management users can perform de
 
 Deciding which one to use while under process:   
 - **Option 1:** `deleteById(id)` executes **blind primary key deletion** bypassing `@Version` validation, entity state verification, and optimistic locking entirely—enabling stale/phantom deletions even after concurrent modifications.
-- **Option 2:** `delete(bus)` mandates **full entity load including version field**, enforcing concurrency controls as a deliberate architectural safeguard rather than stylistic preference.  
+- **Option 2:** `delete(bus)` mandates **full entity load including version field**, enforcing concurrency controls as a deliberate architectural safeguard rather than stylistic preference.   
 
-**4. Audit Log Sequential Integrity**   
-- Audit entries execute **post-successful transactional boundary** only, guaranteeing chronological consistency and eliminating phantom "success" logs from rollback scenarios.
-- This preserves non-repudiation for **compliance audits**, forensic reconstruction, and managerial accountability even during rapid delete/restore sequences.  
-
-**5. Exception Masking & Security Hardening**  
+**4. Exception Masking & Security Hardening**  
 - **Repository failures, transactional violations**, or **mapper exceptions** receive comprehensive server-side logging while clients receive generic **500 INTERNAL_SERVER_ERROR** with sanitized messaging.
 - This prevents schema enumeration, infrastructure fingerprinting, and attack surface expansion through error-based reconnaissance.
 </details>    
@@ -2552,7 +2517,7 @@ As a **business-critical interface** feeding search pipelines, booking workflows
 - **Performance-Safe Sorting:** Restricts sorting to approved, indexed fields to protect query stability and performance.
 - **Stable User-Facing Responses:** Returns clean, consistent DTOs without exposing internal or system-only attributes.   
 
-> 💡 Testing Prerequisite: This endpoint returns results only when active bus records exist for the given route and travel date. If no buses are returned during testing, ensure that bus data has been created using #11 Add New Bus Data and has not been removed via management actions.  
+> 💡 **Testing Prerequisite:** This endpoint returns results only when active bus records exist for the given route and travel date. If no buses are returned during testing, ensure that bus data has been created using #11 Add New Bus Data and has not been removed via management actions.  
 
 #### 📥 Query Parameters
 | Parameter    | Type   | Default | Description                                                                                                                                                    | Required |
@@ -3309,18 +3274,15 @@ The system fetches the existing booking by ID, responding with **404 NOT_FOUND**
   - No invalid seat deductions  
 
 **5. Passenger Profile Update (Real-Time User Sync)**  
-
-The passenger record (AppUser) associated with the booking is updated:
-- Updated name
-- Updated email
-- Updated gender  
-
-The AppUser update step itself includes strict validation:   
-- Duplicate email detection
-- Conflict checks
-- Data consistency rules  
-
-If any of the field failed due to validation or causes then return: **400 BAD_REQUEST** (invalid data) Or **409 CONFLICT** (duplicate email).  
+- The passenger record (AppUser) associated with the booking is updated:
+  - Updated name
+  - Updated email
+  - Updated gender  
+- The AppUser update step itself includes strict validation:   
+  - Duplicate email detection
+  - Conflict checks
+  - Data consistency rules  
+- If any of the field failed due to validation or causes then return: **400 BAD_REQUEST** (invalid data) Or **409 CONFLICT** (duplicate email).  
 
 **6. Optimistic Lock Protection (Expiry Detection)**   
 
@@ -3754,7 +3716,6 @@ The **Confirm Booking API** represents the final step in the **booking workflow 
 **3. Booking Lookup & Eligibility Check**  
 
 The system retrieves the booking by ID and evaluates its current state to determine whether it can proceed to confirmation.  
-
 | Booking Status | Payment Status | Expired?    | Outcome                       |
 | -------------- | -------------- | ----------- | ----------------------------- |
 | **PROCESSING**     | PENDING        | Not Expired | Eligible for confirmation     |
@@ -3994,14 +3955,6 @@ For eligible bookings, the system performs atomic updates within a transactional
 - Conflicts trigger **408 REQUEST_TIMEOUT** with message: "This booking has expired and can no longer be cancelled."
 - All exceptions are logged with context for auditing.  
 
-**5. Logging & Audit**  
-- Every cancellation is logged for traceability including Booking ID, User ID, User Name, and timestamp: "CANCEL BOOKING: Booking ID X has been cancelled successfully for User Y-Z".
-- Optimistic lock warnings and internal errors are logged with timestamps and booking metadata.
-
-**6. Response Construction**  
-- On successful cancellation: **200 OK** with a user-friendly message confirming the cancellation.
-- On errors: Returns appropriate HTTP status (**400, 403, 404, 408, 500**) with **descriptive messages** for the client.  
-
 #### 📤 Success Response
 <details> 
   <summary>View screenshot</summary>  <br>  
@@ -4043,17 +3996,12 @@ For eligible bookings, the system performs atomic updates within a transactional
     - Duplicate or orphaned bus tickets or transaction IDs.
     - Incorrect payment or seat reconciliation.  
 
-**3. Concurrency Control**  
-- **Optimistic locking** protects against simultaneous cancellations or modifications by multiple requests.
-- Race conditions or bookings nearing expiry trigger **408 REQUEST_TIMEOUT**, prompting users to retry safely.
-- Ensures no conflicting modifications corrupt booking data or seat availability.   
-
-**4. Seat Management**  
+**3. Seat Management**  
 - Upon cancellation, all booked seats are **immediately released** back to the bus inventory.
 - Ensures **real-time seat availability** for other users without manual intervention.
 - Guarantees accurate seat counts even under high concurrency scenarios.
 
-**5. Logging & Auditing**    
+**4. Logging & Auditing**    
 - Detailed logs capture: `Booking ID, Management User ID and Username, Cancellation timestamp, Action type and metadata`.
 - Supports **monitoring, troubleshooting, and regulatory audits**, providing full visibility into the booking lifecycle.  
 </details>  
@@ -4438,7 +4386,6 @@ This API handles **all scenarios**:
 &nbsp;&nbsp;&nbsp; "password": "MySecurePassword123"    
 }  
 > 💡 **Tip:** Replace the sample values with any valid mobile number and password. The system automatically handles both new registrations and existing user logins based on the provided credentials.
-
 > ⚠️ **Note:** If the provided mobile number is already registered under a **Management** account, the request will be rejected with a **403 Forbidden** response and an appropriate error message.    
 
 #### ⚙️ Backend Processing Flow  
@@ -4477,11 +4424,11 @@ This prevents duplicate accounts and ensures data integrity.
 - **Condition:** Mobile number does not exist in `AppUser` table/database.
 - **Action:** Create a new `AppUser` record.
 - **Initialization Steps:**  
-     1. Assign role → `USER`
-     2. Set `isUser = true` and `isProfileCompleted = false` because there are some more information is missing that can fill through making a booking or update profile API.
-     3. Generate placeholder name/email using `MockDataUtils` utils
-     4. Encrypt password for security reason
-     5. Save the user record in the database  
+  1. Assign role → `USER`
+  2. Set `isUser = true` and `isProfileCompleted = false` because there are some more information is missing that can fill through making a booking or update profile API.
+  3. Generate placeholder name/email using `MockDataUtils` utils
+  4. Encrypt password for security reason
+  5. Save the user record in the database  
 - **Response:** Returns **201 CREATED** with message + newly generted JWT token.   
 
 **4. Generate JWT Token**  
@@ -4809,21 +4756,12 @@ Only after passing this validation is the authenticated `AppUser` entity retriev
 | **500**   | INTERNAL_SERVER_ERROR | Unexpected crash      | Server/logic error                 |  
 
 #### ⚠️ Edge Cases & Developer Notes (Must Read)  
-**1. UserPrincipal Validation**  
-- The system performs multi-layer validation to ensure only authenticated, valid, and active users can access this endpoint:  
-  - JWT token must be valid and unexpired.
-  - The user must exist in the database.
-  - The account must be active.
-  - Deleted or disabled accounts cannot access the API.
-  - Role mismatch results in access denial.    
-- This protects against stale, compromised, or unauthorized sessions and guarantees robust authorization security.  
-
-**2. Role-Based Access Control (RBAC)**  
+**1. Role-Based Access Control (RBAC)**  
 - This endpoint is **strictly for authenticated USER-role accounts**.  
   - `ADMIN`, or other `Management` roles have their **own dedicated profile endpoints**.  
   - Even if a token structurally contains a USER role, the role is verified against the **actual DB role**, preventing forged tokens or escalated privileges.  
 
-**3. Scalability & Maintainability**  
+**2. Scalability & Maintainability**  
 - Validation logic is centralized in `UserPrincipalValidationUtils`, avoiding duplicated checks across controllers.
 - The mapper stays focused on transforming entities → DTO safely.
 - Service-level profile checks make it easy to extend future features like:  
@@ -4833,7 +4771,7 @@ Only after passing this validation is the authenticated `AppUser` entity retriev
     - MFA enrollment states   
 - The architecture is clean, modular, and easy to scale.      
 
-**4. Why Profile Completion Is Strictly Enforced Before Returning Profile Data**   
+**3. Why Profile Completion Is Strictly Enforced Before Returning Profile Data**   
 
 In the service layer, the “profile completed” check occurs before converting entity → DTO. This is not just technical—it’s core business logic supporting low-friction onboarding.
 
@@ -4845,7 +4783,7 @@ In the service layer, the “profile completed” check occurs before converting
   - **First booking flow** — users naturally enter details while making their first booking.  
 > This mirrors real-world UX patterns: `“Let the user start using the app, and collect useful data organically along the way.”`  
 
-**5. Why Users Must Not See Dummy/Placeholder Data**  
+**4. Why Users Must Not See Dummy/Placeholder Data**  
 
 Because new accounts contain **auto-generated placeholder data**, showing this to the user would be confusing and unprofessional. In my case, How I handle:  
 - Name: "USER_<Registered_Mobile_Number>"  
@@ -4864,7 +4802,7 @@ This is backend precision data, not user-facing identity data. Therefore:
 - These apps allow account creation → then collect full profile details only when required.
 - So, My implementation follows this proven **low-friction** onboarding strategy.  
 
-**6. Developer Insight: Why this decision matters long-term**  
+**5. Developer Insight: Why this decision matters long-term**  
 - The “profile completeness” gate is strategic, not arbitrary.
 - Prevents exposure of dummy data.
 - Ensures all meaningful profile views return validated identity.
@@ -5167,11 +5105,7 @@ This make ensures:
 - This design supports future enhancements such as regex complexity rules, breached-password screening, and password history checks.
 - Centralized & regex patterns & validation reduces duplication and makes the security posture easier to maintain long-term.  
 
-**3. UserPrincipal Validation & Access Control**  
-- `UserPrincipal` validation is executed before entering the business logic, rejecting invalid, expired, or unauthorized identities early in the flow.
-- The endpoint is strictly limited to authenticated users with the `USER` role, preventing admins or privileged accounts from unintentionally accessing the c**onsumer-facing password change** path. This supports a clean, role-scoped architecture.    
-
-**4. Security Auditing & Future-Ready Architecture**  
+**3. Security Auditing & Future-Ready Architecture**  
 - Every successful password update refreshes the `passwordLastUpdatedAt` timestamp, enabling audit trails, compliance reporting, and proactive security notifications.
 - The separation of **old-password verification** and hashing within the service layer allows the introduction of additional future security factors—such as **OTP, MFA**, or **step-up authentication**—without impacting the controller design.     
 </details>   
@@ -5213,7 +5147,7 @@ The **View Own Bookings API** allows registered passengers with the **USER** rol
 - The system validates that the account still exists (not deleted or disabled).
 - The validated user ID becomes the key for fetching user-specific bookings.    
 
-**2. Pagination & Sorting Validation (Safety Layer)**  
+**2. Pagination & Sorting Validation**  
 - The following validations are enforced through `PaginationRequest.getRequestValidationForPagination(...)` a method from custom `PaginationRequest`. Which validates:
   - `page` must be ≥ 1
   - `size` must be ≥ 1
@@ -5338,22 +5272,17 @@ This structure avoids flat, unorganized JSON blobs and instead delivers a **clea
 - The service layer ensures **complete isolation**, so no cross-user data leakage is possible.
 - This aligns with strict **privacy and compliance requirements**, preventing unauthorized access to other users’ bookings.  
 
-**2. Safe Pagination & Sorting**   
-- Sorting is restricted to a **whitelisted set of fields**, preventing SQL injection or invalid ordering errors.
-- Page numbers, sizes, and directions are validated at the controller layer before constructing the `Pageable` object.
-- This ensures **consistent pagination behavior** and avoids server-side errors or malformed requests.  
-
-**3. Nested, Frontend-Friendly DTOs**  
+**2. Nested, Frontend-Friendly DTOs**  
 - The API returns a **structured nested DTO** (`BookingListDto)`, separating `BookingInfo` and `BusInfo`.
 - This design reduces frontend transformation logic, allowing UI components to render booking and bus details directly.
 - Future additions (like seat layout or driver info) can be added to the DTO without breaking existing clients.  
 
-**4. Graceful Handling of Empty Results**  
+**3. Graceful Handling of Empty Results**  
 - If the user has no bookings, the system returns a **NOT_FOUND** response with an **empty list**.
 - Pagination metadata is still included, allowing frontend components to render consistent UI states.
 - A friendly, domain-aligned message encourages users to **start their first journey**, supporting a seamless onboarding experience.  
 
-**5. Consistent and Extensible Service Layer**  
+**4. Consistent and Extensible Service Layer**  
 - Mapping from `Booking` entities to `BookingListDto` is centralized in the mapper, ensuring consistent data formatting.
 - All business logic (fetching, pagination, mapping) resides in the service layer, making future features like **filtering, additional fields, or reporting** easier to implement.
 - Controllers remain clean, focusing solely on request validation and response construction.
@@ -5888,15 +5817,7 @@ Once validation succeeds, the service resolves a **single deterministic reposito
 | **403**  | FORBIDDEN    | Access denied               | Non-admin access                               |  
 
 #### ⚠️ Edge Cases & Developer Notes   
-**1. Strict Pagination, Sorting, and Metric-Safety Enforcement**  
-- This API uses `PaginationRequest.getRequestValidationForPagination(...)` to validate page, size, sort field, and sort direction before any query is executed. Key protections include:
-  - `sortBy` restricted to **metrics only** (`totalBookings`, `totalRevenue`, `occupancy`, `availability`).
-  - Prevents sorting on non-aggregated columns, which would otherwise break **JPQL constructor** queries.
-  - Rejects invalid sorting direction (only `ASC`/`DESC`).
-  - Avoids malformed page/size values that could trigger large-offset scans.
-- These checks eliminate accidental high-cost queries and maintain deterministic repository behavior.  
-
-**2. Hardened Date Validation & Range Normalization**  
+**1. Hardened Date Validation & Range Normalization**  
  
 Requested date inputs (`startDate`, `endDate`) pass through two independent validation layers:  
  1. **Syntactic checks** via `RequestParamValidationUtils.listOfErrors()` to perform basic validation for the requested input String.
@@ -5910,7 +5831,7 @@ This prevents:
 
 Errors are returned with **exact cause messages**, ensuring clarity during client-side debugging.   
 
-**3. Controlled Category Filtering & Enum Parsing Fail-Safe**  
+**2. Controlled Category Filtering & Enum Parsing Fail-Safe**  
 - If a category (Ac / Non Ac) is provided, the system applies:
   - Centralized regex pattern `AC_TYPE_REGEX` for structural validation.
   - Then using enum parsing utils `ParsingEnumUtils.getParsedEnumType()` for enum-level safety.
@@ -5921,7 +5842,7 @@ Errors are returned with **exact cause messages**, ensuring clarity during clien
   - Query corruption from uncontrolled predicates   
 - Any deviation results in an immediate **400 BAD_REQUEST**, before repository execution.   
 
-**4. Deterministic Repository Resolution — Zero Ambiguity**  
+**3. Deterministic Repository Resolution — Zero Ambiguity**  
 - The service enforces a **single, unambiguous execution path:**  
   - Without category → `findByBookedBusData(...)`
   - With valid category → `findBookedBusReportByAcType(...)`  
@@ -5930,7 +5851,7 @@ Errors are returned with **exact cause messages**, ensuring clarity during clien
  - No multi-branch evaluation.
  - No dynamic query building.   
 
-**5. Database-Driven Aggregation & High-Volume Performance Stability**    
+**4. Database-Driven Aggregation & High-Volume Performance Stability**    
 - Both repository queries:  
   - Used JOIN `Bus` ↔ `Booking` to perform at DB level.
   - Compute **COUNT, SUM**, and percentage math inside the DB.
@@ -5941,21 +5862,13 @@ Errors are returned with **exact cause messages**, ensuring clarity during clien
   - Unnecessary streaming or filtering in Java.   
 - The DB returns a **fully aggregated, lightweight dataset**, optimized for dashboard-scale analytics.
 
-**6. DTO Privacy & Controlled Exposure**    
+**5. DTO Privacy & Controlled Exposure**    
 - I designed this DTO: `BookedBusReportDto` that exposes only computed operational metrics:
   - No entity identifiers beyond what is required.
   - No internal audit fields.
   - No relationships or sensitive attributes.
   - No raw capacity or available seat counts.  
-- All percentages are formatted (`"75%"`), ensuring a **clean, management-ready response** without leaking structural or relational metadata.     
-
-**7. Predictable Error Modeling & Zero Internal Leakage**   
-- Every failure—pagination, date parsing, category validation, repository NOT_FOUND—returns:
-  - Structured `ApiResponse`
-  - Domain-readable messages
-  - **No stack traces**
-  - **No repository or SQL hints**   
-- This keeps operational logs clean and prevents accidental exposure of internal behavior to API consumers.  
+- All percentages are formatted (`"75%"`), ensuring a **clean, management-ready response** without leaking structural or relational metadata.    
 </details>   
 
 ### 🧾 30. View Passengers Statistics (Management View — Paginated, Filterable & Passenger Report)  
@@ -6212,17 +6125,16 @@ Advantages of this implementation:
   - query methods may become unreachable.   
 - This is a high-risk maintenance point. This is where I built centralized utils for regEx, **One place update -> reflect overall**.    
 
-**4. Ambiguous Date Boundaries Around Midnight Transitions**     
-
-`startDate` is locked to **00:00:00**  
-`endDate` is locked to **23:59:59**  
+**4. Ambiguous Date Boundaries Around Midnight Transitions**    
+| Field      | Fixed Time | Purpose                |
+|------------|------------|------------------------|
+| `startDate`  | 00:00:00   | Start of day boundary  |
+| `endDate`    | 23:59:59   | End of day boundary    |  
 
 Edge-case implications:  
 - If bookings occur exactly at midnight (00:00), inclusive boundaries work correctly.
 - If bookings occur a few milliseconds after the window (e.g., 00:00:00.500), precision may vary depending on DB rounding.
-- Systems using timestamps with higher granularity (microseconds) may technically include or exclude boundary rows unpredictably if the DB stores micro/milli precision.   
-
-Developers modifying timestamp resolution must verify DB precision consistency.   
+- Systems using timestamps with higher granularity (microseconds) may technically include or exclude boundary rows unpredictably if the DB stores micro/milli precision.    
 
 **5. High-Load / Large Range Query Considerations**  
 - When date ranges are extremely large (multiple years), the resulting `JOIN` can sweep millions of rows. Even though pagination limits returned results, the DB workload may grow significantly.  
@@ -6297,7 +6209,6 @@ This tightly controlled registration workflow ensures that administrative access
 > 💡 **Note:**  
 - Substitute placeholders with your preferred values. But remember, _**BookMyRide**_ will block entries that do not match its rules.
 - The `username` is **system-generated internally** using `UniqueGenerationUtils.getUsername(fullName)`.
-- Both email and mobile must be unique across both Management and AppUser layers.
 
 #### ⚙️ Backend Processing Flow  
 **1. Validate UserPrincipal (Security Enforcement Layer)**  
@@ -6470,34 +6381,28 @@ The **first ADMIN** must always be **created automatically**, not through this A
 #### ⚠️ Edge Cases & Developer Notes
 **1. System-Wide Credential Uniqueness Enforcement**  
 - Any management account creation must ensure the email and mobile are **globally unique** across both passenger (`AppUser`) and `Management` entities.  
-- Checks:
+- Checks are includes:
   - `AppUser` layer prevents credentials already used by customers (**403 FORBIDDEN**).  
   - `Management` layer checks partial matches (`email` OR `mobile`) (**409 CONFLICT**).  
   - Full matches in `Management` result in **403 FORBIDDEN**.  
   - Descriptive messages clarify the reason for rejection.  
-- Importance:
+- Importance of this process:
   - Guarantees **global uniqueness** and prevents identity overlap or privilege escalation.  
   - Maintains **strict separation** between customer and management domains.  
   - Ensures **atomicity and consistency**, avoiding duplicate accounts or JWT collisions.  
   - Provides clear **audit trails**, preserving authentication, authorization, and logging integrity.  
 
-**2. DTO Validation & Enum Parsing**  
-- Handles invalid, missing, or improperly formatted data (e.g., invalid gender, empty email, weak password) via Spring Bean Validation (`@Valid`) and `BindingResult`.  
-- Enum parsing failures return **400 BAD_REQUEST** with detailed messages.  
-- Prevents invalid data from entering the system and protects downstream logic, including username generation, JWT creation, and database integrity.  
-- Ensures consistent and reliable management user metadata across the platform.  
-
-**3. Race Condition & Atomic Creation — Current Limitation**  
+**2. Race Condition & Atomic Creation — Current Limitation**  
 - Concurrent admin creation with the same email or mobile may cause race conditions.  
 - Current flow: checks `existsByEmailOrMobile` and `existsByEmailAndMobile` before calling `managementRepo.save(...)`.  
 - Does **not** use `@Version` for optimistic locking or handle uniqueness exceptions explicitly.  
 - While DB constraints may prevent duplicates, violations could trigger unhandled errors.  
 - Recommendation: enforce uniqueness at DB level, handle exceptions, or use optimistic/pessimistic locking for high-concurrency scenarios.  
 
-**4. First Admin Account Bootstrapping (ManagementBootstrap)**  
+**3. First Admin Account Bootstrapping (ManagementBootstrap)**  
 - On startup, if no management account exists, the `ManagementBootstrap` (`CommandLineRunner`) provisions the **first ADMIN account** using secure, environment-driven credentials.  
 - Ensures the platform always has a root administrator, maintaining operational readiness and security best practices.  
-- Note: This mechanism is only for the first admin; additional management users must use the dedicated API endpoint.
+- **Note:** This mechanism is only for the first admin; additional management users must use the dedicated API endpoint.
 </details>   
 
 ## Installation & Setup  
@@ -6667,7 +6572,7 @@ Once the application is running, verify that the initial setup works correctly:
 
 For a complete list of working APIs, request/response structures, and detailed testing instructions, refer to the above **Comprehensive API Reference (31 APIs)**. This section provides a full workflow reflecting the _**BookMyRide**_ architecture, allowing you to explore and test all endpoints systematically.   
 
-### Troubleshooting   
+### 8. Troubleshooting   
 | Issue                                          | Possible Cause                                                             | Recommended Solution                                                                                                                                |
 | ---------------------------------------------- | -------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Port 8080 already in use                       | Another application is occupying the default port                          | Update the `server.port` property in `application.properties` to an available port and restart the application                                      |
@@ -6903,7 +6808,7 @@ What makes _**BookMyRide**_ special is that it wasn’t built by a team of 5-10 
 
 **📌 Issue 1: Infinite Recursion from Bi-Directional JPA Relationships**   
 
-In my system, the entities `Bus`, `Booking`, and `AppUser` were connected through **bi-directional JPA relationships**. `Booking` was the owning side referencing `Bus` and User, while Bus and User held lists of bookings. When calling `GET .../bus`, the `findAll()` method returned each Bus along with its list of Bookings. However, each Booking again contained references back to Bus and User, which in turn contained their own Booking lists. This created a circular chain, causing **Jackson** to enter infinite recursion and eventually throw a **StackOverflowError**.    
+In my system, the `Bus`, `Booking`, and `AppUser` entities were connected using **bi-directional JPA relationships**. Booking acted as the owning side, referencing both `Bus` and `AppUser`, while each Bus and User maintained a list of Bookings. When invoking `GET /bus` with `findAll()`, every Bus was returned along with its Bookings—but each Booking again referenced Bus and User, which in turn contained their own Booking lists. This circular object graph caused **Jackson** to fall into infinite recursion, ultimately resulting in a **StackOverflowError**.  
 
 Initially, these endpoints were created for internal testing, but exposing bi-directional relationships directly in REST responses caused this issue. I solved this by:   
 - Using **pagination** to limit response sizes.
@@ -6918,9 +6823,7 @@ At first, I assumed Enums would behave like strings and tried using partial sear
 1. Enums require exact matches — unlike strings, you can’t just do a LIKE.     
 2. Input normalization is essential — user input can have spaces, underscores, or different casing.  
 
-So I implemented a small but effective normalization step before mapping input to Enum: `input = input.replaceAll("[_ ]", "_");`
-
-This ensured that inputs like `"in put"`, `"in_put"`, or `"INPUT"` all mapped correctly, enabling case-insensitive and consistent Enum handling.   
+So I implemented a small but effective normalization step before mapping input to Enum: `input = input.replaceAll("[_ ]", "_");`. This ensured that inputs like `"in put"`, `"in_put"`, or `"INPUT"` all mapped correctly, enabling case-insensitive and consistent Enum handling.   
 
 **Lesson learned:** small technical details like Enum handling can cause unexpectedly big surprises in backend logic, so always handle them carefully.  
 
@@ -6936,8 +6839,6 @@ Final approach:
 - Use `Optional` only for single objects.
 - Let repositories return lists directly.
 - Utilize modern Optional methods like `.isPresent(), .ifPresent(), .orElseGet()`, and `.ifPresentOrElse()` for clean, expressive code.   
-
-**Result:** cleaner, safer code, fewer bugs, and easier-to-read logic.   
 
 **📌 Issue 4: Concurrency and Optimistic Locking**   
 
@@ -7011,8 +6912,7 @@ Solution:
 - Excluded **Janino** wherever it appeared transitively.
 - Verified the fix using dependency tree and local vulnerability scanners.   
 
-Lesson learned:  
-Even if you don’t directly include a library, **transitive dependencies can introduce vulnerabilities**. Always check the dependency tree and CVE reports when adding major frameworks.
+Lesson learned: Even if you don’t directly include a library, **transitive dependencies can introduce vulnerabilities**. Always check the dependency tree and CVE reports when adding major frameworks.
 
 Tip for other developers exploring this project: if a similar CVE warning appears, you can quickly check the tree or consult AI tools / official CVE docs to resolve it.   
 
@@ -7175,7 +7075,6 @@ This separation follows a lightweight **CQRS** approach without adding complexit
   
 By separating responsibilities, _**BookMyRide**_ became faster, cleaner, and more scalable, with an architecture ready for future growth.   
 
-
 **📌 4. Building the Statistics Engine — Aggregated Insights, Paginated Reports & Smart Filtering**   
 
 As _**BookMyRide**_ matured, I reached a point where the system had plenty of operational data — bookings, buses, users, revenue numbers — but no way to analyze any of it. And in a real-world application, statistics aren’t optional. Admins need insights, managers need trends, and the system itself needs aggregated numbers to evolve.   
@@ -7185,11 +7084,8 @@ This motivated me to build one of the most powerful backend components in _**Boo
 This wasn’t “just another endpoint.” It was an entire reporting architecture.   
 
 **Why I Built It?**   
-
 1. **Real Admin Expectations** - Bus operators expect dashboards that show bookings, revenue, availability, occupancy, and category-wise filtering. Simple `.findAll()` calls followed by manual filtering were never going to scale as the dataset grew — so a proper reporting engine became necessary.   
-
 2. **Aggregations Are Expensive** - Statistics queries usually involve grouping, counts, sums, and calculated fields. If not designed carefully, they become slow and messy. I needed a structure optimized specifically for these calculations.   
-
 3. **Consistency Across Modules** Both Bus Reports and User Reports required the same fundamentals:  
 - pagination
 - sorting
@@ -7200,16 +7096,13 @@ This wasn’t “just another endpoint.” It was an entire reporting architectu
 So instead of building two separate systems, I built a **shared architecture** that both could use.  
 
 **Let me share important parts of this**    
-
-**1. JPQL Projections for Speed**  
+1. **JPQL Projections for Speed**  
 - Instead of returning full Entities, I used JPQL projections that return only the data required for reporting. The database calculates: counts, sums, occupancy, availability, type filtering and sends back clean, pre-shaped data.
-- This dramatically improved performance and reduced memory consumption.   
-
-**2. Smart Filters (AC / NON-AC, Date Range, etc.)**  
+- This dramatically improved performance and reduced memory consumption.
+2. **Smart Filters (AC / NON-AC, Date Range, etc.)**  
 - Filters are validated first, then passed to specialized repository queries.
 - No messy OR conditions, no string matching in the DB — just clean, tailored queries designed for speed.  
-
-**3. Unified DTO-Based Response**  
+3. **Unified DTO-Based Response**  
 - Both Bus Reports and User Reports return a consistent paginated JSON structure.
 - This helps frontend developers render tables, graphs, and dashboards confidently with predictable fields.   
 
@@ -7240,20 +7133,13 @@ _**BookMyRide**_ started as a simple idea—_“Let me build something real, som
 It became a **learning journey**, a **proof of growth**, and a **personal milestone**.   
 
 This upcoming version is not just an upgrade—it’s the continuation of that journey. A more mature, more confident, and more experienced version of the developer behind it. Here’s a glimpse of what’s coming next.   
-
-**1. Expanded Management Authorities** — The current system operates with a single administrative role: **ADMIN**. While suitable for the first version, the next version introduces **SUPER_ADMIN, SYSTEM_ADMIN**, and other role-based authorities with fine-grained permissions. This upgrade shifts city, state, and country management to higher authorities, enabling stronger security, cleaner hierarchy, and future multi-role support.    
-
-**2. Driver & Owner Entities** — _**BookMyRide**_ currently stores only bus information such as number, type, route, fare, and duration. The next version will include dedicated **Driver** and **Owner** entities linked to each bus. These will manage real-world details like driver contact, license data, and owner credentials—bringing the system closer to an actual operational ecosystem.    
-
-**3. Payment Integration** — The initial version does not include payment processing due to complexity and learning scope. The next version will integrate secure gateways like **Stripe, PayPal**, or other reliable providers. This may slightly reshape the booking flow, but it will deliver a seamless, professional transaction experience for both users and operators.   
-
-**4. User Verification & Notifications** — Right now, email and mobile verification are not implemented. Instead, robust DB checks prevent conflicts and ensure booking resilience. As a fresher and learner, I maximized what I could do in limited time without compromising uniqueness or system stability. The next version will include **OTP-based email/mobile verification**, along with notifications, to make user management and communication more reliable.   
-
-**5. Front-End UI Modernization** — A modern, responsive interface will be introduced using **React or Angular**, depending on platform requirements. The focus is to build a visually appealing, feature-rich UI that significantly elevates user experience and aligns _**BookMyRide**_ with professional booking systems.   
-
-**6. Bus Image Upload & Retrieval** — To match real-world booking platforms, the upcoming version will support **bus image uploads**, retrieval APIs, and image-based presentation. Whether through direct file uploads or external image links, this enhancement will add depth and realism for passengers exploring travel options.   
-
-**7. Performance & Optimization Improvements** — Although the current version performs reliably, a few bottlenecks were identified during testing. The next version will undergo deep optimization—faster queries, improved resource handling, and streamlined workflows—to ensure smooth, scalable performance across all operations.   
+1. **Expanded Management Authorities** — The current system operates with a single administrative role: **ADMIN**. While suitable for the first version, the next version introduces **SUPER_ADMIN, SYSTEM_ADMIN**, and other role-based authorities with fine-grained permissions. This upgrade shifts city, state, and country management to higher authorities, enabling stronger security, cleaner hierarchy, and future multi-role support.    
+2.**Driver & Owner Entities** — _**BookMyRide**_ currently stores only bus information such as number, type, route, fare, and duration. The next version will include dedicated **Driver** and **Owner** entities linked to each bus. These will manage real-world details like driver contact, license data, and owner credentials—bringing the system closer to an actual operational ecosystem.    
+3. **Payment Integration** — The initial version does not include payment processing due to complexity and learning scope. The next version will integrate secure gateways like **Stripe, PayPal**, or other reliable providers. This may slightly reshape the booking flow, but it will deliver a seamless, professional transaction experience for both users and operators.
+4. **User Verification & Notifications** — Right now, email and mobile verification are not implemented. Instead, robust DB checks prevent conflicts and ensure booking resilience. As a fresher and learner, I maximized what I could do in limited time without compromising uniqueness or system stability. The next version will include **OTP-based email/mobile verification**, along with notifications, to make user management and communication more reliable.   
+5. **Front-End UI Modernization** — A modern, responsive interface will be introduced using **React or Angular**, depending on platform requirements. The focus is to build a visually appealing, feature-rich UI that significantly elevates user experience and aligns _**BookMyRide**_ with professional booking systems.   
+6. **Bus Image Upload & Retrieval** — To match real-world booking platforms, the upcoming version will support **bus image uploads**, retrieval APIs, and image-based presentation. Whether through direct file uploads or external image links, this enhancement will add depth and realism for passengers exploring travel options.   
+7. **Performance & Optimization Improvements** — Although the current version performs reliably, a few bottlenecks were identified during testing. The next version will undergo deep optimization—faster queries, improved resource handling, and streamlined workflows—to ensure smooth, scalable performance across all operations.   
 
 Every project grows — and so does the person behind it. _**BookMyRide**_ might look simple from the outside, but for me, it became a journey that shaped who I am as a developer. This entire platform wasn’t built by a team, or a group of experienced engineers. It was built **end-to-end by me**, a fresher and job-seeker, with no prior real-world experience to lean on — only **passion, curiosity, and an almost stubborn level of dedication.**  
 
